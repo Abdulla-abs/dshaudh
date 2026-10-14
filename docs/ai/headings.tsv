@@ -1,15 +1,20 @@
 path	line	heading
 AGENTS.md	1	# AI 接手入口
-AGENTS.md	5	## 强制边界
-AGENTS.md	13	## 文件写入规则（全项目适用）
-AGENTS.md	24	## 查询方法
+AGENTS.md	7	## 强制边界
+AGENTS.md	15	## 文件写入规则（全项目适用）
+AGENTS.md	26	## 查询方法
 README.md	1	# 口袋侏罗纪本地恢复
+analysis/evidence/native-findings.md	1	# 原流程短证据目录
 docs/ai/current-state.md	1	# 当前状态（2026-10-14）
 docs/ai/file-policy.md	1	# 文件与版本管理
 docs/ai/file-policy.md	3	## 分类
 docs/ai/file-policy.md	21	## 查询和维护
-docs/ai/file-policy.md	31	## 换机器恢复
+docs/ai/file-policy.md	37	## 换机器恢复
+docs/ai/handoff-template.md	1	# 单个问题的短交接模板
+docs/ai/handoff-template.md	6	# 问题名称
 docs/ai/index.md	1	# 按任务查询
+docs/ai/pending.md	1	# 待验证事项
+docs/ai/rpc-map.md	1	# RPC 任务映射
 docs/archive/AGENTS-before-organization.md	1	# 接手导航
 docs/archive/AGENTS-before-organization.md	7	## 当前工程路线（2026-10-14 起）
 docs/archive/AGENTS-before-organization.md	11	## 当前方向（强制）

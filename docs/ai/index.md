@@ -2,6 +2,8 @@
 
 每轮先读 [当前状态](current-state.md)，再选一行。先搜索标题和关键字，仅读取有关章节。历史文档用于核对证据，不要求每次全文加载。
 
+实现定位先查 [RPC 映射](rpc-map.md)。验证进度见 [待验证事项](pending.md)，已知根因见 [短证据目录](../../analysis/evidence/native-findings.md)。不要全文加载 TSV；用 `python tools/ai_lookup.py --find handleFinishEnemyAttackReplay --count 10` 查询。
+
 | 任务 | 说明入口 | 代码和数据 |
 |---|---|---|
 | 字节码版本、函数读取与调用 | [可读性说明](../native/BYTECODE-READABILITY.md) | `analysis/disasm_one.py`、`tools/jsc_decompiler/` |
@@ -16,3 +18,5 @@
 查询示例：`rg -n 'onReplayEnd|inReplayMode' analysis/native_boot.js analysis/rpc-contracts docs/native/NATIVE-BATTLE-HANDOFF.md`。
 
 索引不是验收报告。以当前状态、具体契约的证据和用户复测结果为准。
+
+读取示例：`python tools/ai_lookup.py --read analysis/native_boot.js --line 3769 --count 60`。行号由生成索引定位，源码修改后执行 `python tools/repo_index.py` 刷新。

@@ -22,6 +22,12 @@
 
 `python tools/repo_index.py` 根据 Git 索引生成 `files.tsv` 和 `headings.tsv`。文件索引只有路径、分类和大小，不装载正文。标题索引给出原文行号。先查索引，再用 `rg -n` 查询具体文件。
 
+同一命令还生成 `functions.tsv` 和 `rpc-locations.tsv`，覆盖主适配脚本。函数索引匹配具名声明与赋值，不收匿名回调，不恢复原引擎代码。RPC 索引区分接口比较和其他文本引用。`rpc-map.md` 补充经核对的处理入口、契约和检查脚本。
+
+`python tools/ai_lookup.py --find <名称> --count 15` 查索引。用 `--read <路径> --line <行号> --count 60` 读取短片段，最多 120 行，每行最多 500 个字符。较长 JSON 用 Python 选字段；不要以被截断的日志判断结果。
+
+新增文件先 `git add <路径>`，再刷新索引并暂存索引。索引自身不参与文件统计，避免反复刷新造成大小变化。原始记录保留位置，短证据目录只链接来源和说明验收边界。
+
 `python tools/repo_index.py --inventory` 生成本机全量清单 `.local/index/inventory.tsv`，供查找未跟踪的旧资源。默认索引不扫描这些目录。
 
 提交前执行 `python tools/repo_index.py --check`。超过 1 MiB、二进制产物、缓存、密钥和备份脚本会报错。新增路径先修改白名单，不能直接 `git add -f` 绕过策略。

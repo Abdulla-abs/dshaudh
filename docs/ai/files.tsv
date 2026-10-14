@@ -2,7 +2,7 @@ path	category	bytes
 .gitattributes	entry	158
 .githooks/pre-commit	.githooks	45
 .gitignore	entry	858
-AGENTS.md	entry	2282
+AGENTS.md	entry	3088
 Launch-Capacity.ps1	entry	1435
 Launch-CityUI.ps1	entry	1534
 Launch-Construct.ps1	entry	1543
@@ -406,6 +406,7 @@ analysis/disasm_one.py	adapter-source	2546
 analysis/economy-native-vectors.json	evidence-or-data	213
 analysis/economy-validation.json	evidence-or-data	13308
 analysis/economy_boot.js	adapter-source	19610
+analysis/evidence/native-findings.md	adapter-source	1267
 analysis/hero-stock-home-init-1014.json	evidence-or-data	1473
 analysis/hero_fixture_boot.js	probe-fixture	301670
 analysis/last-report.json	evidence-or-data	435
@@ -565,8 +566,11 @@ analysis/validate_train_delivery.py	verification	5350
 analysis/validate_upgrade.py	verification	6465
 analysis/validate_upgrade_delivery.py	verification	4461
 docs/ai/current-state.md	docs	1377
-docs/ai/file-policy.md	docs	2318
-docs/ai/index.md	docs	1811
+docs/ai/file-policy.md	docs	3107
+docs/ai/handoff-template.md	docs	891
+docs/ai/index.md	docs	2292
+docs/ai/pending.md	docs	877
+docs/ai/rpc-map.md	docs	2410
 docs/archive/AGENTS-before-organization.md	docs	10219
 docs/archive/README-before-organization.md	docs	8513
 docs/baselines/CAPACITY-BASELINE.json	docs	2230
@@ -597,6 +601,7 @@ docs/operations/LOCAL-PREVIEW.md	docs	3789
 docs/operations/LOCAL-STARTUP.md	docs	3968
 docs/operations/LOCAL-TRAIN.md	docs	2786
 docs/operations/LOCAL-UPGRADE.md	docs	3904
+tools/ai_lookup.py	tools	1962
 tools/jsc_decompiler/.gitignore	tools	4927
 tools/jsc_decompiler/LICENSE	tools	1082
 tools/jsc_decompiler/README.md	tools	740
@@ -620,7 +625,7 @@ tools/jsc_decompiler/parser/_codespec.py	tools	6992
 tools/jsc_decompiler/parser/opcodes.py	tools	8252
 tools/jsc_decompiler/parser/utils.py	tools	487
 tools/organize_workspace.py	tools	2267
-tools/repo_index.py	tools	3429
+tools/repo_index.py	tools	4717
 启动原流程本地适配.cmd	entry	123
 启动原版加载预览.cmd	entry	97
 启动场景预览.cmd	entry	100
