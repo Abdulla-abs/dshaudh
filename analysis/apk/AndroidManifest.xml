@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:installLocation="internalOnly" package="com.netease.h1.qihoo">
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-feature android:glEsVersion="0x20000"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"/>
+
+    <uses-permission android:name="android.permission.SEND_SMS"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.READ_CONTACTS"/>
+    <uses-permission android:name="android.permission.WRITE_SMS"/>
+    <uses-permission android:name="android.permission.GET_TASKS"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.RESTART_PACKAGES"/>
+    <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <application android:icon="@drawable/icon" android:label="@string/app_name">
+        <activity android:configChanges="orientation" android:label="@string/app_name" android:launchMode="singleTask" android:name="com.netease.h1.qihoo.AdvanceDino" android:screenOrientation="sensorLandscape" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <receiver android:name="com.netease.h1.qihoo.DinoAlarmReceiver">
+            <intent-filter>
+                <action android:name="com.netease.H1.AdvanceDino.yo.ALARM"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:name="com.netease.h1.qihoo.DinoPushClientReceiver">
+            <intent-filter>
+                <action android:name="com.netease.push.action.client.MESSAGE"/>
+                <action android:name="com.netease.push.action.client.NEWID"/>
+                <action android:name="com.netease.push.action.client.METHOD"/>
+            </intent-filter>
+        </receiver>
+        <receiver android:name="com.netease.pushservice.PushServiceReceiver" android:process=":PushService">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="com.netease.push.action.service.METHOD"/>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+                <action android:name="android.net.wifi.STATE_CHANGE"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_REMOVED"/>
+                <data android:scheme="package"/>
+            </intent-filter>
+        </receiver>
+        <service android:enabled="true" android:exported="true" android:label="PushService" android:name="com.netease.pushservice.PushService" android:process=":PushService">
+            <intent-filter>
+                <action android:name="com.netease.push.action.service.PUSHSERVICE"/>
+            </intent-filter>
+        </service>
+        <activity android:configChanges="keyboardHidden|orientation|screenSize" android:excludeFromRecents="true" android:exported="true" android:launchMode="singleTop" android:name="com.netease.h1.qihoo.yxapi.YXEntryActivity" android:screenOrientation="portrait"/>
+        <receiver android:name="com.netease.h1.qihoo.yxapi.AppRegister" android:permission="im.yixin.sdk.permission.YIXIN_SDK_MESSAGE">
+            <intent-filter>
+                <action android:name="im.yixin.sdk.api.Intent.ACTION_REFRESH_YXAPP"/>
+            </intent-filter>
+        </receiver>
+        <activity android:exported="true" android:label="微信分享" android:name="com.netease.h1.qihoo.wxapi.WXEntryActivity"/>
+        <activity android:configChanges="locale|keyboardHidden|navigation|orientation|uiMode|screenSize|fontScale" android:exported="true" android:name="com.qihoo.gamecenter.sdk.activity.ContainerActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <activity android:configChanges="locale|keyboardHidden|navigation|orientation|uiMode|screenSize|fontScale" android:name="com.qihoopp.qcoinpay.QcoinActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar" android:windowSoftInputMode="stateAlwaysHidden|adjustResize"/>
+        <activity android:name="com.alipay.sdk.app.H5PayActivity" android:screenOrientation="portrait"/>
+        <meta-data android:name="QHOPENSDK_APPID" android:value="202129771"/>
+        <meta-data android:name="QHOPENSDK_APPKEY" android:value="522739051d1b5d23cb816fff7c05a65a"/>
+        <meta-data android:name="QHOPENSDK_PRIVATEKEY" android:value="55a7760b5b1a55230d3e4576a960d066"/>
+        <receiver android:name="com.qihoo.psdk.local.QBootReceiver" android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE"/>
+            </intent-filter>
+        </receiver>
+        <activity android:launchMode="singleInstance" android:name="com.qihoo.psdk.app.QStatActivity" android:theme="@android:style/Theme.Translucent.NoTitleBar"/>
+        <service android:exported="true" android:name="com.qihoo.psdk.remote.QRemoteService" android:process=":QRemote">
+            <intent-filter>
+                <action android:name="com.qihoo.psdk.service.action.remote"/>
+            </intent-filter>
+        </service>
+        <service android:exported="true" android:name="com.qihoo.psdk.local.QLocalService" android:process=":QLocal">
+            <intent-filter>
+                <action android:name="com.qihoo.psdk.service.action.local"/>
+            </intent-filter>
+        </service>
+    </application>
+    <supports-screens android:anyDensity="true" android:largeScreens="true" android:normalScreens="true" android:smallScreens="true"/>
+</manifest>

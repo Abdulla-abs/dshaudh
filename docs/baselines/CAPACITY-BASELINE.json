@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-12",
+  "apk": "dino-local-capacity.apk",
+  "sha256": "d233d7a24218c1a7ec1307cbcd50d156245a207b86be8824f2cc4a2ec316f984",
+  "files": {
+    "capacity_boot.js": {
+      "sha256": "661ef6872e42ac3c4cd122d338d85a7b3e455f76dab3d7afa308be4fa0e474e1",
+      "size": 27832
+    },
+    "make_capacity.py": {
+      "sha256": "838fa453d4266474feb2707fe9cb8197d74d1ae45ab1f7a0f621059e50c5430d",
+      "size": 3846
+    },
+    "build_capacity.py": {
+      "sha256": "aa45ce80959bd5be09b20ce6f7111253cf5866683f99876e836afbad5bd6227c",
+      "size": 2295
+    },
+    "validate_capacity.py": {
+      "sha256": "cb081b0d92ae2baf6138bb86f39ad438047b032cd05973e425710e9fa6b415a3",
+      "size": 6291
+    },
+    "validate_capacity_delivery.py": {
+      "sha256": "855762e4a2af56a9712f2c8637a71ea343fc2d57d45a6de3bbec46133c3b3753",
+      "size": 5142
+    },
+    "prepare_capacity_validation.py": {
+      "sha256": "958a79e149f252d514a1f4b3df50aae9ade7fbb55e8832b6cd5c477f41314992",
+      "size": 618
+    },
+    "capacity_seed_fixture.js": {
+      "sha256": "826258b71ae8fc6d0b1a7b33037d9219682a61113c07f0b094b28e4d5bc681ec",
+      "size": 1017
+    },
+    "capacity-validation.json": {
+      "sha256": "23bed4b600c558a6f99a91d2c8737f7876d74d45b223350854f910d71ef9462b",
+      "size": 18135
+    },
+    "capacity-delivery-validation.json": {
+      "sha256": "fa0382cb3d216a7f091bcc97738e94f2cea96cdfec475aaaa38b2bd37a4624fd",
+      "size": 13541
+    },
+    "capacity-test-fixture.json": {
+      "sha256": "c3f59bdad0c8ef8d2a27f4e121c9135c92ba8513119ec089ca93259a49d1d70e",
+      "size": 3630
+    },
+    "capacity-native-builders.json": {
+      "sha256": "62f9e3601c749fc59cce8c1ec135dd4a6a4e0c2d9862d93cc921211ad58b435f",
+      "size": 415
+    },
+    "dino-local-capacity.apk": {
+      "sha256": "d233d7a24218c1a7ec1307cbcd50d156245a207b86be8824f2cc4a2ec316f984",
+      "size": 107731352
+    },
+    "Launch-Capacity.ps1": {
+      "sha256": "cb8b2730f50f7f43d81623f91d45d68cd7aeb79a36ae3f4a29ba760a3e925200",
+      "size": 1435
+    },
+    "LOCAL-CAPACITY.md": {
+      "sha256": "77d05a25bf117133fc7839960793363e7afad393505df478fbd1cc88ed92c84f",
+      "size": 2700
+    }
+  }
+}

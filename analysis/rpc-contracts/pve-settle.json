@@ -1,0 +1,47 @@
+{
+  "request": "rpc-contract-pve-settle-2026-10-14",
+  "updated": "2026-10-14-pve-settle",
+  "scope": "Live campaign PVE finish → MatchEnd → battle_to_home → availableStages",
+  "evidencePolicy": {
+    "bytecode": "GameControllerBattle.sendBattleResult → rpc_s_complete_pve_battle(getBattleResultDict); ClientPlayer.rpc_c_battle_result → MatchEnd; MatchEnd.BackHome → rpc_s_battle_to_home; rpc_c_battle_to_home(level)",
+    "runtime": "Pending user playtest",
+    "inferred": "Loot scale by destruction%; next-stage unlock from data.pve_stage.pve_next_stage"
+  },
+  "callChain": [
+    {
+      "fn": "sendBattleResult",
+      "evidence": "bytecode",
+      "when": "pveStage truthy and isUnitSent",
+      "sends": "rpc_s_complete_pve_battle {dmg_percent, pve_dict}"
+    },
+    {
+      "fn": "rpc_c_battle_result",
+      "evidence": "bytecode",
+      "expects": {
+        "win_gold": "number",
+        "win_wood": "number",
+        "score": "number (MatchEnd prefixes +/-)",
+        "input_gains": "array (may be empty)",
+        "exp_add": "object map heroSid→exp",
+        "flower": "optional"
+      },
+      "ui": "registerMedalCompleteAction → showMatchEnd → UI.MatchEnd.open"
+    },
+    {
+      "fn": "MatchEnd.BackHome",
+      "evidence": "bytecode",
+      "sends": "rpc_s_battle_to_home {}",
+      "ack": "rpc_c_battle_to_home(homeLevelDict) with updated availableStages"
+    }
+  ],
+  "localAdapter": {
+    "rpc_s_complete_pve_battle": "handleCompletePveBattle → applyPveStageProgress + grant loot → rpc_c_battle_result",
+    "rpc_s_battle_to_home / leave_battle": "route: raid session → enemy-attack finish; else PVE → handlePveBattleToHome",
+    "availableStages": "[goldLeft,woodLeft,maxStars,remain]; unlock pve_next_stage when starNum>=1"
+  },
+  "openGaps": [
+    "Official loot formula / first-clear reward item packs (pve_first_reward)",
+    "Daily period_num_limit / DailyEventRecorder counts",
+    "Hero exp (sweep_hero_exp) application"
+  ]
+}

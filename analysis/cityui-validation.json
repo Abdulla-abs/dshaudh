@@ -1,0 +1,52 @@
+{
+  "package": "dino-local-cityui.apk",
+  "save": "dino.local.city.v12",
+  "checks": [
+    {
+      "check": "v12 exists",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "has tiles",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "migration notes",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "resources preserved",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no null tiles",
+      "passed": true,
+      "detail": "{'201': (27, 32), '202': (27, 40), '203': (28, 20), '204': (44, 31), '205': (39, 43), '206': (14, 33), '207': (29, 10), '212': (17, 19)}"
+    },
+    {
+      "check": "cancel keeps positions",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "revision unchanged after cancel",
+      "passed": true,
+      "detail": "(24, 24)"
+    },
+    {
+      "check": "move saved new tile",
+      "passed": true,
+      "detail": "((30, 29), (17, 19))"
+    },
+    {
+      "check": "revision bumped",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "passed": true
+}

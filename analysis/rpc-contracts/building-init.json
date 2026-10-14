@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-14",
+  "scope": "Building records entering stock Unit/BuildingBuilder initialization",
+  "consumer": "Comp.BuildingBuilder.prototype.init(config, params)",
+  "evidence": {
+    "level": "bytecode",
+    "source": "analysis/decoded/script/Client/Components/Components.jsc",
+    "readable": "analysis/disasm/Components.decompiled.js",
+    "command": "python analysis/disasm_one.py Client/Components/Components --mode decompile"
+  },
+  "fields": {
+    "bs": {
+      "type": "number",
+      "values": {"0": "before placement confirmation", "1": "construction", "2": "finished"},
+      "missing_behavior": "Stock defaults to 0 and calls BuyBuildingConfirm.init(this)",
+      "legacy_local_alias": "state",
+      "precedence": "Explicit native bs wins over legacy state"
+    },
+    "bt": {
+      "type": "number",
+      "default": 0,
+      "meaning": "Construction start time in stock DA server-time seconds",
+      "legacy_local_alias": "beginTime",
+      "precedence": "Explicit native bt wins over legacy beginTime"
+    }
+  },
+  "adapter": "LocalNative.toBuildingRecord",
+  "constraints": [
+    "Do not apply building states to heroes",
+    "Do not hide or cancel a legitimate placement to compensate for missing bs",
+    "Preserve construction state and start time on legacy-save migration",
+    "Replay building projection carries bs=2, bt=0"
+  ],
+  "validation": {
+    "offline": "node analysis/check_native_building_contract.cjs executes the recovered stock initializer",
+    "runtime": "Dedicated emulator 127.0.0.1:21513: existing save migrated, initial city has no placement buttons; coordinates and rookie0=66 preserved",
+    "screenshot": "analysis/mine-contract-entry.png",
+    "user_confirmed": "Initial mine display fix succeeded",
+    "not_revalidated": "Full enemy-attack flow after removing synthetic placement UI"
+  },
+  "apk_sha256": "7efbecc7f3e0228f2d34b696fb295af20993f5c2003e42169fa5b122032b5a8f"
+}

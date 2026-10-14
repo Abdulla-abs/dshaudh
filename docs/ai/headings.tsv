@@ -1,0 +1,235 @@
+path	line	heading
+AGENTS.md	1	# AI 接手入口
+AGENTS.md	5	## 强制边界
+AGENTS.md	13	## 文件写入规则（全项目适用）
+AGENTS.md	24	## 查询方法
+README.md	1	# 口袋侏罗纪本地恢复
+docs/ai/current-state.md	1	# 当前状态（2026-10-14）
+docs/ai/file-policy.md	1	# 文件与版本管理
+docs/ai/file-policy.md	3	## 分类
+docs/ai/file-policy.md	21	## 查询和维护
+docs/ai/file-policy.md	31	## 换机器恢复
+docs/ai/index.md	1	# 按任务查询
+docs/archive/AGENTS-before-organization.md	1	# 接手导航
+docs/archive/AGENTS-before-organization.md	7	## 当前工程路线（2026-10-14 起）
+docs/archive/AGENTS-before-organization.md	11	## 当前方向（强制）
+docs/archive/README-before-organization.md	1	# 口袋侏罗纪本地恢复
+docs/archive/README-before-organization.md	41	## 接手入口
+docs/archive/README-before-organization.md	53	## 运行与文件
+docs/history/HANDOFF.md	1	# 工作接手记录
+docs/history/HANDOFF.md	3	## 2026 年 10 月 14 日：初始龙银矿显示放置按钮（用户确认成功）
+docs/history/HANDOFF.md	13	## 2026 年 10 月 14 日：战役 PVE 结算接线（待用户复测）
+docs/history/HANDOFF.md	17	## 2026 年 10 月 14 日：战役进击无效（rpc_s_enter_pve_battle）
+docs/history/HANDOFF.md	21	## 2026 年 10 月 14 日：单人关卡全灰（availableStages 形态）
+docs/history/HANDOFF.md	25	## 2026 年 10 月 14 日：教程敌袭自然结算适配（待用户复测）
+docs/history/HANDOFF.md	29	## 2026 年 10 月 14 日：字节码可读性路线启动（无新 APK）
+docs/history/HANDOFF.md	33	## 2026 年 10 月 14 日：龙弹堡主动攻击恢复（用户复测确认）
+docs/history/HANDOFF.md	41	## 2026 年 10 月 14 日：龙弹堡不开火 → 攻防 client 错位（历史尝试，仍不足）
+docs/history/HANDOFF.md	45	## 2026 年 10 月 14 日：龙弹堡仍不开火 → 关回放门闩（不足）
+docs/history/HANDOFF.md	49	## 2026 年 10 月 13 日：去重确认 + 龙弹堡开火（首版唤醒不足）
+docs/history/HANDOFF.md	53	## 2026 年 10 月 13 日：本轮敌袭经验已整理
+docs/history/HANDOFF.md	57	## 2026 年 10 月 13 日：村庄显示成功，继续修复出兵与提前结算（待复测）
+docs/history/HANDOFF.md	67	## 2026 年 10 月 13 日：空村的共享控件初始化错误（待用户复测）
+docs/history/HANDOFF.md	75	## 2026 年 10 月 13 日：核对原版战斗接口后修正空村（待用户复测）
+docs/history/HANDOFF.md	83	## 2026 年 10 月 13 日：敌袭空村三次修复（client 注入，待人工复测）
+docs/history/HANDOFF.md	95	## 2026 年 10 月 13 日：敌袭空村二次修复（不足：缺 client）
+docs/history/HANDOFF.md	108	## 2026 年 10 月 13 日：敌袭页空村与倒计时无反应（首次补丁，已证实不足）
+docs/history/HANDOFF.md	114	## 2026 年 10 月 13 日：重复加载与引导重启（待人工复测）
+docs/history/HANDOFF.md	122	## 2026 年 10 月 13 日：首建后加载修复补充（待人工复测）
+docs/history/HANDOFF.md	128	## 2026 年 10 月 13 日：首建后剧情加载卡住
+docs/history/HANDOFF.md	132	## 2026 年 10 月 13 日：首页进入与真机加载卡住修复
+docs/history/HANDOFF.md	140	## 当前方向（2026 年 10 月 12 日修订）
+docs/history/HANDOFF.md	154	## 2026 年 10 月 13 日：首建 301 回执准备（代码已改，待上机验）
+docs/history/HANDOFF.md	165	## 2026 年 10 月 13 日：首建闭环补强（待清数据验收）
+docs/history/HANDOFF.md	174	## 2026 年 10 月 13 日：新账号默认数据与开场引导
+docs/history/HANDOFF.md	178	## 2026 年 10 月 13 日：起步资源 + 宝石加速完工（代码已改）
+docs/history/HANDOFF.md	186	## 2026 年 10 月 13 日：原流程适配运行时结论
+docs/history/HANDOFF.md	198	## 2026 年 10 月 12 日：本地主城界面、建筑比例与占地
+docs/history/HANDOFF.md	212	## 2026 年 10 月 12 日：本地新建日光井与龙银矿
+docs/history/HANDOFF.md	228	## 2026 年 10 月 12 日：本地新建日光井
+docs/history/HANDOFF.md	244	## 2026 年 10 月 12 日：本地训练队列
+docs/history/HANDOFF.md	260	## 2026 年 10 月 12 日：本地养成容量展示
+docs/history/HANDOFF.md	274	## 2026 年 10 月 12 日：本地满级升级
+docs/history/HANDOFF.md	288	## 2026 年 10 月 12 日：本地五级升级
+docs/history/HANDOFF.md	302	## 2026 年 10 月 12 日：本地四级升级
+docs/history/HANDOFF.md	318	## 2026 年 10 月 12 日：本地三级升级
+docs/history/HANDOFF.md	334	## 2026 年 10 月 12 日：本地仓库容量
+docs/history/HANDOFF.md	350	## 2026 年 10 月 12 日：本地建筑升级
+docs/history/HANDOFF.md	370	## 2026 年 10 月 12 日：本地生产和采集
+docs/history/HANDOFF.md	388	## 2026 年 10 月 12 日：本地建筑位置和存档
+docs/history/HANDOFF.md	406	## 2026 年 10 月 12 日：恢复进入游戏的加载过程
+docs/history/HANDOFF.md	420	## 当前目标与结果
+docs/history/HANDOFF.md	430	## 接手后的第一步
+docs/history/HANDOFF.md	442	## 重要文件
+docs/history/HANDOFF.md	502	## 原始 APK 信息
+docs/history/HANDOFF.md	514	## 已有修改
+docs/history/HANDOFF.md	528	## 本机工具
+docs/history/HANDOFF.md	545	## 构建与安装
+docs/history/HANDOFF.md	574	## 模拟器状态和黑屏问题
+docs/history/HANDOFF.md	591	## 最终证据
+docs/history/HANDOFF.md	610	## 下一步建议
+docs/history/TECHNICAL-NOTES.md	1	# 恢复技术笔记
+docs/history/TECHNICAL-NOTES.md	3	## 回放随机种子与龙弹堡攻击（2026-10-14，用户确认）
+docs/history/TECHNICAL-NOTES.md	11	## 原版初始化协议（本地适配方向）
+docs/history/TECHNICAL-NOTES.md	15	### 调用链（已用研究包验证）
+docs/history/TECHNICAL-NOTES.md	24	### 单位与资源字段
+docs/history/TECHNICAL-NOTES.md	33	### 新账号 / 教程
+docs/history/TECHNICAL-NOTES.md	40	### 研究注意
+docs/history/TECHNICAL-NOTES.md	46	### 交付适配运行时结论（2026-10-13）
+docs/history/TECHNICAL-NOTES.md	57	## 本地主城界面、比例与占地
+docs/history/TECHNICAL-NOTES.md	75	## 本地新建日光井与龙银矿
+docs/history/TECHNICAL-NOTES.md	91	## 本地新建日光井
+docs/history/TECHNICAL-NOTES.md	108	## 本地训练队列（驯龙场）
+docs/history/TECHNICAL-NOTES.md	129	### 生成器改动时容易踩的两个坑
+docs/history/TECHNICAL-NOTES.md	144	## 本地养成容量（驯龙场 / 龙英巢）
+docs/history/TECHNICAL-NOTES.md	159	## 本地满级升级链
+docs/history/TECHNICAL-NOTES.md	176	## 本地五级升级链
+docs/history/TECHNICAL-NOTES.md	192	## 本地四级升级链
+docs/history/TECHNICAL-NOTES.md	210	## 本地三级升级链
+docs/history/TECHNICAL-NOTES.md	230	## 本地仓库容量升级
+docs/history/TECHNICAL-NOTES.md	240	## 本地建筑升级接口
+docs/history/TECHNICAL-NOTES.md	258	## 原版生产组件和本地采集接口
+docs/history/TECHNICAL-NOTES.md	276	## 本地建筑状态和保存
+docs/history/TECHNICAL-NOTES.md	288	## 原版入口加载过程的恢复
+docs/history/TECHNICAL-NOTES.md	302	## 使用范围
+docs/history/TECHNICAL-NOTES.md	306	## 加密脚本
+docs/history/TECHNICAL-NOTES.md	333	## 原生启动入口
+docs/history/TECHNICAL-NOTES.md	353	## 原版入口与全局对象
+docs/history/TECHNICAL-NOTES.md	386	## 当前预览实现
+docs/history/TECHNICAL-NOTES.md	421	## 原版完整主城实验
+docs/history/TECHNICAL-NOTES.md	449	## 运行时研究工具
+docs/history/TECHNICAL-NOTES.md	493	## 已放弃或未完成的尝试
+docs/history/TECHNICAL-NOTES.md	507	## 参考资料
+docs/native/BATTLE-SELECT-HANDOFF.md	1	# 战斗按钮地区配置修复
+docs/native/BYTECODE-READABILITY.md	1	# 字节码可读性与 RPC 契约（本轮工程路线）
+docs/native/BYTECODE-READABILITY.md	5	## 为何换路线
+docs/native/BYTECODE-READABILITY.md	9	## 版本证据（已确认）
+docs/native/BYTECODE-READABILITY.md	24	## 可重复命令
+docs/native/BYTECODE-READABILITY.md	35	# 反汇编 → analysis/disasm/<name>.disasm.txt
+docs/native/BYTECODE-READABILITY.md	38	# 伪 JS → analysis/disasm/<name>.decompiled.js
+docs/native/BYTECODE-READABILITY.md	41	# 伪 JS + 操作码注释（体积大）
+docs/native/BYTECODE-READABILITY.md	59	## 样本：`GameControllerBattle` 结算链路（字节码证明）
+docs/native/BYTECODE-READABILITY.md	86	## 工程约定（后续）
+docs/native/BYTECODE-READABILITY.md	94	## 下一批关键脚本（未做）
+docs/native/NATIVE-ADAPTER-NOTES.md	1	# 原流程本地适配：运行时笔记
+docs/native/NATIVE-ADAPTER-NOTES.md	9	## 2026 年 10 月 13 日：首页按钮与真机加载中断已修复
+docs/native/NATIVE-ADAPTER-NOTES.md	17	## 强制方向
+docs/native/NATIVE-ADAPTER-NOTES.md	27	## 已验证调用链
+docs/native/NATIVE-ADAPTER-NOTES.md	34	## levelDict 与初始城
+docs/native/NATIVE-ADAPTER-NOTES.md	54	## 运行时踩坑（必读）
+docs/native/NATIVE-ADAPTER-NOTES.md	56	### initByServer 会抛错，但要软过
+docs/native/NATIVE-ADAPTER-NOTES.md	67	### G_League 只能用普通桩对象
+docs/native/NATIVE-ADAPTER-NOTES.md	75	### GETGC / GETMC 在进图后可能不可靠
+docs/native/NATIVE-ADAPTER-NOTES.md	83	### HUD：昵称与「undefined」蓝条
+docs/native/NATIVE-ADAPTER-NOTES.md	89	### 灰确认 = rely_base_lv，不是缺回执
+docs/native/NATIVE-ADAPTER-NOTES.md	97	### 声音会打断登录
+docs/native/NATIVE-ADAPTER-NOTES.md	101	### 地图缺 tile 会空图
+docs/native/NATIVE-ADAPTER-NOTES.md	105	## 适配层职责（native_boot.js）
+docs/native/NATIVE-ADAPTER-NOTES.md	121	## 调试手段
+docs/native/NATIVE-ADAPTER-NOTES.md	131	## 禁止与推荐
+docs/native/NATIVE-ADAPTER-NOTES.md	146	## 2026 年 10 月 13 日：进入游戏卡住修复
+docs/native/NATIVE-ADAPTER-NOTES.md	159	## 2026 年 10 月 13 日：首建闭环准备（未上机验收）
+docs/native/NATIVE-ADAPTER-NOTES.md	168	## 2026 年 10 月 13 日：首建闭环补强（代码，待清数据验收）
+docs/native/NATIVE-ADAPTER-NOTES.md	178	## 2026 年 10 月 13 日：新账号起步资源（调研礼包汇总）
+docs/native/NATIVE-ADAPTER-NOTES.md	193	## 2026 年 10 月 13 日：新账号默认数据与开场引导
+docs/native/NATIVE-ADAPTER-NOTES.md	206	## 2026 年 10 月 13 日：龙币/日光与宝石加速（重要）
+docs/native/NATIVE-ADAPTER-NOTES.md	208	### 龙币 / 日光
+docs/native/NATIVE-ADAPTER-NOTES.md	212	### 建造 / 宝石加速
+docs/native/NATIVE-ADAPTER-NOTES.md	223	## 下一步缺口
+docs/native/NATIVE-ADAPTER-NOTES.md	231	## 相关文件
+docs/native/NATIVE-BATTLE-HANDOFF.md	1	# 原版敌袭适配：接手结论与踩坑记录
+docs/native/NATIVE-BATTLE-HANDOFF.md	3	## 当前状态与阅读顺序
+docs/native/NATIVE-BATTLE-HANDOFF.md	25	### 2026-10-14：自然结算断点与最小修复
+docs/native/NATIVE-BATTLE-HANDOFF.md	33	## 当前文件与交付
+docs/native/NATIVE-BATTLE-HANDOFF.md	46	### 2026-10-14：单人地图全灰 → availableStages
+docs/native/NATIVE-BATTLE-HANDOFF.md	50	### 2026-10-13：建筑打爆“复活”与错误去重空村
+docs/native/NATIVE-BATTLE-HANDOFF.md	65	### 2026-10-14：龙弹堡恢复主动攻击（用户确认）
+docs/native/NATIVE-BATTLE-HANDOFF.md	86	## 原版流程与已确认接口
+docs/native/NATIVE-BATTLE-HANDOFF.md	104	## 从加载卡住到村庄显示的失败原因
+docs/native/NATIVE-BATTLE-HANDOFF.md	119	## 重复加载、进度丢失与提前结算
+docs/native/NATIVE-BATTLE-HANDOFF.md	138	## 文本调试的经验
+docs/native/NATIVE-BATTLE-HANDOFF.md	152	## 仍需检查的风险与下一步
+docs/native/NATIVE-DEV-CONTEXT.md	1	# 原流程本地适配：后续 AI 开发上下文
+docs/native/NATIVE-DEV-CONTEXT.md	35	## 强制方向（勿违反）
+docs/native/NATIVE-DEV-CONTEXT.md	44	## 本轮已落地能力（`native_boot.js`）
+docs/native/NATIVE-DEV-CONTEXT.md	46	### 1. 新账号默认数据
+docs/native/NATIVE-DEV-CONTEXT.md	60	### 2. 开场引导（曾坏过）
+docs/native/NATIVE-DEV-CONTEXT.md	73	### 3. 龙币 / 日光注入（曾只显示钻石）
+docs/native/NATIVE-DEV-CONTEXT.md	81	### 4. 建造与宝石加速完工
+docs/native/NATIVE-DEV-CONTEXT.md	116	### 5. 其它 callServer
+docs/native/NATIVE-DEV-CONTEXT.md	129	## 调试手段（交付包）
+docs/native/NATIVE-DEV-CONTEXT.md	153	## `native_boot.js` 关键符号索引
+docs/native/NATIVE-DEV-CONTEXT.md	176	## 首建后剧情加载卡住（历史问题，进入敌袭已确认）
+docs/native/NATIVE-DEV-CONTEXT.md	188	### 敌袭页空村 / 倒计时无反应（2026-10-13，三次）
+docs/native/NATIVE-DEV-CONTEXT.md	198	## 已知仍开放的缺口
+docs/native/NATIVE-DEV-CONTEXT.md	211	## 禁止再犯
+docs/native/NATIVE-DEV-CONTEXT.md	224	## 建议下一验收顺序
+docs/native/NATIVE-HERO-HANDOFF.md	1	# 新手战斗缺少将领：迪诺数据适配
+docs/operations/LOCAL-CAPACITY.md	1	# 本地仓库容量测试版
+docs/operations/LOCAL-CAPACITY.md	18	## 开发入口
+docs/operations/LOCAL-CAPACITY.md	31	## 验证记录
+docs/operations/LOCAL-CITYUI.md	1	# 本地主城界面 / 占地测试版
+docs/operations/LOCAL-CITYUI.md	5	## 操作
+docs/operations/LOCAL-CITYUI.md	15	## 原规则（运行时已核对）
+docs/operations/LOCAL-CITYUI.md	27	## 范围说明
+docs/operations/LOCAL-CITYUI.md	31	## 开发入口
+docs/operations/LOCAL-CONSTRUCT.md	1	# 本地新建建筑测试版
+docs/operations/LOCAL-CONSTRUCT.md	5	## 操作
+docs/operations/LOCAL-CONSTRUCT.md	15	## 规则
+docs/operations/LOCAL-CONSTRUCT.md	28	## 范围说明
+docs/operations/LOCAL-CONSTRUCT.md	32	## 开发入口
+docs/operations/LOCAL-CULTIVATE.md	1	# 本地养成容量测试版
+docs/operations/LOCAL-CULTIVATE.md	14	## 开发入口
+docs/operations/LOCAL-LEVEL3.md	1	# 本地三级升级测试版
+docs/operations/LOCAL-LEVEL3.md	21	## 开发入口
+docs/operations/LOCAL-LEVEL3.md	34	## 验证记录
+docs/operations/LOCAL-LEVEL4.md	1	# 本地四级升级测试版
+docs/operations/LOCAL-LEVEL4.md	21	## 开发入口
+docs/operations/LOCAL-LEVEL4.md	34	## 验证记录
+docs/operations/LOCAL-LEVEL5.md	1	# 本地五级升级测试版
+docs/operations/LOCAL-LEVEL5.md	23	## 开发入口
+docs/operations/LOCAL-MAX.md	1	# 本地满级升级测试版
+docs/operations/LOCAL-MAX.md	22	## 开发入口
+docs/operations/LOCAL-MINE.md	1	# 本地生产建筑新建测试版
+docs/operations/LOCAL-MINE.md	5	## 操作
+docs/operations/LOCAL-MINE.md	16	## 规则
+docs/operations/LOCAL-MINE.md	27	## 范围说明
+docs/operations/LOCAL-MINE.md	31	## 开发入口
+docs/operations/LOCAL-NATIVE.md	1	# 原流程本地适配
+docs/operations/LOCAL-NATIVE.md	7	## 入口
+docs/operations/LOCAL-NATIVE.md	18	## 行为
+docs/operations/LOCAL-NATIVE.md	26	## 构建
+docs/operations/LOCAL-NATIVE.md	34	## 龙弹堡修复验收（2026-10-14）
+docs/operations/LOCAL-NATIVE.md	40	## 入口修复验证（2026-10-13）
+docs/operations/LOCAL-NATIVE.md	50	## 已验证（2026-10-12）
+docs/operations/LOCAL-NATIVE.md	60	## 已知缺口
+docs/operations/LOCAL-NATIVE.md	67	## 验证建议
+docs/operations/LOCAL-PREVIEW.md	1	## 本次结果
+docs/operations/LOCAL-PREVIEW.md	9	## 打开方法
+docs/operations/LOCAL-PREVIEW.md	17	## 实现与下一步
+docs/operations/LOCAL-PREVIEW.md	29	## 构建
+docs/operations/LOCAL-PREVIEW.md	39	## 渲染兼容性
+docs/operations/LOCAL-PREVIEW.md	45	## 最终验证
+docs/operations/LOCAL-STARTUP.md	1	## 当前结果
+docs/operations/LOCAL-STARTUP.md	11	## 运行方法
+docs/operations/LOCAL-STARTUP.md	19	## 修改位置
+docs/operations/LOCAL-STARTUP.md	29	## 重新构建
+docs/operations/LOCAL-STARTUP.md	48	## 验证记录
+docs/operations/LOCAL-TRAIN.md	1	# 本地训练队列测试版
+docs/operations/LOCAL-TRAIN.md	5	## 操作
+docs/operations/LOCAL-TRAIN.md	14	## 规则
+docs/operations/LOCAL-TRAIN.md	28	## 范围说明
+docs/operations/LOCAL-TRAIN.md	34	## 开发入口
+docs/operations/LOCAL-UPGRADE.md	1	# 本地建筑升级测试版
+docs/operations/LOCAL-UPGRADE.md	21	## 开发入口
+docs/operations/LOCAL-UPGRADE.md	36	## 验证记录
+tools/jsc_decompiler/README.md	1	# jsc-decompiler
+tools/jsc_decompiler/README.md	8	# 不知道啥版本
+tools/jsc_decompiler/README.md	11	# spider-monkey version 33
+tools/jsc_decompiler/README.md	15	## 用法
+tools/jsc_decompiler/README.md	18	# 单文件反编译
+tools/jsc_decompiler/README.md	21	# 批量反编译
+tools/jsc_decompiler/README.md	24	# 附带字节码反汇编注释
+tools/jsc_decompiler/README.md	27	# Unicode 转义输出（\uXXXX 代替原始中文）
+tools/jsc_decompiler/README.md	30	# 引用关系分析
+tools/jsc_decompiler/README.md	33	# 变量级 import 注入

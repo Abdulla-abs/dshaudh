@@ -1,0 +1,162 @@
+{
+  "passed": true,
+  "apk": "dino-local-cultivate.apk",
+  "saveKey": "dino.local.city.v8",
+  "checks": [
+    "install delivery package",
+    "enter original loading flow",
+    "select nest screenshot",
+    "select training ground screenshot",
+    "upgrade prompt still available",
+    "return and reenter preserves save",
+    "no script crash in logcat"
+  ],
+  "nestType": "20603",
+  "trainType": "20703",
+  "records": [
+    {
+      "step": "initial",
+      "state": {
+        "version": 8,
+        "playerId": "local-001",
+        "revision": 20,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 1999,
+            "y": 1168
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 100,
+          "wood": 200
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        }
+      }
+    },
+    {
+      "step": "reenter",
+      "state": {
+        "version": 8,
+        "playerId": "local-001",
+        "revision": 20,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 1999,
+            "y": 1168
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 100,
+          "wood": 200
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "request": "cultivate-inspect-001",
+  "rows": [
+    {"id": "20601", "lv": 1, "hero_exp": 2},
+    {"id": "20701", "lv": 1, "egg_storage": 10, "egg_time": 60, "item_storage": 10, "num_male": 1, "num_female": 1, "hero_exp": 2},
+    {"id": "20602", "lv": 2, "hero_exp": 2},
+    {"id": "20702", "lv": 2, "egg_storage": 12, "egg_time": 65, "item_storage": 15, "villager_storage": 5, "num_male": 1, "num_female": 1, "hero_exp": 3},
+    {"id": "20603", "lv": 3, "num_male": 1, "num_female": 1, "hero_exp": 3},
+    {"id": "20703", "lv": 3, "egg_storage": 14, "egg_time": 75, "item_storage": 20, "villager_storage": 5, "num_male": 1, "num_female": 1, "hero_exp": 4},
+    {"id": "20604", "lv": 4, "num_male": 1, "num_female": 1, "hero_exp": 4},
+    {"id": "20704", "lv": 4, "egg_storage": 16, "egg_time": 90, "item_storage": 25, "villager_storage": 5, "num_male": 1, "num_female": 1, "hero_exp": 6},
+    {"id": "20605", "lv": 5, "num_male": 1, "num_female": 1, "hero_exp": 7},
+    {"id": "20705", "lv": 5, "egg_storage": 18, "egg_time": 110, "item_storage": 30, "villager_storage": 5, "num_male": 1, "num_female": 1, "hero_exp": 8},
+    {"id": "20606", "lv": 6, "num_male": 1, "num_female": 1, "hero_exp": 10},
+    {"id": "20706", "lv": 6, "egg_storage": 20, "egg_time": 135, "item_storage": 35, "villager_storage": 5, "num_male": 1, "num_female": 1, "hero_exp": 10},
+    {"id": "20607", "lv": 7, "num_male": 1, "num_female": 1, "hero_exp": 12},
+    {"id": "20707", "lv": 7, "egg_storage": 22, "egg_time": 165, "item_storage": 40, "villager_storage": 5, "num_male": 1, "num_female": 1, "hero_exp": 13},
+    {"id": "20608", "lv": 8, "num_male": 1, "num_female": 1, "hero_exp": 14},
+    {"id": "20708", "lv": 8, "egg_storage": 24, "egg_time": 200, "item_storage": 45, "villager_storage": 5, "num_male": 1, "num_female": 1, "hero_exp": 15},
+    {"id": "20609", "lv": 9, "num_male": 1, "num_female": 1, "hero_exp": 18},
+    {"id": "20610", "lv": 10, "num_male": 1, "num_female": 1, "hero_exp": 19}
+  ],
+  "build_number_sample": {
+    "202": {"lv8_num": 6, "lv4_num": 4, "lv1_num": 1, "lv3_num": 3, "lv10_num": 6, "lv5_num": 5, "lv2_num": 2, "lv7_num": 6, "lv9_num": 6, "lv6_num": 6},
+    "203": {"lv8_num": 3, "lv4_num": 2, "lv1_num": 1, "lv3_num": 2, "lv10_num": 4, "lv5_num": 2, "lv2_num": 1, "lv7_num": 2, "lv9_num": 4, "lv6_num": 2},
+    "204": {"lv8_num": 6, "lv4_num": 4, "lv1_num": 1, "lv3_num": 3, "lv10_num": 6, "lv5_num": 5, "lv2_num": 2, "lv7_num": 6, "lv9_num": 6, "lv6_num": 6},
+    "205": {"lv8_num": 3, "lv4_num": 2, "lv1_num": 1, "lv3_num": 2, "lv10_num": 4, "lv5_num": 2, "lv2_num": 1, "lv7_num": 2, "lv9_num": 4, "lv6_num": 2},
+    "206": {"lv8_num": 1, "lv4_num": 1, "lv1_num": 1, "lv3_num": 1, "lv10_num": 1, "lv5_num": 1, "lv2_num": 1, "lv7_num": 1, "lv9_num": 1, "lv6_num": 1},
+    "207": {"lv8_num": 4, "lv4_num": 2, "lv1_num": 1, "lv3_num": 2, "lv10_num": 4, "lv5_num": 3, "lv2_num": 1, "lv7_num": 4, "lv9_num": 4, "lv6_num": 3}
+  },
+  "hero_number_sample": {
+    "1": {"soul_max_num": 380, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 10, "input_id": 0, "hero_attack_num": 1},
+    "2": {"soul_max_num": 880, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 20, "input_id": 8301, "hero_attack_num": 2},
+    "3": {"soul_max_num": 1880, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 30, "input_id": 8302, "hero_attack_num": 3},
+    "4": {"soul_max_num": 3888, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 40, "input_id": 8303, "hero_attack_num": 3},
+    "5": {"soul_max_num": 19999, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 50, "input_id": 8304, "hero_attack_num": 4},
+    "6": {"soul_max_num": 29999, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 60, "input_id": 8305, "hero_attack_num": 4},
+    "7": {"soul_max_num": 49999, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 70, "input_id": 8306, "hero_attack_num": 5},
+    "8": {"soul_max_num": 60000, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 80, "input_id": 8307, "hero_attack_num": 5},
+    "9": {"soul_max_num": 199999, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 90, "input_id": 8308, "hero_attack_num": 6},
+    "10": {"soul_max_num": 299999, "unlock_hero": 0, "hero_total_num": 200, "hero_lv_max": 100, "input_id": 8309, "hero_attack_num": 6}
+  },
+  "CompHasSoldierTrainer": true,
+  "trainerError": "TypeError: DA.GETCGC(...) is undefined"
+}

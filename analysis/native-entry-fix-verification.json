@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-13",
+  "apk": "dino-local-native.apk",
+  "sha256": "471b695d8005cda9ad32fc857e89a5cac743583d0ec088f539ff02275eedec0f",
+  "fixes": [
+    "Keep MainMenu.isLegalAgreed callable",
+    "Replace obsolete AppErrorReport upload with local Android logs",
+    "Recompile Java bridge when building native APK"
+  ],
+  "tests": [
+    {
+      "device": "MEmu instance 1 / 127.0.0.1:21513",
+      "green_entry": "passed",
+      "force_stop_then_local_entry": "passed",
+      "screenshots": [
+        "native-fixed-green-city.png",
+        "native-fixed-local-restart-city.png"
+      ]
+    },
+    {
+      "device": "RMX3823 / Android 16",
+      "green_entry": "passed",
+      "force_stop_then_local_entry": "passed",
+      "screenshots": [
+        "native-phone-green-city.png",
+        "native-phone-local-restart-city.png"
+      ]
+    }
+  ],
+  "app_data_cleared": false,
+  "emulator_store": {
+    "key": "dino.local.native.v1",
+    "source": "inferred-rookie-minimal-201-206-207-212",
+    "units": 4,
+    "nickname": "LocalRookie"
+  },
+  "remaining_initialization_errors": [
+    "MenuControllerBuild.js:1251 config is undefined",
+    "GameControllerBuild.js:2259 dict is undefined"
+  ],
+  "scope": "Entry and continue-game only; first building 301 and full Rookie progression are not validated."
+}

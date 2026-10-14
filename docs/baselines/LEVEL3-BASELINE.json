@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-12",
+  "apk": "dino-local-level3.apk",
+  "files": {
+    "analysis/level3_boot.js": {
+      "sha256": "ee1ece1ab1e251ee69a5917a9c35dd8c33db841a050c3cf8bb9d981f59867db4",
+      "size": 28078
+    },
+    "analysis/make_level3.py": {
+      "sha256": "cca1e6513a6ed298a82ea90ac082947383781ecae6f3a4dd16998c9d35cbc0f6",
+      "size": 2903
+    },
+    "analysis/build_level3.py": {
+      "sha256": "ec523d0f2840918a093e58a2d3a1480a151b84ad2e4fac683e2fd1eccc0471fd",
+      "size": 2291
+    },
+    "analysis/prepare_level3_validation.py": {
+      "sha256": "f817179a43e52d79731f462b512f9e545bfeee2f7c78dd0be7740cb46b482fbb",
+      "size": 600
+    },
+    "analysis/validate_level3.py": {
+      "sha256": "3a57dc5063d754e3f9cc12e3b97983ce565a798c13eca768205b1a46dfbe2fe3",
+      "size": 10281
+    },
+    "analysis/validate_level3_delivery.py": {
+      "sha256": "ed13c0cb6bbd45ba4c6430a1f64fc9960015ffba667f0df5704df2e859f148dd",
+      "size": 4550
+    },
+    "analysis/level3_seed_fixture.js": {
+      "sha256": "4524448d232e9c8c0234d85a548225be3a3f8090bcf576dfc4fe5f65ea9736b9",
+      "size": 1389
+    },
+    "analysis/level3-native-configs.json": {
+      "sha256": "953c45c8906f8e923a8737fd65f725c46d4f4c00fbb5b9c80f8a22624624d3f3",
+      "size": 6925
+    },
+    "analysis/level3-validation.json": {
+      "sha256": "b7f8716dc27756ac5e903a3fcbc31b773ab54b26af404fa916a60054e2d62fff",
+      "size": 30739
+    },
+    "analysis/level3-delivery-validation.json": {
+      "sha256": "726b3be95c718e3a398916b3152cbd9be801cd03a2e86b99d177d77e075ae736",
+      "size": 6873
+    },
+    "Launch-Level3.ps1": {
+      "sha256": "fcc19fac7e407ea576feb375cdcdde548070f29534c024e4b8d121fe6e83e648",
+      "size": 1429
+    },
+    "LOCAL-LEVEL3.md": {
+      "sha256": "a7074e4ca875b5d6d506e81fbe4bf14e1c3d095dcf4d81fa1fd183a76b1b526e",
+      "size": 2756
+    },
+    "dino-local-level3.apk": {
+      "sha256": "9a3c4784294bd3f634774c61d05c8c5bc0fd9e69de3698d97e882093e3210bd6",
+      "size": 107731352
+    },
+    "handoff/level3-source-2026-10-12.zip": {
+      "sha256": "8fd4b2b9a2873ae4343d953ab6d52af38beb6f61f60a326c5aed16b146a6ddf2",
+      "size": 31126
+    }
+  },
+  "sha256": "9a3c4784294bd3f634774c61d05c8c5bc0fd9e69de3698d97e882093e3210bd6"
+}

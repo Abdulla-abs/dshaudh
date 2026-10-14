@@ -1,0 +1,83 @@
+{
+  "request": "cityui-native-configs",
+  "tile": {
+    "width": 64,
+    "height": 47,
+    "map": [
+      60,
+      60
+    ],
+    "origin": [
+      1888,
+      2773
+    ],
+    "half": [
+      32,
+      23.5
+    ]
+  },
+  "OBJ_LAYER_SCALE": 0.5,
+  "MAP_SIZE_BUILD": {
+    "xmin": 9,
+    "ymin": 9,
+    "xmax": 50,
+    "ymax": 50
+  },
+  "colors": {
+    "DRAG_OK": {
+      "r": 140,
+      "g": 245,
+      "b": 70
+    },
+    "DRAG_BAD": {
+      "r": 250,
+      "g": 72,
+      "b": 60
+    },
+    "OPACITY": 125
+  },
+  "LOGIC_TILES": "map/logic.png",
+  "RS_MAP": "map/world1.tmx",
+  "footprints": {
+    "201": [
+      4,
+      4
+    ],
+    "202": [
+      3,
+      3
+    ],
+    "203": [
+      3,
+      3
+    ],
+    "204": [
+      3,
+      3
+    ],
+    "205": [
+      3,
+      3
+    ],
+    "206": [
+      4,
+      4
+    ],
+    "207": [
+      5,
+      5
+    ],
+    "212": [
+      2,
+      2
+    ]
+  },
+  "scale_rule": "(unit_resource[typeid].scale_rate || 1) * OBJ_LAYER_SCALE",
+  "notes": [
+    "Unit applies scale_rate; ObjLayer multiplies OBJ_LAYER_SCALE=0.5",
+    "Current local setScale(1.5) is 3x intended 0.5",
+    "Building collision uses tilesize_x/y; no_landing_area=1 is troop padding",
+    "Isometric: x=1888+(tx-ty)*32, y=2773-(tx+ty)*23.5",
+    "HomeBuildingActionBar/BuildingActionCard CCBI load with empty controllers"
+  ]
+}

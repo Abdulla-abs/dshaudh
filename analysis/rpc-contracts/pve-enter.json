@@ -1,0 +1,37 @@
+{
+  "request": "rpc-contract-pve-enter-2026-10-14",
+  "updated": "2026-10-14-pve-enter",
+  "scope": "Chapter map stage detail → 进击 → enter live PVE battle",
+  "evidencePolicy": {
+    "bytecode": "UI.PVEInfo enter path calls rpc_s_enter_pve_battle; ClientPlayer.rpc_c_enter_battle → changeStageAndInit(BATTLE); GameControllerBattle.ILD uses oppo.player.stage for PVE map/UI",
+    "runtime": "Pending user playtest after local adapter",
+    "inferred": "oppo.units village layout — no official capture; local-inferred-compatible-pve stub"
+  },
+  "callChain": [
+    {
+      "fn": "UI.PVEInfo enter (decompiled name onPressClose)",
+      "evidence": "bytecode",
+      "sends": "rpc_s_enter_pve_battle {level: this.level}"
+    },
+    {
+      "fn": "ClientPlayer.rpc_c_enter_battle",
+      "evidence": "bytecode",
+      "expects": {
+        "oppo.player.stage": "truthy → Tips PVE scenario + ILD PVE map",
+        "self.gold/wood/max_*": "loot remaining",
+        "self.heros": "state=HERO_STATE_ATTACK and life>0 for deploy tray",
+        "oppo.units": "defender buildings (for-in)",
+        "replay": "must be falsy for live attack (truthy empty {} forces replay mode)"
+      }
+    }
+  ],
+  "localAdapter": {
+    "rpc_s_enter_pve_battle": "handleEnterPveBattle → buildPveBattleDict → rpc_c_enter_battle",
+    "village": "inferredPveVillageUnits: 20101/20301/20501/30101 labeled compatible stub; SIDs 91001+ (not home 1..N)",
+    "ildGuard": "battle ILD patch must not inject empty replay for localNativePve; ensureBattleVillageUnits fill for localNativePve; clear __localBattleBuildingKeys on ILD enter"
+  },
+  "openGaps": [
+    "Official stage-1 (and later) village coordinates / unit list from server or capture"
+  ],
+  "related": "analysis/rpc-contracts/pve-settle.json"
+}

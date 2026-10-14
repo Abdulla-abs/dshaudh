@@ -1,0 +1,47 @@
+{
+  "request": "mine-from-prior-research",
+  "notes": [
+    "Extends construct package: sunlight well (202) plus silver mine (204).",
+    "Shop.buyBuilding prices buildings with unit_main.lv_up_cost / lv_up_cost_type.",
+    "BuildingBuilder on 20201: getRealCost=700 gold, buildTime=180.",
+    "BuildingBuilder on 20401: getRealCost=700 wood (日光), buildTime=180.",
+    "data.build_number[202] and [204] share the same per-city-hall caps.",
+    "Default layout already has one of each; a second needs city hall lv>=2."
+  ],
+  "options": [
+    {
+      "construct_type": "20201",
+      "family": "202",
+      "label": "日光井",
+      "cost": 700,
+      "cost_type": 2,
+      "cost_resource": "gold",
+      "time_sec": 180
+    },
+    {
+      "construct_type": "20401",
+      "family": "204",
+      "label": "龙银矿",
+      "cost": 700,
+      "cost_type": 1,
+      "cost_resource": "wood",
+      "time_sec": 180
+    }
+  ],
+  "build_number_202_and_204": {
+    "lv1_num": 1,
+    "lv2_num": 2,
+    "lv3_num": 3,
+    "lv4_num": 4,
+    "lv5_num": 5,
+    "lv6_num": 6,
+    "lv7_num": 6,
+    "lv8_num": 6,
+    "lv9_num": 6,
+    "lv10_num": 6
+  },
+  "max_extra_in_this_build": 10,
+  "save_key": "dino.local.city.v11",
+  "inherits": "dino.local.city.v10",
+  "ui": "建造生产; while placing, tap again to switch type"
+}

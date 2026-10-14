@@ -1,0 +1,1410 @@
+[
+  {
+    "step": "initial",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 0,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20103",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20203",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 50000,
+        "wood": 40000
+      },
+      "production": {
+        "building-1": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        },
+        "building-3": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "unsupported-architect",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 0,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20103",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20203",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 50000,
+        "wood": 40000
+      },
+      "production": {
+        "building-1": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        },
+        "building-3": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "city-start",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 1,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20103",
+          "x": 1739,
+          "y": 1327,
+          "upgrade": {
+            "target": "20104",
+            "started": 1791795090.301,
+            "ends": 1791823890.301
+          }
+        },
+        {
+          "uid": "building-1",
+          "type": "20203",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 25000,
+        "wood": 40000
+      },
+      "production": {
+        "building-1": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        },
+        "building-3": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "worker-busy",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 1,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20103",
+          "x": 1739,
+          "y": 1327,
+          "upgrade": {
+            "target": "20104",
+            "started": 1791795090.301,
+            "ends": 1791823890.301
+          }
+        },
+        {
+          "uid": "building-1",
+          "type": "20203",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 25000,
+        "wood": 40000
+      },
+      "production": {
+        "building-1": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        },
+        "building-3": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "city-complete",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 3,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20203",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 25000,
+        "wood": 40000
+      },
+      "production": {
+        "building-1": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        },
+        "building-3": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "well-start",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 4,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20203",
+          "x": 1500,
+          "y": 1150,
+          "upgrade": {
+            "target": "20204",
+            "started": 1791795139.868,
+            "ends": 1791798739.868
+          }
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 21500,
+        "wood": 40000
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8721855556
+        },
+        "building-3": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "well-complete",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 6,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 21500,
+        "wood": 40000
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 50,
+          "lastHour": 497720.8416675
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "mine-start",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 7,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20403",
+          "x": 2300,
+          "y": 950,
+          "upgrade": {
+            "target": "20404",
+            "started": 1791795172.584,
+            "ends": 1791798772.584
+          }
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 21500,
+        "wood": 36500
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8812733334
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "mine-complete",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 9,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 21500,
+        "wood": 36500
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "sun-store-start",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 10,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20303",
+          "x": 1999,
+          "y": 1168,
+          "upgrade": {
+            "target": "20304",
+            "started": 1791795205.285,
+            "ends": 1791802405.285
+          }
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 36500
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      45000
+    ]
+  },
+  {
+    "step": "sun-store-complete",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 12,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 36500
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      60000
+    ]
+  },
+  {
+    "step": "nest-start",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 13,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20602",
+          "x": 1300,
+          "y": 1600,
+          "upgrade": {
+            "target": "20603",
+            "started": 1791795238.001,
+            "ends": 1791797038.001
+          }
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 32612
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      60000
+    ]
+  },
+  {
+    "step": "nest-complete",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 15,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20603",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 32612
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      60000
+    ]
+  },
+  {
+    "step": "gold-store-start",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 16,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20503",
+          "x": 1750,
+          "y": 800,
+          "upgrade": {
+            "target": "20504",
+            "started": 1791795270.651,
+            "ends": 1791802470.651
+          }
+        },
+        {
+          "uid": "building-5",
+          "type": "20603",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 17612
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      45000,
+      60000
+    ]
+  },
+  {
+    "step": "gold-store-complete",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 18,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20504",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20603",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 17612
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      60000,
+      60000
+    ]
+  },
+  {
+    "step": "train-start",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 19,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20504",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20603",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20702",
+          "x": 2500,
+          "y": 1750,
+          "upgrade": {
+            "target": "20703",
+            "started": 1791795303.287,
+            "ends": 1791806103.287
+          }
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 7613
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      60000,
+      60000
+    ]
+  },
+  {
+    "step": "train-complete",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 21,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20504",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20603",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20703",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 7613
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      60000,
+      60000
+    ]
+  },
+  {
+    "step": "reenter",
+    "state": {
+      "version": 6,
+      "playerId": "local-001",
+      "revision": 21,
+      "buildings": [
+        {
+          "uid": "building-0",
+          "type": "20104",
+          "x": 1739,
+          "y": 1327
+        },
+        {
+          "uid": "building-1",
+          "type": "20204",
+          "x": 1500,
+          "y": 1150
+        },
+        {
+          "uid": "building-2",
+          "type": "20304",
+          "x": 1999,
+          "y": 1168
+        },
+        {
+          "uid": "building-3",
+          "type": "20404",
+          "x": 2300,
+          "y": 950
+        },
+        {
+          "uid": "building-4",
+          "type": "20504",
+          "x": 1750,
+          "y": 800
+        },
+        {
+          "uid": "building-5",
+          "type": "20603",
+          "x": 1300,
+          "y": 1600
+        },
+        {
+          "uid": "building-6",
+          "type": "20703",
+          "x": 2500,
+          "y": 1750
+        },
+        {
+          "uid": "building-7",
+          "type": "21201",
+          "x": 1800,
+          "y": 1900
+        }
+      ],
+      "resources": {
+        "gold": 6500,
+        "wood": 7613
+      },
+      "production": {
+        "building-1": {
+          "stored": 68,
+          "lastHour": 497720.8722222222
+        },
+        "building-3": {
+          "stored": 73,
+          "lastHour": 497720.8811111111
+        }
+      }
+    },
+    "capacity": [
+      60000,
+      60000
+    ]
+  }
+]

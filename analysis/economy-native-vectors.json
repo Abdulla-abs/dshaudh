@@ -1,0 +1,1 @@
+{"request":"production-vectors-014","cases":[{"name":"hour","stored":200},{"name":"capped","stored":2000},{"name":"partial","result":[5,2000]},{"name":"full","result":[0,2000]},{"name":"clockBack","stored":-200}]}

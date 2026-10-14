@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-14",
+  "consumer": "UI.BattleSelect.onDidLoadFromCCB / refreshTitle",
+  "lookup": "G_Player.getRegionConfig(G_Player.getComponent('RankManager').getRegionID())",
+  "table": "data.v_server_h1global",
+  "requiredField": "v_server_name",
+  "evidence": {
+    "runtime": "DinoLocalError BattleSelect.js:96 config is undefined; current player has no region_id",
+    "bytecode": "RankManager copies params.region_id to regionID; ClientPlayer indexes original table",
+    "localPolicy": "Preserve valid component region; otherwise use valid saved region, then original open/free/allow-in row"
+  },
+  "verification": "check_native_region.cjs; check_native_replay.cjs; check_native_raid_end.cjs",
+  "manualAcceptance": "pending"
+}

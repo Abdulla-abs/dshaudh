@@ -1,0 +1,143 @@
+{
+  "request": "rpc-contract-battle-finish-2026-10-14",
+  "updated": "2026-10-14-settle-trace",
+  "scope": "Tutorial enemy-attack natural end → leave → home → Rookie continue",
+  "evidencePolicy": {
+    "bytecode": "Proven by tools/jsc_decompiler on GameControllerBattle / MenuControllerBattle / ClientPlayer (magic 0xB973C051 / Cocos SM v22)",
+    "runtime": "Observed in local native adapter logs / settle.trace / prior raid-end-*.json",
+    "inferred": "Not yet proven; must not be treated as official server values"
+  },
+  "engine": {
+    "xdrMagic": "0xb973c051",
+    "subtrahend": 141,
+    "match": "cocos2d/Spidermonkey branch v22: XDR_BYTECODE_VERSION = 0xb973c0de - 141"
+  },
+  "artifacts": {
+    "disasm": "analysis/disasm/GameControllerBattle.disasm.txt",
+    "decompiled": "analysis/disasm/GameControllerBattle.decompiled.js",
+    "menuDecompiled": "analysis/disasm/MenuControllerBattle.decompiled.js",
+    "playerDecompiled": "analysis/disasm/ClientPlayer.decompiled.js",
+    "priorTraceBefore": "analysis/raid-end-before-fix.json",
+    "priorTraceAfter": "analysis/raid-end-after-fix.json",
+    "settleTraceKey": "dino.local.native.settle.trace"
+  },
+  "tutorialEnemyAttackPath": {
+    "evidence": "bytecode",
+    "summary": [
+      "rpc_c_enter_enemy_attack_replay sets dict.isEnterEnemyAttackReplay=true and changeStageAndInit(BATTLE)",
+      "ILD: if replay → setReplayMode(true), setRandomSeed(replay.seed), setRecords(replay.records)",
+      "Natural end (attackers all dead): needCheck when inReplayMode && isEnterEnemyAttackReplay && isUserOperationFinished → scheduleDelayedBattleFinish",
+      "onFramePreUpdate: waitDelayedBattleFinish → finishBattle → onBattleFinished",
+      "onBattleFinished (replay): sendBattleResult then menu.onReplayEnd (does NOT take first_time_stage===2 early return)",
+      "onReplayEnd: first_time_stage===1 → onPressNextStage/rpc_s_goto_next_first_stage; else if isEnterEnemyAttackReplay → rpc_s_finish_enemy_attack_replay {}",
+      "rpc_c_battle_to_home(level) → changeStageAndInit(BUILD, level, true) → initRookieByServer(user_config)"
+    ]
+  },
+  "breakpointConfirmed": {
+    "evidence": "runtime + bytecode",
+    "issue": "enableDefenderLiveCombat/clearBattleOperGates previously set inReplayMode=false so towers could fire. Prior settle traces show isReplay:false throughout onUnitDead→finishBattle→onBattleFinished.",
+    "whyItBreaksSettle": [
+      "Stock attacker-death check for enemy attack prefers inReplayMode && isUserOperationFinished",
+      "onBattleFinished non-replay branch can take first_time_stage===2 → onPressNextStage and skip onReplayEnd/finish_enemy_attack_replay",
+      "isNeedRecordReplay becomes true when !inReplayMode and injects synthetic delay-end records"
+    ],
+    "fix": "2026-10-14: clearBattleOperGates no longer clears inReplayMode; only oper skill/user gates + consume start-only records. Tower AI still relies on replay.seed (already fixed)."
+  },
+  "callChain": [
+    {
+      "fn": "Game.GameControllerBattle.initLevelFromData",
+      "argc": 1,
+      "evidence": "bytecode",
+      "reads": [
+        "level_data.replay.seed",
+        "level_data.replay.records",
+        "level_data.isEnterEnemyAttackReplay",
+        "level_data.self.first_time_stage",
+        "level_data.oppo.units / walls / hero_donate_list / model_info"
+      ],
+      "calls": [
+        "setReplayMode(true) + setRandomSeed(replay.seed) when replay present",
+        "_createBattleUnitWhenInit(build_data, client) two-arg"
+      ]
+    },
+    {
+      "fn": "Game.GameControllerBattle.onUnitDead → scheduleDelayedBattleFinish",
+      "evidence": "bytecode",
+      "condition": "isEnterEnemyAttackReplay && (inReplayMode ? isUserOperationFinished : non-replay needCheck) && attackers empty && isAllUnitChoiceDead"
+    },
+    {
+      "fn": "Game.GameControllerBattle.finishBattle / onBattleFinished",
+      "evidence": "bytecode",
+      "replayBehavior": "sendBattleResult(); if battleFinished → menu.onReplayEnd()"
+    },
+    {
+      "fn": "Game.MenuControllerBattle.onReplayEnd",
+      "evidence": "bytecode",
+      "branches": [
+        {"when": "G_Player.first_time_stage === 1", "calls": "onPressNextStage → rpc_s_goto_next_first_stage"},
+        {"when": "else && logic.isEnterEnemyAttackReplay", "rpc": "rpc_s_finish_enemy_attack_replay", "request": {}}
+      ]
+    },
+    {
+      "fn": "ClientPlayer.rpc_c_battle_to_home",
+      "argc": 1,
+      "evidence": "bytecode",
+      "requires": "GS_STAGE_BATTLE (or DUNGEON)",
+      "calls": "changeStageAndInit(GS_STAGE_BUILD, dict, true)"
+    }
+  ],
+  "rpcs": {
+    "rpc_s_complete_battle": {
+      "direction": "client→server",
+      "requestEvidence": "bytecode + runtime (raid-end-after-fix)",
+      "requestShape": {
+        "dmg_percent": "object",
+        "replay_dict": "battleRecorder.getCurrentRecordDict()",
+        "attacks": "getAttackInfo(attackers)",
+        "defenders": "getDefenceInfo(defenders)",
+        "client_time": "number",
+        "dmg_donate": "array (non-GVG)"
+      },
+      "localAdapter": "Intercept for bound local raid → queueLocalRaidReplayEnd → menu.onReplayEnd (stock path also calls onReplayEnd).",
+      "responseEvidence": "n/a locally — client does not wait on a typed ACK before onReplayEnd"
+    },
+    "rpc_s_finish_enemy_attack_replay": {
+      "direction": "client→server",
+      "requestEvidence": "bytecode",
+      "requestShape": {},
+      "localAdapter": "handleFinishEnemyAttackReplay → record finishedVirtualStages[stage]=1 if completed → ensureAvailableStages (unlock campaign stage 1 after 20001) → rpc_c_battle_to_home(store.level)",
+      "responseEvidence": "runtime: followed by rpc_c_battle_to_home and later rpc_s_set_user_config (rookie bits) when Rookie resumes",
+      "rookieContinue": "Do not forge rookie bits; only persist finishedVirtualStages and let stock initRookieByServer(user_config) continue",
+      "campaignUnlock": "availableStages must be an object map stageId→[gold,wood,stars,remain]; after finishedVirtualStages[20001], unlock availableStages[1] from data.pve_stage[1] coin_storage/solar_storage with stars=0"
+    },
+    "rpc_s_leave_battle": {
+      "direction": "client→server",
+      "requestEvidence": "bytecode",
+      "requestShape": {},
+      "notes": "sendBattleResult early path when !isUnitSent; local maps to handleBattleToHome"
+    },
+    "rpc_s_battle_to_home": {
+      "direction": "client→server",
+      "requestEvidence": "bytecode",
+      "requestShape": {},
+      "notes": "Replay-mode back-home UI; local maps to handleFinishEnemyAttackReplay"
+    },
+    "rpc_s_set_user_config": {
+      "direction": "client→server",
+      "requestEvidence": "runtime (after-fix)",
+      "requestShape": {"key": "rookie0|rookie2|...", "value": "number"},
+      "localAdapter": "mergeUserConfig; observed after home return as Rookie continues",
+      "notes": "Adapter must not force-complete guide PIDs"
+    }
+  },
+  "openGaps": [
+    "Official enemy-attack lineup and real replay.records (stubs remain labeled)",
+    "Whether first_time_stage is ever 1 during this tutorial step on official servers (local default 0 → finish_enemy_attack_replay branch)",
+    "User verification of natural end → story continue → kill-restart resume after this fix"
+  ],
+  "verifyCommands": {
+    "settleTrace": "sys.localStorage dino.local.native.settle.trace",
+    "status": "dino.local.native.status (settle-trace / finish-enemy / rpc_c_battle_to_home-ok / initRookieByServer-* / user_config-merge)",
+    "offline": "node analysis/check_native_raid_end.cjs && node analysis/check_native_replay.cjs"
+  }
+}

@@ -1,0 +1,362 @@
+{
+  "passed": true,
+  "checks": [
+    "collision rejected",
+    "cancel unchanged",
+    "move saved",
+    "other buildings unchanged",
+    "return and reenter",
+    "force-stop restart",
+    "zoom pan reset system-back"
+  ],
+  "records": [
+    {
+      "step": "initial",
+      "state": {
+        "version": 1,
+        "playerId": "local-001",
+        "revision": 1,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20101",
+            "x": 2034,
+            "y": 1199
+          },
+          {
+            "uid": "building-1",
+            "type": "20201",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20301",
+            "x": 2400,
+            "y": 1300
+          },
+          {
+            "uid": "building-3",
+            "type": "20401",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20501",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20601",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20701",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ]
+      }
+    },
+    {
+      "step": "collision",
+      "state": {
+        "version": 1,
+        "playerId": "local-001",
+        "revision": 1,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20101",
+            "x": 2034,
+            "y": 1199
+          },
+          {
+            "uid": "building-1",
+            "type": "20201",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20301",
+            "x": 2400,
+            "y": 1300
+          },
+          {
+            "uid": "building-3",
+            "type": "20401",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20501",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20601",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20701",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ]
+      }
+    },
+    {
+      "step": "cancel",
+      "state": {
+        "version": 1,
+        "playerId": "local-001",
+        "revision": 1,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20101",
+            "x": 2034,
+            "y": 1199
+          },
+          {
+            "uid": "building-1",
+            "type": "20201",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20301",
+            "x": 2400,
+            "y": 1300
+          },
+          {
+            "uid": "building-3",
+            "type": "20401",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20501",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20601",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20701",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ]
+      }
+    },
+    {
+      "step": "moved",
+      "state": {
+        "version": 1,
+        "playerId": "local-001",
+        "revision": 2,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20101",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20201",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20301",
+            "x": 2400,
+            "y": 1300
+          },
+          {
+            "uid": "building-3",
+            "type": "20401",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20501",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20601",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20701",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ]
+      }
+    },
+    {
+      "step": "reenter",
+      "state": {
+        "version": 1,
+        "playerId": "local-001",
+        "revision": 2,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20101",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20201",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20301",
+            "x": 2400,
+            "y": 1300
+          },
+          {
+            "uid": "building-3",
+            "type": "20401",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20501",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20601",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20701",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ]
+      }
+    },
+    {
+      "step": "restart",
+      "state": {
+        "version": 1,
+        "playerId": "local-001",
+        "revision": 2,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20101",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20201",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20301",
+            "x": 2400,
+            "y": 1300
+          },
+          {
+            "uid": "building-3",
+            "type": "20401",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20501",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20601",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20701",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,665 @@
+{
+  "passed": true,
+  "apk": "dino-train-validation.apk",
+  "fixtureKey": "dino.local.city.v9.validation-20261012",
+  "normalKey": "dino.local.city.v9",
+  "barracks": {
+    "uid": "building-6",
+    "type": "20703",
+    "x": 2500,
+    "y": 1750
+  },
+  "soldierCapacity": 20,
+  "startSoldier": "11403",
+  "tableCost": 150,
+  "tableTime": 40,
+  "checks": [
+    {
+      "check": "barracks is 207 family",
+      "passed": true,
+      "detail": "20703"
+    },
+    {
+      "check": "barracks level matches fixture plan",
+      "passed": true,
+      "detail": "3"
+    },
+    {
+      "check": "start soldier is table level 11403",
+      "passed": true,
+      "detail": "11403"
+    },
+    {
+      "check": "training job created",
+      "passed": true,
+      "detail": "{'building-6': {'typeid': '11403', 'started': 1791798550.402, 'ends': 1791798590.402}}"
+    },
+    {
+      "check": "job typeid is table level 11403",
+      "passed": true,
+      "detail": "11403"
+    },
+    {
+      "check": "cost deducted per original table",
+      "passed": true,
+      "detail": "5000 -> 4850 (expected 4850)"
+    },
+    {
+      "check": "countdown equals original train_time",
+      "passed": true,
+      "detail": "40.0 vs 40"
+    },
+    {
+      "check": "revision advanced",
+      "passed": true,
+      "detail": "101"
+    },
+    {
+      "check": "second click while busy is refused (single egg slot)",
+      "passed": true,
+      "detail": "wood=4850 rev=101"
+    },
+    {
+      "check": "training refused when soldiers reach item_storage",
+      "passed": true,
+      "detail": "cap=20 wood=5000 rev=102"
+    },
+    {
+      "check": "job removed after completion",
+      "passed": true,
+      "detail": "{}"
+    },
+    {
+      "check": "one soldier added on the same barracks",
+      "passed": true,
+      "detail": "{'building-6': 3}"
+    },
+    {
+      "check": "offline job completed after force-stop",
+      "passed": true,
+      "detail": "{}"
+    },
+    {
+      "check": "offline completion credited one soldier",
+      "passed": true,
+      "detail": "{'building-6': 1}"
+    },
+    {
+      "check": "soldiers persist across restart",
+      "passed": true,
+      "detail": "{'building-6': 1}"
+    },
+    {
+      "check": "training queue stays empty after restart",
+      "passed": true,
+      "detail": "{}"
+    },
+    {
+      "check": "normal delivery save unchanged by fixture run",
+      "passed": true,
+      "detail": "revision drift"
+    },
+    {
+      "check": "no script crash in logcat",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "check": "no game process crash",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "check": "delivery status logged",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "check": "no scheduler error surfaced in UI",
+      "passed": true,
+      "detail": "[]"
+    }
+  ],
+  "records": [
+    {
+      "step": "normal-baseline",
+      "state": {
+        "version": 9,
+        "playerId": "local-001",
+        "revision": 24,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 2157,
+            "y": 1591
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 100,
+          "wood": 50
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        },
+        "training": {},
+        "soldiers": {
+          "building-6": 1
+        }
+      }
+    },
+    {
+      "step": "train-started",
+      "state": {
+        "version": 9,
+        "playerId": "local-001",
+        "revision": 101,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 2157,
+            "y": 1591
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 1000,
+          "wood": 4850
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        },
+        "training": {
+          "building-6": {
+            "typeid": "11403",
+            "started": 1791798550.402,
+            "ends": 1791798590.402
+          }
+        },
+        "soldiers": {}
+      }
+    },
+    {
+      "step": "train-second-click",
+      "state": {
+        "version": 9,
+        "playerId": "local-001",
+        "revision": 101,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 2157,
+            "y": 1591
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 1000,
+          "wood": 4850
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        },
+        "training": {
+          "building-6": {
+            "typeid": "11403",
+            "started": 1791798550.402,
+            "ends": 1791798590.402
+          }
+        },
+        "soldiers": {}
+      }
+    },
+    {
+      "step": "train-capacity-full",
+      "state": {
+        "version": 9,
+        "playerId": "local-001",
+        "revision": 102,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 2157,
+            "y": 1591
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 1000,
+          "wood": 5000
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        },
+        "training": {},
+        "soldiers": {
+          "building-6": 20
+        }
+      }
+    },
+    {
+      "step": "train-complete",
+      "state": {
+        "version": 9,
+        "playerId": "local-001",
+        "revision": 103,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 2157,
+            "y": 1591
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 1000,
+          "wood": 4850
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        },
+        "training": {},
+        "soldiers": {
+          "building-6": 3
+        }
+      }
+    },
+    {
+      "step": "train-offline-complete",
+      "state": {
+        "version": 9,
+        "playerId": "local-001",
+        "revision": 103,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 2157,
+            "y": 1591
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 1000,
+          "wood": 4850
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        },
+        "training": {},
+        "soldiers": {
+          "building-6": 1
+        }
+      }
+    },
+    {
+      "step": "train-restart",
+      "state": {
+        "version": 9,
+        "playerId": "local-001",
+        "revision": 103,
+        "buildings": [
+          {
+            "uid": "building-0",
+            "type": "20104",
+            "x": 1739,
+            "y": 1327
+          },
+          {
+            "uid": "building-1",
+            "type": "20204",
+            "x": 1500,
+            "y": 1150
+          },
+          {
+            "uid": "building-2",
+            "type": "20304",
+            "x": 2157,
+            "y": 1591
+          },
+          {
+            "uid": "building-3",
+            "type": "20404",
+            "x": 2300,
+            "y": 950
+          },
+          {
+            "uid": "building-4",
+            "type": "20504",
+            "x": 1750,
+            "y": 800
+          },
+          {
+            "uid": "building-5",
+            "type": "20603",
+            "x": 1300,
+            "y": 1600
+          },
+          {
+            "uid": "building-6",
+            "type": "20703",
+            "x": 2500,
+            "y": 1750
+          },
+          {
+            "uid": "building-7",
+            "type": "21201",
+            "x": 1800,
+            "y": 1900
+          }
+        ],
+        "resources": {
+          "gold": 1000,
+          "wood": 4850
+        },
+        "production": {
+          "building-1": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          },
+          "building-3": {
+            "stored": 0,
+            "lastHour": 497720.8416675
+          }
+        },
+        "training": {},
+        "soldiers": {
+          "building-6": 1
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,168 @@
+{
+  "request": "native-init-protocol-2026-10-12",
+  "direction": "Keep original client logic/UI/flow; replace dead server deps with local data and local ACKs only. Do not rebuild city scene, hand-place the eight test buildings as the starter city, or rewrite gameplay.",
+  "callChain": [
+    {
+      "step": 1,
+      "fn": "ClientPlayer.rpc_c_start_game",
+      "argc": 1,
+      "verified": "runtime probe-017",
+      "behavior": "Requires GS_CURRENT_STAGE === GS_STAGE_NONE (0). Queues TaskManager TASK_TYPE_SELECTOR(4) that calls changeStageAndInit(GS_STAGE_BUILD, sameDict). No-ops if already in BUILD."
+    },
+    {
+      "step": 2,
+      "fn": "ClientPlayer.changeStageAndInit",
+      "argc": 2,
+      "verified": "runtime probe-017 + strings",
+      "args": ["stage (GS_STAGE_BUILD=1)", "levelDict"],
+      "behavior": "Clears components, preStartGame, then stage-specific __init_stage_*; for BUILD calls __init_stage_build."
+    },
+    {
+      "step": 3,
+      "fn": "ClientPlayer.__init_stage_build",
+      "argc": 1,
+      "verified": "strings + argc probe",
+      "behavior": "Loads build stage controller and calls GameControllerBuild.initLevelFromData(levelDict)."
+    },
+    {
+      "step": 4,
+      "fn": "Game.GameControllerBuild.initLevelFromData",
+      "argc": 1,
+      "verified": "strings",
+      "behavior": "resetNotificationManager → map init → G_Player.initByServer(player) → __buildWorkerTown / __buildUnit(units) → createWall(walls) → initEnvironment(model_info) → createDonateHero(hero_donate_list) → afterInitWorld → initRookieByServer(user_config) → __initLastStep → _enterWorldAction."
+    }
+  ],
+  "levelDict": {
+    "shape": {
+      "player": "object — passed to ClientPlayer.initByServer",
+      "units": "array — building/unit records for __buildUnit",
+      "walls": "array — wall rows",
+      "model_info": "object — environment/decoration",
+      "hero_donate_list": "array — donated heroes",
+      "user_config": "object — rookie bits / tutorial progress for initRookieByServer"
+    },
+    "note": "rpc_c_start_game passes this object through unchanged to changeStageAndInit."
+  },
+  "playerFields": {
+    "verifiedAssignedByInitByServer": [
+      "nickname", "nickname_free", "account", "accountID", "level", "soldiers",
+      "protect_time", "busyWorker", "first_movie_played", "rookie_protect",
+      "is_rookie_pve", "spirit_free", "consecutive_days", "first_time_stage",
+      "newHeroType(from new_hero_type)", "synthesis_score", "defence_score", "arena_score"
+    ],
+    "alsoSeenInStrings": [
+      "account_id", "gameid", "server_operator", "protect_time_p", "buy_shield_time",
+      "buyShieldTime1-3", "online_time", "login_time", "league_id", "apply_backup_time",
+      "buffs", "availableStages", "pve_awardBox", "finishedVirtualStages", "stage/pveStage",
+      "pve_mode", "activity_params", "pvp_fake_times", "wanted_id", "rookie_promote_hero",
+      "access_token", "diamond", "spirit"
+    ],
+    "resourceManagerInit": {
+      "readsFromParams": ["diamond", "spirit", "league_points", "christmas_points", "frozen_d", "unfrozen_t"],
+      "note": "gold/wood are NOT seeded by ResourceManager.init; they come from building storages via updateResFromStage*."
+    }
+  },
+  "unitRecord": {
+    "dumpParamsObserved": {
+      "unit_type": 202,
+      "unit_level": 1,
+      "typeid": 20201,
+      "unit_mutateid": 0,
+      "faction": 2
+    },
+    "tileHolderDumpData": { "x": "tileX", "y": "tileY" },
+    "buildingBuilderFields": {
+      "state": "BUILD_STATE_BEFORE_BUILD=0 | BUILDING=1 | FINISH=2",
+      "beginTime": "unix seconds when construction/upgrade started"
+    },
+    "resourceProductorFields": {
+      "currentStorage": "number",
+      "lastCollectTime": "DA.getSystemCurrentTimeHour() units"
+    },
+    "requiredForBuildStage": ["sid", "typeid or unit_type+unit_level", "x", "y", "state"],
+    "HOMEBASEID": 201,
+    "WORKERTOWNID": 212,
+    "constants": { "BATTLE_FACTION_DEFENDER": 2 }
+  },
+  "tutorial": {
+    "system": "Rookie (not a separate Tutorial class at menu load)",
+    "tables": ["data.rookie_controller (235 entries)", "data.rookie_code", "data.invasion_tutorial"],
+    "progressStorage": "user_config → initRookieByServer → finishedRookiePIDs / unfinishedRookiePIDs / rookieBits; persist via rpc_s_set_user_config",
+    "ROOKIE_START_PID": {
+      "rookie0": 2000,
+      "rookie1": 2031,
+      "rookie2": 2062,
+      "rookie3": 2093,
+      "rookie4": 2124,
+      "rookie_invasion": 300000
+    },
+    "firstChapterFlow": [
+      "200100-200102 GH_story_1/2/3 (opening story / first movie path)",
+      "201100 build bunker 301 (construct_state=1) — NOT in initial city",
+      "201500 train at 207 (construct_state=4) — 207 must already exist",
+      "201600 upgrade 206 to lv2 — 206 must already exist",
+      "202200 build extra builder 212 (construct_state=14)",
+      "202300 build gold storage 205 (construct_state=1) — NOT in initial city",
+      "202500 upgrade home 201 to lv2 — 201 must already exist",
+      "209401 build wood storage 203 later — NOT in initial city"
+    ],
+    "first_movie_played": "player field; GameControllerBuild._enterWorldAction calls FirstMovie.begin when appropriate"
+  },
+  "initialCitySource": {
+    "clientHasDefaultLayoutTable": false,
+    "layoutSuspectKeysInData": [],
+    "conclusion": "New-account buildings come from the server start_game payload (units[]), not from a client data table. The eight hand-placed test buildings in dino.local.city.v* must not be used as the starter city.",
+    "inferredMustExistAtLogin": [
+      { "family": 201, "reason": "home exists before upgrade quest 202500; story/collect reference 201" },
+      { "family": 206, "reason": "hero nest finished (construct 4) before upgrade quest 201600" },
+      { "family": 207, "reason": "train yard finished before train quest 201501" },
+      { "family": 212, "reason": "at least one builder likely present; quest 202200 asks for additional (construct 14)" }
+    ],
+    "inferredBuiltDuringTutorial": [
+      { "family": 301, "quest": "201100 GH_ad_bunker" },
+      { "family": 205, "quest": "202300" },
+      { "family": 203, "quest": "209401" }
+    ],
+    "unknownAtLogin": [
+      { "family": 202, "note": "no rookie_controller unit refs; may be server-seeded for economy or absent" },
+      { "family": 204, "note": "same as 202" }
+    ],
+    "tileCoordinates": "Not present in client tables. Exact x/y must be recovered from a real start_game dump or further map/bootstrap research. Do not silently reuse the v12 test coordinates as 'official' initial layout."
+  },
+  "localAdapterPlan": {
+    "persistKey": "dino.local.native.v1",
+    "provide": [
+      "levelDict for rpc_c_start_game on first launch",
+      "saved levelDict (units/player/user_config) on continue",
+      "local stubs for callServer → rpc_c_ans_* / rpc_c_build_complete / rpc_c_set_to_tile / rpc_s_set_user_config"
+    ],
+    "forbid": [
+      "independent preview scene as main path",
+      "hand-authored eight-building city as claimed original starter",
+      "rewriting BuildActionBar / Rookie / BuildingBuilder flows"
+    ]
+  },
+  "placementGreyNote": {
+    "observed": "Confirm (OK) button grey over green tile is original rely_base_lv gating, not missing local ACK/resources",
+    "trainYard": "unit_main 20701.rely_base_lv=2 — upgrade (or invalid build confirm) disabled while home base level < 2",
+    "starter": "First 207 must already exist finished at login; do not force-enable OK to shop-build 207 at home lv1"
+  },
+  "gaps": [
+    "Exact new-account units[] tile positions and full field set from live server dump still missing",
+    "model_info / walls / environment default payloads not yet dumped",
+    "decodeFinishedRookiePIDs bit layout not fully reverse-engineered (always returned {} in safe trials)",
+    "Identify which BuildingBuilder typeid owns the greyned OK (upgrade 207 vs other) via enableOK status log",
+    "rpc_c_ans_build / rpc_c_build_complete wired in native_boot.js as {success,unit:sid} / {unit:sid} — needs live 301 probe to confirm"
+  ],
+  "nativeBootBuildAck": {
+    "asOf": "2026-10-13",
+    "rpc_s_build": "allocate sid → rpc_c_ans_build({success:true,unit:sid}) → schedule rpc_c_build_complete({unit:sid}) after buildTime",
+    "rpc_s_set_user_config": "{value,offset} → user_config[offset] + rookieBits[offset]",
+    "playerSeed": ["new_message", "letters", "sys_letters", "battle_recorders", "login_warn_attack_num", "unlooked_attack_num"],
+    "note": "Cost deduction remains client useRes before RPC; ACK must not re-charge. completedSids dedupes finishes."
+  },
+  "probes": [
+    "native-init-probe-001 .. 020",
+    "research package + boot.js override on MEmu instance 1"
+  ]
+}

@@ -1,0 +1,297 @@
+{
+  "date": "2026-10-12",
+  "delivery": "dino-local-upgrade.apk",
+  "scope": "local upgrades to level 2 for base and two producers; full gameplay incomplete",
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 20547,
+      "sha256": "ffb07967aec993985cff26d9803048a7ffce9626f068f750dd2071eb16619569"
+    },
+    {
+      "path": "TECHNICAL-NOTES.md",
+      "bytes": 21882,
+      "sha256": "e5c7d33976d8039685f548858fc52d19bc6266d7156e19cfde579e1f09e0de43"
+    },
+    {
+      "path": "README.md",
+      "bytes": 3481,
+      "sha256": "35f894f8eba2afb2a28bcdc18dc500758800cb50d16477ef0a226b224cea5111"
+    },
+    {
+      "path": "LOCAL-UPGRADE.md",
+      "bytes": 3858,
+      "sha256": "6d62e821ae66c91ba7c6da872c7047307f7cf69a3a60c224857680dde496dc02"
+    },
+    {
+      "path": "Launch-Upgrade.ps1",
+      "bytes": 1465,
+      "sha256": "acac02b1bc00ba74a917f62196f8213423aec0da9499bda55de0fe356314d76f"
+    },
+    {
+      "path": "启动本地升级测试.cmd",
+      "bytes": 97,
+      "sha256": "4589ef805701b1288893fabd1aa2dfd25dbf51985763fb42cab6cb4e39975fe1"
+    },
+    {
+      "path": "dino-local-upgrade.apk.sha256",
+      "bytes": 90,
+      "sha256": "c5d61a64c46c19907e193a8f9e8c4b43a9b8bd0e6e835de2aed6c6ab0c5a27a8"
+    },
+    {
+      "path": "analysis/economy_boot.js",
+      "bytes": 19610,
+      "sha256": "f6f950bd84a5629cac5be14a7d83050c0d53da741e075a7203e77be412539137"
+    },
+    {
+      "path": "analysis/make_upgrade.py",
+      "bytes": 10667,
+      "sha256": "19dcfcafdd1f86c47eaa2ac299b7d26cc5a28c3bf089536ffa7cad75126d8bbc"
+    },
+    {
+      "path": "analysis/upgrade_boot.js",
+      "bytes": 27163,
+      "sha256": "b7175dccb9c7641f07b49235f2f8992cf1430fae64a7134e9365cd37e2610d55"
+    },
+    {
+      "path": "analysis/build_upgrade.py",
+      "bytes": 2293,
+      "sha256": "362cbcff23810363cfb53ba8a55e163d57972ad4a23dc9ab6a3ea02a58eac2ba"
+    },
+    {
+      "path": "analysis/local_hook.cpp",
+      "bytes": 1813,
+      "sha256": "8c61a2574e4e2518d62365d621be05d422cef9131bc21622186d2c8fcec0140f"
+    },
+    {
+      "path": "analysis/libdinolocal.so",
+      "bytes": 320332,
+      "sha256": "2fe296a83d0368b41b63668d82c74cbc48b1b1c6fc3a5d7ce776422f90c9492a"
+    },
+    {
+      "path": "analysis/prepare_upgrade_validation.py",
+      "bytes": 444,
+      "sha256": "e3b11282e6f3568c10e67e318c29661407fb9db7fbf25e36bebf6d30d05887ec"
+    },
+    {
+      "path": "analysis/build_upgrade_validation.py",
+      "bytes": 2309,
+      "sha256": "c8190e43054812d751add148fd6ea03853873301654e5ef0b6889df734af7e25"
+    },
+    {
+      "path": "analysis/upgrade_validation_boot.js",
+      "bytes": 27144,
+      "sha256": "48790a143e5df114484faa9050caea86e8a2d73c369d2b6d6143daed2c2493b9"
+    },
+    {
+      "path": "analysis/upgrade_seed_fixture.js",
+      "bytes": 587,
+      "sha256": "bde6e2fec122d6c8e4c879054ecdc35aac5ff051662719dc0839be592020c315"
+    },
+    {
+      "path": "analysis/upgrade-test-fixture.json",
+      "bytes": 2939,
+      "sha256": "d95888109f34a2a0e7ecbda989d4d76f5a799d55b2864e7b3147d95f47032094"
+    },
+    {
+      "path": "analysis/validate_upgrade.py",
+      "bytes": 6465,
+      "sha256": "2bf2ce0aa146e59aa6494626ec6e6d8754b4db6c7494b5ea85bf67554c24a551"
+    },
+    {
+      "path": "analysis/validate_upgrade_delivery.py",
+      "bytes": 4461,
+      "sha256": "0a17f8520e2146119e82813fbb4d6d4f4e3bba75ebfba510fc03ec36d515527a"
+    },
+    {
+      "path": "analysis/check_upgrade_artifacts.py",
+      "bytes": 1269,
+      "sha256": "e7b98609665b003aee82eb7b04162d7b5eaeabc49281c96dfa658ef5be05b532"
+    },
+    {
+      "path": "analysis/upgrade-artifact-check.json",
+      "bytes": 272,
+      "sha256": "2e505bb0f8430953cbc7a25be3ae1269b82dd980bf5570e0b682e20bcbf26e2e"
+    },
+    {
+      "path": "analysis/upgrade-native-configs.json",
+      "bytes": 7938,
+      "sha256": "c15c47751e4dde3001e848df9655d25b73796b147be60d3c5e34200f5a3d0b1a"
+    },
+    {
+      "path": "analysis/upgrade-native-timing.json",
+      "bytes": 241,
+      "sha256": "dbab49b418fbeb3242bd0efa6bed3fd9861f3c04c78cb390ee2f29c997ea7f02"
+    },
+    {
+      "path": "analysis/upgrade-validation.json",
+      "bytes": 32811,
+      "sha256": "00950c7610f6bbc8dd5e84b224b1cfbd02b24ee51420df5b5394d21053650674"
+    },
+    {
+      "path": "analysis/upgrade-validation.log",
+      "bytes": 347244,
+      "sha256": "94962e7338548831f7e78613ce3a18f52ef870b2cdfea524ab4f9f15a9797935"
+    },
+    {
+      "path": "analysis/upgrade-delivery-validation.json",
+      "bytes": 15216,
+      "sha256": "9d6f8515e92c7e481b693218dda9eb0dc6cb6d867a264af66a41a3a8682fecfa"
+    },
+    {
+      "path": "analysis/upgrade-delivery-validation.log",
+      "bytes": 143130,
+      "sha256": "286138950d62f0abf6251065086a955ea038e3f2ee8390d2a66cc4101b0675e9"
+    },
+    {
+      "path": "analysis/upgrade-delivery-permissions.txt",
+      "bytes": 2269,
+      "sha256": "041d71162c73e39a12daac9cb27db30e30c20934de7d3587c27f0f3cc1cd9467"
+    },
+    {
+      "path": "analysis/snapshot_upgrade.py",
+      "bytes": 2378,
+      "sha256": "6d60c8a75dcdede960248cbba0e613ffbe53d0efd4c1e3af7607729b78c5bf5a"
+    },
+    {
+      "path": "analysis/apk/build/apk/classes.dex",
+      "bytes": 3860136,
+      "sha256": "bf46d906a57eabfbbdd56ee408c37a25054d08b70276c899cc2ec5a07f032c9e"
+    },
+    {
+      "path": "analysis/apk/AndroidManifest.xml",
+      "bytes": 8159,
+      "sha256": "b632d6db3b774a526cae9b93c104168227659996c3798f565bbdaad67d9a49d3"
+    },
+    {
+      "path": "analysis/apk/smali/local/dino/LocalHook.smali",
+      "bytes": 346,
+      "sha256": "0f6d70338e8c9d186abc64cca1755b17ae43a14bba23d3bc9dcab968257acf09"
+    },
+    {
+      "path": "analysis/apk/smali/org/cocos2dx/lib/Cocos2dxRenderer.smali",
+      "bytes": 7555,
+      "sha256": "d1eb24518ca782941d24aacce1c279a6f85ebe50874c9513b93cd16a73bd15f5"
+    },
+    {
+      "path": "analysis/apk/smali/com/netease/h1/qihoo/AdvanceDino.smali",
+      "bytes": 48442,
+      "sha256": "2642531df506f736bf8fa3eb9749031d7deccdfe311cae32d20ae1f96e799741"
+    },
+    {
+      "path": "analysis/upgrade-verified-base-complete.png",
+      "bytes": 1187031,
+      "sha256": "bef01a19468259ff15ff6cb9df8c310426c6a85f95ef47ef3b03072b8a2b945f"
+    },
+    {
+      "path": "analysis/upgrade-verified-base-required.png",
+      "bytes": 1192603,
+      "sha256": "f27d2270380c5cb151230afef406b1cec3a685fd90862dab477ba2dce78415ed"
+    },
+    {
+      "path": "analysis/upgrade-verified-base-restart.png",
+      "bytes": 1190793,
+      "sha256": "a17aecf08249342784b6ec12938796550fc1ad768454f7d42a2cf3f828bacf3a"
+    },
+    {
+      "path": "analysis/upgrade-verified-base-start.png",
+      "bytes": 1190187,
+      "sha256": "574ba5fb9846eef21224fbf1b60bd2c690e89e465592581d6933bb75b16512c9"
+    },
+    {
+      "path": "analysis/upgrade-verified-cost.png",
+      "bytes": 1193365,
+      "sha256": "b6a12d7d6e87ff643fd4b55d86485f4b46bfbd1c1c446acfdf360a82447ecb1a"
+    },
+    {
+      "path": "analysis/upgrade-verified-initial.png",
+      "bytes": 1191793,
+      "sha256": "d3fa2f158567f302f3b1a9d3b210dddd7e5ed98b8cc7e3e14d0032573e78a207"
+    },
+    {
+      "path": "analysis/upgrade-verified-mine-complete.png",
+      "bytes": 1194926,
+      "sha256": "e53ddc0483d465538afff0d415a07739929a5d1ccb615819bf31339c832cf1b7"
+    },
+    {
+      "path": "analysis/upgrade-verified-mine-start.png",
+      "bytes": 1189745,
+      "sha256": "ca6b48a2b7b8e1f5450e5fbf4ba75effda19ee4654e8f2ea555317c1661b5073"
+    },
+    {
+      "path": "analysis/upgrade-verified-sun-collected.png",
+      "bytes": 1187954,
+      "sha256": "6da7865388ebf0b340c21e9ab4ffd0f6b8f7056231788a590b63a6e26fef866e"
+    },
+    {
+      "path": "analysis/upgrade-verified-sun-complete.png",
+      "bytes": 1192425,
+      "sha256": "d861107e8cab0632e76fec7350d709b8a42f7efb8c036d70dbd6fe0960072f38"
+    },
+    {
+      "path": "analysis/upgrade-verified-sun-countdown.png",
+      "bytes": 1188540,
+      "sha256": "6ce092cb9502fed1ed36c5c859a48a4840883a1282b7e9f4f50cc831a7289b2d"
+    },
+    {
+      "path": "analysis/upgrade-verified-sun-start.png",
+      "bytes": 1188560,
+      "sha256": "68c6c630e02d865886127f0e0e5e8a6850c102b178326772766b69c46a50550c"
+    },
+    {
+      "path": "analysis/upgrade-verified-worker-busy.png",
+      "bytes": 1191777,
+      "sha256": "bd4c423e5039a33198c48f0834cedb72669053014195c8f3913c2b85235535ea"
+    },
+    {
+      "path": "analysis/upgrade-delivery-base-required.png",
+      "bytes": 1187068,
+      "sha256": "e44e009add6fd9c025c85332ab56d61823301dacefb126432f4fda14229fd315"
+    },
+    {
+      "path": "analysis/upgrade-delivery-collected.png",
+      "bytes": 1185914,
+      "sha256": "f1c9256bd241726b13249c8d6513931d586eda881d7f801c969f4f0f88231a44"
+    },
+    {
+      "path": "analysis/upgrade-delivery-confirmation.png",
+      "bytes": 1193401,
+      "sha256": "28ac5feddf848b9c5d2906d2f0351f9ea293b929e7d80cfc0b06d00cb167b820"
+    },
+    {
+      "path": "analysis/upgrade-delivery-final.png",
+      "bytes": 1190169,
+      "sha256": "810595de816b767acf325a633e303e2b1f65cf52c7a60bfbae3542c9c920a1a6"
+    },
+    {
+      "path": "analysis/upgrade-delivery-initial.png",
+      "bytes": 1190329,
+      "sha256": "cd3b6db9d6ad9d8cc2b86d67b1844accd66b38eb6931ce89b791100d87b53dac"
+    },
+    {
+      "path": "analysis/upgrade-delivery-insufficient.png",
+      "bytes": 1185773,
+      "sha256": "e1820f31798e04a743654432f76adc2ba88955898092d0140efd0df73731618c"
+    },
+    {
+      "path": "koudaizhuluoji.apk",
+      "bytes": 107591106,
+      "sha256": "0147b66e34c4790fea9c273f2dcf67721e55b2f2bce8a50ab5ea51ea1e09b618"
+    },
+    {
+      "path": "dino-local-preview.apk",
+      "bytes": 107727256,
+      "sha256": "0ba711736605b9fda0657eb29510230e66417807d5b979ba134708ab01d3cbdc"
+    },
+    {
+      "path": "dino-local-economy.apk",
+      "bytes": 107731352,
+      "sha256": "ac911711f38f4031ea2087f8553ddbd936b3fc21345f37c67e79328109876c5b"
+    },
+    {
+      "path": "dino-local-upgrade.apk",
+      "bytes": 107731352,
+      "sha256": "f44cf95fae12b91a085574b25af9f0b094634322544da533c01ba6b3b612963b"
+    }
+  ]
+}

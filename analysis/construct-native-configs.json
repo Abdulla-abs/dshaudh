@@ -1,0 +1,30 @@
+{
+  "request": "construct-from-prior-research",
+  "notes": [
+    "Shop.buyBuilding prices buildings with unit_main.lv_up_cost / lv_up_cost_type.",
+    "BuildingBuilder on 20201 reports getRealCost=700, buildTime=180, resType=RES_TYPE_GOLD(2).",
+    "data.build_number[202] gates how many 日光井 the city hall level may own.",
+    "Default layout already has one 20201; a second needs city hall lv>=2 (lv2_num=2)."
+  ],
+  "construct_type": "20201",
+  "family": "202",
+  "cost": 700,
+  "cost_type": 2,
+  "cost_resource": "gold",
+  "time_sec": 180,
+  "build_number_202": {
+    "lv1_num": 1,
+    "lv2_num": 2,
+    "lv3_num": 3,
+    "lv4_num": 4,
+    "lv5_num": 5,
+    "lv6_num": 6,
+    "lv7_num": 6,
+    "lv8_num": 6,
+    "lv9_num": 6,
+    "lv10_num": 6
+  },
+  "max_extra_in_this_build": 5,
+  "save_key": "dino.local.city.v10",
+  "inherits": "dino.local.city.v9"
+}

@@ -1,0 +1,8 @@
+{
+  "originalAndPreviousAPKsUnchanged": true,
+  "testVariantDifferences": [
+    "independent save key",
+    "final empty-storage text uses level-specific seconds per point"
+  ],
+  "upgradeSha256": "f44cf95fae12b91a085574b25af9f0b094634322544da533c01ba6b3b612963b"
+}

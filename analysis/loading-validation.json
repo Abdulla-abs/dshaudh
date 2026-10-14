@@ -1,0 +1,19 @@
+{
+  "apk": "dino-local-loading.apk",
+  "sha256": "a79cc6ded16329e46b8c35063f24781826a2342fb8725ecb415a0481974f5690",
+  "environment": {
+    "instance": 1,
+    "adb": "127.0.0.1:21513",
+    "android": 9,
+    "renderer": "DirectX"
+  },
+  "checks": {
+    "entry_loading_tip_progress_map": "passed by screenshot sequence",
+    "button_back": "passed by screenshot",
+    "reenter_loading_map": "passed by screenshot sequence",
+    "android_back": "passed by screenshot",
+    "repeated_click": "passed by screenshot"
+  },
+  "log_errors": [],
+  "preserved_preview_sha256": "0ba711736605b9fda0657eb29510230e66417807d5b979ba134708ab01d3cbdc"
+}

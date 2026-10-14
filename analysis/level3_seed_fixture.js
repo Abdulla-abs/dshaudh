@@ -1,0 +1,31 @@
+DA.SynServerTime(Date.now()/1000);
+var keys=['dino.local.city.v1','dino.local.city.v2','dino.local.city.v3','dino.local.city.v4'];
+var report={request:'level3-fixture-002',preserved:{}};
+keys.forEach(function(k){
+    var v=sys.localStorage.getItem(k);
+    if(v!==null && v!=='')report.preserved[k]=v;
+});
+var source=report.preserved['dino.local.city.v4']||report.preserved['dino.local.city.v3']||report.preserved['dino.local.city.v2'];
+if(!source)throw Error('Missing source save for level3 fixture');
+var fixture=JSON.parse(source);
+fixture.version=5;
+fixture.revision=0;
+fixture.buildings[0].type='20102';
+fixture.buildings[1].type='20202';
+fixture.buildings[2].type='20302';
+fixture.buildings[3].type='20402';
+fixture.buildings[4].type='20502';
+fixture.buildings[5].type='20601';
+fixture.buildings[6].type='20701';
+fixture.buildings[7].type='21201';
+fixture.resources={gold:20000,wood:20000};
+fixture.production=fixture.production||{};
+var hour=DA.getSystemCurrentTimeHour();
+Object.keys(fixture.production).forEach(function(k){
+    fixture.production[k]={stored:50,lastHour:hour};
+});
+for(var i=0;i<fixture.buildings.length;i++)delete fixture.buildings[i].upgrade;
+sys.localStorage.setItem('dino.local.city.v5.validation-20261012',JSON.stringify(fixture));
+report.hour=hour;
+report.fixture=JSON.parse(sys.localStorage.getItem('dino.local.city.v5.validation-20261012'));
+return report;

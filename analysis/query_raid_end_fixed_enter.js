@@ -1,0 +1,3 @@
+this.RaidEndTrace={events:[]};var n=LocalNativeGlobal,p=Game.GameControllerBattle.prototype;
+['onUnitDead','scheduleDelayedBattleFinish','finishBattle','onBattleFinished'].forEach(function(k){var fn=p[k];p[k]=function(){RaidEndTrace.events.push({method:k,finished:this.battleFinished,records:this.battleRecorder&&this.battleRecorder.records.slice(),opDone:this.battleRecorder&&this.battleRecorder.isUserOperationFinished()});return fn.apply(this,arguments);};});
+var orig=G_Player.callServer;G_Player.callServer=function(k,v){if(/finish_enemy|complete_battle|set_user_config|battle_to_home/.test(k))RaidEndTrace.events.push({rpc:k,params:v});return orig.apply(this,arguments);};n.handleEnterEnemyAttackReplay(G_Player,{stage:20001});return {request:'raid-end-fixed-enter'};

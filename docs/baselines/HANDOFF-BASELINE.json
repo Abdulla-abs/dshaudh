@@ -1,0 +1,142 @@
+{
+  "recorded_date": "2026-10-12",
+  "workspace": "F:/kdzlj",
+  "status": "original-entry-and-local-scene-preview; full-gameplay-not-restored",
+  "delivery_package": "com.netease.h1.qihoo",
+  "emulator": {
+    "name": "MEmu",
+    "instance": 1,
+    "android": 9,
+    "adb": "127.0.0.1:21513",
+    "graphics_render_mode": 1
+  },
+  "consistency_checks": {
+    "preview_boot_matches_city_boot": true,
+    "preview_dex_matches_current_dex": true,
+    "preview_manifest_matches_rebuild": true,
+    "preview_library_matches_last_build": true,
+    "renderer_matches_startup_backup": true
+  },
+  "files": [
+    {
+      "path": "koudaizhuluoji.apk",
+      "bytes": 107591106,
+      "sha256": "0147b66e34c4790fea9c273f2dcf67721e55b2f2bce8a50ab5ea51ea1e09b618"
+    },
+    {
+      "path": "dino-local-preview.apk",
+      "bytes": 107727256,
+      "sha256": "0ba711736605b9fda0657eb29510230e66417807d5b979ba134708ab01d3cbdc"
+    },
+    {
+      "path": "dino-local-startup.apk",
+      "bytes": 107727256,
+      "sha256": "4327ddc621ce725708f90d72863f65087c4901f2fc4e5213cc06628ba916487f"
+    },
+    {
+      "path": "analysis/city_boot.js",
+      "bytes": 6922,
+      "sha256": "d3d0c46952992c9a2b8420c6ffe4a77f427a4f1af692672ea20b23c891afa019"
+    },
+    {
+      "path": "analysis/boot.js",
+      "bytes": 1628,
+      "sha256": "abeb286b911be353edc416bd994c6350d514534c444f8c3c2f1d670ac3ba0ab5"
+    },
+    {
+      "path": "analysis/local_hook.cpp",
+      "bytes": 1813,
+      "sha256": "8c61a2574e4e2518d62365d621be05d422cef9131bc21622186d2c8fcec0140f"
+    },
+    {
+      "path": "analysis/build_preview.py",
+      "bytes": 2290,
+      "sha256": "cb187b5a888590f65beb343f81a840e1798160ca9650fe5d12f87ac4708fb3fb"
+    },
+    {
+      "path": "analysis/build_local.py",
+      "bytes": 2247,
+      "sha256": "c036ab7ce383278d6e93032252c4e339a5a045c398677b4e4a9dc587fdd9fe6d"
+    },
+    {
+      "path": "analysis/decode_scripts.py",
+      "bytes": 2591,
+      "sha256": "2626b26698e7f3f5d41e080e4a0900103b0558be34931ba8921dc38d348d85ea"
+    },
+    {
+      "path": "analysis/research_hook.cpp",
+      "bytes": 4338,
+      "sha256": "aa49ea701d6e91e8e7411fd1e071c456b55f8a40b1cf0dc7d90e0672e639f7db"
+    },
+    {
+      "path": "analysis/build_research.py",
+      "bytes": 2287,
+      "sha256": "59aa0e9c22e902595c4ff58265e3a0d82bb1c5c475855b7a71d3c584c4686538"
+    },
+    {
+      "path": "analysis/research-classes.dex",
+      "bytes": 3860160,
+      "sha256": "b40531d94b805f074e69084283be1d9518aed071700bd9a3b85ed4944560e760"
+    },
+    {
+      "path": "analysis/apk/build/apk/classes.dex",
+      "bytes": 3860136,
+      "sha256": "bf46d906a57eabfbbdd56ee408c37a25054d08b70276c899cc2ec5a07f032c9e"
+    },
+    {
+      "path": "analysis/rebuild.apk",
+      "bytes": 107657571,
+      "sha256": "fc6ff10698970463c77cd96d30da9d47099ba5fd0e7011dd2b52a406c93f2864"
+    },
+    {
+      "path": "Launch-Preview.ps1",
+      "bytes": 1461,
+      "sha256": "5d220c12888d6e69b00fe4b7304cb64ba42cbeb26ceae13a3dc220c8fa9d51c3"
+    },
+    {
+      "path": "Launch-Local.ps1",
+      "bytes": 441,
+      "sha256": "d03b4cf0759351bacd117bdc0338921ae4f7c98b94bfe892fb61bf896b6f3222"
+    },
+    {
+      "path": "analysis/apk/AndroidManifest.xml",
+      "bytes": 8159,
+      "sha256": "b632d6db3b774a526cae9b93c104168227659996c3798f565bbdaad67d9a49d3"
+    },
+    {
+      "path": "analysis/apk/smali/org/cocos2dx/lib/Cocos2dxRenderer.smali",
+      "bytes": 7555,
+      "sha256": "d1eb24518ca782941d24aacce1c279a6f85ebe50874c9513b93cd16a73bd15f5"
+    },
+    {
+      "path": "analysis/apk/smali/local/dino/LocalHook.smali",
+      "bytes": 346,
+      "sha256": "0f6d70338e8c9d186abc64cca1755b17ae43a14bba23d3bc9dcab968257acf09"
+    },
+    {
+      "path": "analysis/apk/smali/com/netease/h1/qihoo/AdvanceDino.smali",
+      "bytes": 48442,
+      "sha256": "2642531df506f736bf8fa3eb9749031d7deccdfe311cae32d20ae1f96e799741"
+    },
+    {
+      "path": "analysis/local-preview-verified.png",
+      "bytes": 1234762,
+      "sha256": "5b9df46d97dc3aac4f6f0bfaffe73e51665c1bef6468e24991445c0962628aa1"
+    },
+    {
+      "path": "analysis/preview-frame-check.json",
+      "bytes": 775,
+      "sha256": "2ee0f07a9d3a2201330d1587e604ad06cfb162d3bfe5e377c3900e7d5924efd9"
+    },
+    {
+      "path": "analysis/preview-interaction-check.json",
+      "bytes": 1133,
+      "sha256": "f4a09e08ae19689f6c2f1f79a4f7097db35199050909d1393f1c1f0b80303d85"
+    },
+    {
+      "path": "handoff/verified-source-2026-10-12.zip",
+      "bytes": 1692210,
+      "sha256": "c16466a3c7247453a9546b17c279dd8de387e1a6c6d7e2228d021487c3fdba62"
+    }
+  ]
+}

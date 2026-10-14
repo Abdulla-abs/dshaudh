@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-14",
+  "scope": "剧情入侵战斗中龙弹堡主动攻击",
+  "user_confirmation": "我已确认修复成功",
+  "status": "user_verified",
+  "apk_sha256": "2f7dabbf3985f6642955097168fed354f145a64a70fecc0a943df6bad806bec8",
+  "apk_boot_matches_source": true,
+  "engine_evidence": "tower-seed-only-result-1014.json",
+  "engine_total_output_damage": 270,
+  "engine_enemy_life": {
+    "17": 0,
+    "18": 0,
+    "19": 100,
+    "20": 40
+  },
+  "fix": "补齐 replay.seed: 1，移除强制开火并沿用原版状态机",
+  "not_yet_verified": [
+    "自然结算",
+    "后续剧情续接",
+    "本次修复后的强杀续读"
+  ],
+  "note": "本条用户确认只覆盖龙弹堡问题；不推断用户测试设备或已安装包的哈希。APK 哈希为本机交付文件实测。"
+}
