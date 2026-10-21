@@ -20,7 +20,7 @@ Launch-Preview.ps1	entry	1461
 Launch-State.ps1	entry	1454
 Launch-Train.ps1	entry	1531
 Launch-Upgrade.ps1	entry	1465
-README.md	entry	784
+README.md	entry	4872
 analysis/apk/AndroidManifest.xml	android-patch	8159
 analysis/apk/apktool.yml	android-patch	33926
 analysis/apk/smali/com/netease/dacommon/AppErrorReport$1.smali	android-patch	2440
@@ -816,10 +816,10 @@ analysis/validate_train.py	verification	12434
 analysis/validate_train_delivery.py	verification	5350
 analysis/validate_upgrade.py	verification	6465
 analysis/validate_upgrade_delivery.py	verification	4461
-docs/ai/current-state.md	docs	48072
+docs/ai/current-state.md	docs	48394
 docs/ai/file-policy.md	docs	3491
 docs/ai/handoff-template.md	docs	891
-docs/ai/index.md	docs	22031
+docs/ai/index.md	docs	22071
 docs/ai/pending.md	docs	1824
 docs/ai/rpc-map.md	docs	7300
 docs/archive/AGENTS-before-organization.md	docs	10219

@@ -4,6 +4,10 @@ AGENTS.md	7	## 强制边界
 AGENTS.md	15	## 文件写入规则（全项目适用）
 AGENTS.md	26	## 查询方法
 README.md	1	# 客户端本地适配
+README.md	5	## 获取源码和底包
+README.md	24	## 首次配置开发环境
+README.md	49	## 修改、构建和测试
+README.md	78	## 文档与版本管理
 analysis/evidence/account-exp-persistence.md	1	# 账号经验退出后丢失
 analysis/evidence/arena-feasibility.md	1	# 英雄竞技场镜像对战
 analysis/evidence/battle-clock.md	1	# 战斗回城后动画和倒计时加速

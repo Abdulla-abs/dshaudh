@@ -84,7 +84,7 @@
 | 单人奖励入库、主城升级保留库存 | [资源修复证据](../../analysis/evidence/pve-wallet-fix.md) | `analysis/native_boot.js`、`analysis/check_native_pve_wallet.cjs` |
 | 荒野探险动画后卡死／抓捕按钮变灰 | [荒野探险证据](../../analysis/evidence/wild-adventure.md)，离线通过待复测 | `wild-adventure.json`、`check_native_wild_adventure.cjs`、`handleEnterDiceEvent`／`handleLoadDiceEvent1Pve` |
 | 荒野探险掉落与概率 | [掉落核对](../../analysis/evidence/wild-adventure-loot.md)；本地奖池已接待复测 | `adventureLootPolicy`／`check_native_wild_adventure.cjs` |
-| 构建、启动、设备 | [操作说明](../operations/LOCAL-NATIVE.md)、[技术笔记](../history/TECHNICAL-NOTES.md)（按标题查询） | `analysis/build_native.py`、`analysis/local_hook.cpp`、`Launch-Native.ps1` |
+| 构建、启动、设备 | [首次环境准备](../../README.md)、[操作说明](../operations/LOCAL-NATIVE.md)、[技术笔记](../history/TECHNICAL-NOTES.md)（按标题查询） | `analysis/build_native.py`、`analysis/local_hook.cpp`、`Launch-Native.ps1` |
 | 历史预览实验 | `docs/operations/LOCAL-*.md`、`docs/baselines/` | `analysis/build_*.py`、`*_boot.js` |
 | 文件存放、Git、索引 | [文件规则](file-policy.md) | `tools/repo_index.py`、`.gitignore` |
 
