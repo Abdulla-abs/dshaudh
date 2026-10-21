@@ -14,6 +14,15 @@
 !/analysis/*.py
 !/analysis/*.js
 !/analysis/*.cjs
+!/analysis/check_scout_cloud.mjs
+!/analysis/scout-cloud/
+/analysis/scout-cloud/*
+!/analysis/scout-cloud/worker.mjs
+!/analysis/scout-cloud/schema.sql
+!/analysis/scout-cloud/upload.html
+!/analysis/scout-cloud/upload.css
+!/analysis/scout-cloud/upload.js
+!/analysis/scout-cloud/native-sync.js
 !/analysis/*.cpp
 !/analysis/*.json
 !/analysis/rpc-contracts/

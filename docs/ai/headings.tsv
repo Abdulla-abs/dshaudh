@@ -84,6 +84,8 @@ analysis/evidence/rune-shop.md	5	## 购买失败与扩容
 analysis/evidence/rune-shop.md	19	## 刷新概率调整
 analysis/evidence/scout-abbas.md	1	# 随机侦察新增 abbas
 analysis/evidence/scout-batch-9-18.md	1	# 随机侦察新增十关
+analysis/evidence/scout-cloud-client.md	1	# 游戏云端阵容同步
+analysis/evidence/scout-cloud.md	1	# 云端侦察阵容池 API
 analysis/evidence/scout-loot.md	1	# 随机侦察资源掠夺
 analysis/evidence/scout-map-bounds.md	1	# 巷子里的猫建筑落到地图外
 analysis/evidence/scout-pool.md	1	# 随机侦察预定义关卡池
@@ -128,7 +130,7 @@ analysis/evidence/wild-adventure-loot.md	5	## 客户端可证实（原包）
 analysis/evidence/wild-adventure-loot.md	14	## 本地规则（用户授权，参考网络资料）
 analysis/evidence/wild-adventure-loot.md	30	## 验证
 analysis/evidence/wild-adventure.md	1	# 荒野探险进入后卡在地图
-docs/ai/current-state.md	1	# 当前状态（2026-10-20）
+docs/ai/current-state.md	1	# 当前状态（2026-10-21）
 docs/ai/file-policy.md	1	# 文件与版本管理
 docs/ai/file-policy.md	3	## 分类
 docs/ai/file-policy.md	21	## 查询和维护
@@ -294,6 +296,13 @@ docs/native/NATIVE-DEV-CONTEXT.md	198	## 已知仍开放的缺口
 docs/native/NATIVE-DEV-CONTEXT.md	211	## 禁止再犯
 docs/native/NATIVE-DEV-CONTEXT.md	224	## 建议下一验收顺序
 docs/native/NATIVE-HERO-HANDOFF.md	1	# 新手战斗缺少将领：迪诺数据适配
+docs/native/SCOUT-CLOUD.md	1	# 云端侦察阵容池部署
+docs/native/SCOUT-CLOUD.md	3	## 当前状态
+docs/native/SCOUT-CLOUD.md	7	## 初始化数据库
+docs/native/SCOUT-CLOUD.md	13	## 部署 Worker
+docs/native/SCOUT-CLOUD.md	23	## API 行为
+docs/native/SCOUT-CLOUD.md	31	## 游戏同步和随机
+docs/native/SCOUT-CLOUD.md	41	## 本地检查
 docs/native/SCOUT-POOL.md	1	# 随机侦察关卡池
 docs/native/SCOUT-POOL.md	5	## 关卡与匹配规则
 docs/native/SCOUT-POOL.md	25	## 增加关卡
@@ -361,6 +370,12 @@ docs/operations/LOCAL-TRAIN.md	34	## 开发入口
 docs/operations/LOCAL-UPGRADE.md	1	# 本地建筑升级测试版
 docs/operations/LOCAL-UPGRADE.md	21	## 开发入口
 docs/operations/LOCAL-UPGRADE.md	36	## 验证记录
+docs/scout-cloud/PRODUCT.md	1	# 云端阵容池
+docs/scout-cloud/PRODUCT.md	3	## Register
+docs/scout-cloud/PRODUCT.md	7	## 用户与用途
+docs/scout-cloud/PRODUCT.md	11	## 产品边界
+docs/scout-cloud/PRODUCT.md	15	## 视觉与文案
+docs/scout-cloud/PRODUCT.md	19	## 可访问性
 docs/tools/layout-editor/DESIGN.md	1	# 布局编辑器设计规范
 docs/tools/layout-editor/DESIGN.md	3	## Stack
 docs/tools/layout-editor/DESIGN.md	7	## Tokens

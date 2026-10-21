@@ -1,0 +1,20 @@
+{
+  "schema": "dino-scout-cloud-contract/v1",
+  "status": "live-upload-and-game-test-user-confirmed-native-cache-restart-observed",
+  "baseUrl": "https://kdzlj-scout-api.qizhiwang339.workers.dev",
+  "databaseBinding": "DB",
+  "routes": {
+    "GET /": "Responsive upload web page; static script and CSS served under /assets/",
+    "GET /api/health": "ok, schema, revision; requires initialized database",
+    "POST /api/layouts": "application/json {author, layout: dino-pve-layout/v1}; returns ok, id, duplicate",
+    "GET /api/pool": "schema=dino-scout-cloud/v1, revision, levels[{id,name,author,headquartersLevel,createdAt}]",
+    "GET /api/layouts/:id": "schema=dino-scout-entry/v1, id, headquartersLevel, layout (compiled units and walls)",
+    "GET /api/layouts/:id/raw": "Published original editor JSON as an attachment; 404 when unpublished",
+    "DELETE /api/layouts/:id": "Authorization: Bearer ADMIN_TOKEN; unpublishes entry"
+  },
+  "limits": {"requestBytes": 262144, "uploadsPerIpPerHour": 5, "uploadsGlobalPerDay": 100, "storedEntries": 1000},
+  "publication": "Validated uploads publish immediately; removed content cannot be uploaded again under the same compiled content hash.",
+  "deduplication": "SHA-256 of canonical compiled entry; includes name, stage and array order; not geometric equivalence.",
+  "clientSync": "Read manifest, fetch missing immutable entries, recheck revision, validate complete snapshot, atomically replace cache. Keep previous snapshot on failure. Freeze battle target until settlement. See scout-cloud-client.json.",
+  "pendingAcceptance": ["real device offline operation", "physical phone installation"]
+}

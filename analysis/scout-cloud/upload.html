@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>随机侦察 · 共享阵容池</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/assets/upload.css">
+<script src="/assets/upload.js" defer></script>
+</head>
+<body>
+<header><div class="header-inner"><a class="identity" href="/">随机侦察<span>共享阵容池</span></a><a href="#pool">查看阵容</a></div></header>
+<main>
+<section aria-labelledby="upload-title" class="upload-section">
+<div class="intro"><h1 id="upload-title">分享你的防守阵容</h1><p>上传关卡布局编辑器导出的 JSON，让其他玩家在随机侦察中遇见你的布局。</p></div>
+<form id="upload-form">
+<label for="layout-file">阵容文件</label>
+<div class="file-area"><input id="layout-file" name="layout" type="file" accept=".json,application/json" required aria-describedby="file-hint"><p id="file-hint">支持编辑器原始 JSON，文件及上传信息合计不超过 256 KiB。</p></div>
+<div id="preview" hidden><h2 id="layout-name"></h2><p id="layout-summary"></p></div>
+<div class="author-row"><div class="author-field"><label for="author">作者名</label><input id="author" name="author" type="text" maxlength="40" required autocomplete="nickname" placeholder="输入分享时显示的名字" aria-describedby="author-hint"><p id="author-hint">1～40 个字符，随阵容公开显示。</p></div><button id="submit" type="submit" class="primary" disabled>上传阵容</button></div>
+<p id="upload-status" class="status" role="status" aria-live="polite"></p>
+<p class="note">校验通过后公开入池。同一内容重复上传不会新增记录；每个网络地址每小时最多尝试 5 次。</p>
+</form>
+</section>
+<section id="pool" aria-labelledby="pool-title">
+<div class="section-heading"><div><h2 id="pool-title">共享阵容</h2><p id="pool-summary">正在读取阵容池…</p></div><button id="refresh" type="button">刷新阵容</button></div>
+<p id="pool-status" class="status" role="status" aria-live="polite"></p>
+<ul id="pool-list" aria-label="公开阵容列表" aria-busy="true"><li class="placeholder">正在加载阵容…</li></ul>
+</section>
+</main>
+<footer>阵容下载为编辑器原始 JSON，可重新导入编辑。游戏内同步功能接入中。</footer>
+</body>
+</html>

@@ -6,6 +6,7 @@
 
 | 任务 | 说明入口 | 代码和数据 |
 |---|---|---|
+| 云端共享侦察阵容池与游戏同步 | [部署说明](../native/SCOUT-CLOUD.md)、[客户端证据](../../analysis/evidence/scout-cloud-client.md)，用户确认上传；实例 1 联网缓存及重启通过，用户确认游戏测试通过 | `analysis/scout-cloud/`、`scout-cloud-client.json`、`tools/build_scout_cloud_native.cjs`、`analysis/check_native_scout_cloud.cjs` |
 | 战斗 → 英雄竞技场镜像对手 | [镜像对战证据](../../analysis/evidence/arena-feasibility.md)，原生五对五、判负结算、回城重登已观察；失败扣分、商店和排名仍有缺口，用户待验收 | `arena.json`、`inspect_native_arena.py`、`check_native_arena.cjs`、`check_native_arena_device.py` |
 | 随机侦察按建筑容量掠夺资源 | [资源证据](../../analysis/evidence/scout-loot.md)，仓库 20%、生产 80%，已安装实例 1 待实战 | `scout-loot.json`、`fillScoutResourceLoot`、`readScoutBattleLoot`、`check_native_scout_loot.cjs` |
 | 吞噬后进攻回城返还角色、成长还原 | [吞噬保存证据](../../analysis/evidence/hero-swallow.md)，首版复测失败；第二版修正玩家回退误判，原生探针确认 +100 升级归零；已安装待复测 | `hero-swallow.json`、`handleHeroSwallow`、`check_native_hero_swallow.cjs` |

@@ -1,7 +1,7 @@
 path	category	bytes
 .gitattributes	entry	158
 .githooks/pre-commit	.githooks	45
-.gitignore	entry	1601
+.gitignore	entry	1899
 AGENTS.md	entry	3088
 Launch-Capacity.ps1	entry	1435
 Launch-CityUI.ps1	entry	1534
@@ -21,7 +21,7 @@ Launch-State.ps1	entry	1454
 Launch-Train.ps1	entry	1531
 Launch-Upgrade.ps1	entry	1465
 README.md	entry	4872
-analysis/apk/AndroidManifest.xml	android-patch	8159
+analysis/apk/AndroidManifest.xml	android-patch	8226
 analysis/apk/apktool.yml	android-patch	33926
 analysis/apk/smali/com/netease/dacommon/AppErrorReport$1.smali	android-patch	2440
 analysis/apk/smali/com/netease/dacommon/AppErrorReport.smali	android-patch	26337
@@ -431,6 +431,7 @@ analysis/check_native_rune_compose.cjs	verification	7547
 analysis/check_native_rune_device.py	verification	2141
 analysis/check_native_rune_persistence.cjs	verification	6463
 analysis/check_native_save_safety.cjs	verification	1521
+analysis/check_native_scout_cloud.cjs	verification	8629
 analysis/check_native_scout_loot.cjs	verification	6303
 analysis/check_native_scout_loot_device.py	verification	2744
 analysis/check_native_scout_pool.cjs	verification	4907
@@ -456,6 +457,8 @@ analysis/check_native_wanted_device.py	verification	1827
 analysis/check_native_wanted_loadout.cjs	verification	7233
 analysis/check_native_wild_adventure.cjs	verification	8437
 analysis/check_rebirth_treasure.cjs	verification	4622
+analysis/check_scout_cloud.mjs	verification	6054
+analysis/check_scout_cloud_device.py	verification	2288
 analysis/check_scout_map_bounds.py	verification	2585
 analysis/check_scout_pool.py	verification	1839
 analysis/check_upgrade_artifacts.py	verification	1284
@@ -547,6 +550,8 @@ analysis/evidence/rune-persistence.md	adapter-source	2538
 analysis/evidence/rune-shop.md	adapter-source	3683
 analysis/evidence/scout-abbas.md	adapter-source	1724
 analysis/evidence/scout-batch-9-18.md	adapter-source	2302
+analysis/evidence/scout-cloud-client.md	adapter-source	2878
+analysis/evidence/scout-cloud.md	adapter-source	2602
 analysis/evidence/scout-loot.md	adapter-source	2602
 analysis/evidence/scout-map-bounds.md	adapter-source	2987
 analysis/evidence/scout-pool.md	adapter-source	4098
@@ -648,7 +653,7 @@ analysis/mine_boot.js	adapter-source	48691
 analysis/mine_validation_boot.js	adapter-source	48711
 analysis/native-entry-fix-verification.json	evidence-or-data	1347
 analysis/native-init-protocol.json	evidence-or-data	8760
-analysis/native_boot.js	adapter-source	802791
+analysis/native_boot.js	adapter-source	973042
 analysis/native_protocol_probe.js	probe-fixture	260983
 analysis/prepare_capacity_validation.py	adapter-source	618
 analysis/prepare_construct_validation.py	adapter-source	759
@@ -734,6 +739,8 @@ analysis/rpc-contracts/quest-finish.json	rpc-contract	2470
 analysis/rpc-contracts/rebirth-treasure.json	rpc-contract	1535
 analysis/rpc-contracts/rookie-sign.json	rpc-contract	15111
 analysis/rpc-contracts/rune-compose.json	rpc-contract	1284
+analysis/rpc-contracts/scout-cloud-client.json	rpc-contract	583
+analysis/rpc-contracts/scout-cloud.json	rpc-contract	1669
 analysis/rpc-contracts/scout-layouts/abbas.json	rpc-contract	21079
 analysis/rpc-contracts/scout-layouts/alley-cat-8.json	rpc-contract	11490
 analysis/rpc-contracts/scout-layouts/alley-cat.json	rpc-contract	9567
@@ -762,6 +769,12 @@ analysis/rpc-contracts/wall-row-upgrade.json	rpc-contract	1204
 analysis/rpc-contracts/wanted.json	rpc-contract	8564
 analysis/rpc-contracts/welcome-letter.json	rpc-contract	682
 analysis/rpc-contracts/wild-adventure.json	rpc-contract	2704
+analysis/scout-cloud/native-sync.js	adapter-source	16260
+analysis/scout-cloud/schema.sql	adapter-source	1086
+analysis/scout-cloud/upload.css	adapter-source	4599
+analysis/scout-cloud/upload.html	adapter-source	2374
+analysis/scout-cloud/upload.js	adapter-source	6603
+analysis/scout-cloud/worker.mjs	adapter-source	10513
 analysis/set_native_hero_fragments_50.py	adapter-source	3494
 analysis/set_native_hero_level_70.py	adapter-source	3263
 analysis/set_native_hero_skill_burn_boats.py	adapter-source	3594
@@ -816,10 +829,10 @@ analysis/validate_train.py	verification	12434
 analysis/validate_train_delivery.py	verification	5350
 analysis/validate_upgrade.py	verification	6465
 analysis/validate_upgrade_delivery.py	verification	4461
-docs/ai/current-state.md	docs	48394
+docs/ai/current-state.md	docs	49479
 docs/ai/file-policy.md	docs	3491
 docs/ai/handoff-template.md	docs	891
-docs/ai/index.md	docs	22071
+docs/ai/index.md	docs	22457
 docs/ai/pending.md	docs	1824
 docs/ai/rpc-map.md	docs	7300
 docs/archive/AGENTS-before-organization.md	docs	10219
@@ -838,6 +851,7 @@ docs/native/NATIVE-ADAPTER-NOTES.md	docs	15073
 docs/native/NATIVE-BATTLE-HANDOFF.md	docs	16492
 docs/native/NATIVE-DEV-CONTEXT.md	docs	14989
 docs/native/NATIVE-HERO-HANDOFF.md	docs	2608
+docs/native/SCOUT-CLOUD.md	docs	5361
 docs/native/SCOUT-POOL.md	docs	5088
 docs/native/WANTED-TARGET-DATA.md	docs	12234
 docs/operations/LOCAL-CAPACITY.md	docs	2737
@@ -854,6 +868,7 @@ docs/operations/LOCAL-PREVIEW.md	docs	3789
 docs/operations/LOCAL-STARTUP.md	docs	3968
 docs/operations/LOCAL-TRAIN.md	docs	2786
 docs/operations/LOCAL-UPGRADE.md	docs	3904
+docs/scout-cloud/PRODUCT.md	docs	883
 docs/tools/layout-editor/DESIGN.md	docs	2871
 docs/tools/layout-editor/PRODUCT.md	docs	859
 docs/tools/layout-editor/README.md	docs	10258
@@ -864,6 +879,8 @@ tools/build_layout_guard_catalog.cjs	tools	3329
 tools/build_layout_player_rules.cjs	tools	2208
 tools/build_layout_rune_catalog.cjs	tools	2791
 tools/build_layout_trap_catalog.cjs	tools	1632
+tools/build_scout_cloud.cjs	tools	1475
+tools/build_scout_cloud_native.cjs	tools	2294
 tools/build_scout_pool.py	tools	3545
 tools/extract_layout_runes.py	tools	970
 tools/extract_layout_skill_info.py	tools	1489

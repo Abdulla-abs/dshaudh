@@ -1,0 +1,12 @@
+{
+  "schema": "dino-scout-client/v2",
+  "baseUrl": "https://kdzlj-scout-api.qizhiwang339.workers.dev",
+  "storageKey": "dino.local.scout.cloud.v1",
+  "pollSeconds": 300,
+  "requestTimeoutSeconds": 20,
+  "maxEntries": 1000,
+  "maxResponseChars": 1048576,
+  "maxCacheChars": 8388608,
+  "policy": "A nonempty complete cloud snapshot replaces built-in candidates; otherwise built-in candidates are used. Retain existing all/range policy.",
+  "commit": "Write and verify inactive slot, then switch commit pointer. Previous committed slot remains recoverable. Player save is untouched."
+}
