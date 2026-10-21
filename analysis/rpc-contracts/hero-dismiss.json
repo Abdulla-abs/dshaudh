@@ -1,0 +1,20 @@
+{
+  "request": "rpc_s_dismiss_hero",
+  "params": {"hero_id": "角色 SID，不是类型编号或运行时 CID"},
+  "stockOrder": ["HeroManager.canSellHero 校验保留人数", "HeroItem.dismissHero 清理角色界面", "HeroManager.removeHero 删除运行单位", "发送请求"],
+  "snapshot": "在原 dismissHero 执行前读取实际角色的 typeid、ExpBar.growthLv、ExpBar.spirit 和 HeroEquipment.eqp，并在副本上预检奖励容量；不通过则不执行原删除",
+  "reward": {
+    "base": "unit_battle[typeid].dismiss_resource_num 对应原 input_event_client 奖励",
+    "level": "hero_lv_data[growthLv].hero_lv_soul 存在时追加对应奖励；当前底包没有该字段",
+    "spirit": "floor((unit_main[typeid].total_spirit || 0) + ExpBar.spirit)",
+    "equipment": "原符文按 OID 返还所属背包，保留随机属性等字段，num=1；容量不足在删除前拒绝，不另设邮件规则"
+  },
+  "transaction": ["仅主城接受", "删除持久化 heros 中对应 SID", "奖励、返还符文和 local_hero_dismiss_receipts 同次 writeRaw", "成功后同步钱包及背包", "重复 SID 收据不再写入或发奖"],
+  "reply": {"method": "rpc_c_after_dismiss_hero", "params": {"inputAward": "原 Award 数组，英灵为 [11,数量]，道具为 [19,道具增量数组]", "equip_ret": "返还符文时为 {package:true}，否则 null"}},
+  "awardDisplay": "原 Award.showAward 会调用 G_EventManager.inputAward；本地事务已入库，因此回执展示期间临时禁止再次发奖，finally 恢复原函数",
+  "failure": "预检失败不删运行单位；写盘失败不回成功奖励，保留旧存档。原 UI 已删除运行单位时需重登恢复，未实现即时恢复；提交后的展示失败以磁盘为准",
+  "history": "旧版解散未落盘，角色已恢复，不能根据缺失日志推测补发历史奖励",
+  "evidence": "analysis/evidence/hero-dismiss.md",
+  "checks": "node analysis/check_native_hero_dismiss.cjs",
+  "status": "911 种原表角色配置及原版调用链定向检查通过，已保留存档安装实例 1，游戏内解散与重登待用户复测"
+}

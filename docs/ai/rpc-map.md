@@ -4,6 +4,7 @@
 
 | 请求或初始化 | 处理入口 | 契约 | 最小离线检查 |
 |---|---|---|---|
+| `rpc_s_dismiss_hero` | `prepareHeroDismiss`、`handleHeroDismiss` | `analysis/rpc-contracts/hero-dismiss.json` | `node analysis/check_native_hero_dismiss.cjs` |
 | `rpc_s_enter_arena_battle`、`rpc_s_gain_arena_rewards`、竞技场结算／回城 | `handleArenaRpc`、`completeArenaBattle`、`arenaBattleToHome` | `analysis/rpc-contracts/arena.json` | `python analysis/inspect_native_arena.py`、`node analysis/check_native_arena.cjs` |
 | `rpc_s_swallow_heros` | `handleHeroSwallow` | `analysis/rpc-contracts/hero-swallow.json` | `node analysis/check_native_hero_swallow.cjs` |
 | `rpc_s_train_tech`、`rpc_s_finish_training_now` | `handleTrainTech`、`finishResearch`、`startResearchClock` | `analysis/rpc-contracts/knowledge-tree.json` | `node analysis/check_native_tech.cjs` |

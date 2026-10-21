@@ -8497,6 +8497,110 @@
             }
         };
 
+        LocalNative.prepareHeroDismiss = function(player, unit) {
+            if (!unit || unit.sid == null) throw new Error('Missing dismissed hero');
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var sid = String(unit.sid), saved = null;
+            for (var i = 0; i < level.heros.length; i++)
+                if (String(level.heros[i].sid) === sid) saved = level.heros[i];
+            var exp = unit.getComponent('ExpBar'), eq = unit.getComponent('HeroEquipment');
+            var main = data.unit_main[unit.typeid], cfg = data.unit_battle[unit.typeid];
+            if (!saved || Number(saved.typeid) !== Number(unit.typeid) || !main || !main.is_hero ||
+                !cfg || !cfg.dismiss_resource_num || !exp || !data.hero_lv_data[exp.growthLv])
+                throw new Error('Invalid dismissed hero');
+            var rewards = LocalNative.collectQuestPutinRewards(level, cfg.dismiss_resource_num,
+                LocalNative.questPlayerLevel(level, player));
+            var lvEvent = data.hero_lv_data[exp.growthLv].hero_lv_soul;
+            if (lvEvent) rewards = rewards.concat(LocalNative.collectQuestPutinRewards(level, lvEvent,
+                LocalNative.questPlayerLevel(level, player)));
+            // Hero.onPressDismiss bytecode: floor((total_spirit || 0) + exp.spirit).
+            var spirit = Math.floor((Number(main.total_spirit) || 0) + Number(exp.spirit));
+            if (!isFinite(spirit) || spirit < 0) throw new Error('Invalid dismissal spirit');
+            if (spirit) {
+                level.player.spirit = (Number(level.player.spirit) || 0) + spirit;
+                rewards.push([11, spirit]);
+            }
+            if (!eq || eq.eqp == null) throw new Error('Missing dismissal equipment');
+            var returned = false, names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            for (var slot in eq.eqp) {
+                var item = eq.eqp[slot];
+                if (!item) continue;
+                var itemCfg = data.item[item.typeid], name = itemCfg && names[Number(itemCfg.item_type) || 0];
+                var bag = name && level.player['package'] && level.player['package'][name];
+                if (!bag || !bag.item_dict || item.oid == null || bag.item_dict[item.oid])
+                    throw new Error('Invalid returned rune');
+                if (Object.keys(bag.item_dict).length >= Number(bag.capacity == null ? 100 : bag.capacity))
+                    throw new Error('Rune package is full');
+                // Preserve the actual rune, including rolled attributes and its OID.
+                var rune = JSON.parse(JSON.stringify(item));
+                rune.num = 1; rune.is_new = true;
+                bag.item_dict[rune.oid] = rune;
+                bag.new_items = Object.keys(bag.item_dict).filter(function(k) {
+                    return bag.item_dict[k].is_new;
+                }).length;
+                returned = true;
+            }
+            level.heros = level.heros.filter(function(h) {return String(h.sid) !== sid;});
+            var receipts = level.player.local_hero_dismiss_receipts ||
+                (level.player.local_hero_dismiss_receipts = {});
+            receipts[sid] = {typeid: unit.typeid, lv: exp.growthLv};
+            return {player: player, sid: sid, store: store,
+                reply: {inputAward: rewards, equip_ret: returned ? {'package': true} : null}};
+        };
+
+        LocalNative.installHeroDismiss = function() {
+            if (typeof UI === 'undefined' || !UI.HeroItem || !UI.HeroItem.prototype) return;
+            var proto = UI.HeroItem.prototype, original = proto.dismissHero;
+            if (typeof original !== 'function' || original.__localNativeDismiss) return;
+            proto.dismissHero = function() {
+                // Snapshot while the hero still exists; stock UI deletes it before the RPC.
+                if (!G_Player.getComponent('HeroManager').canSellHero())
+                    return original.apply(this, arguments);
+                try {
+                    LocalNative.pendingHeroDismiss = LocalNative.prepareHeroDismiss(G_Player, this.hero);
+                } catch (e) {
+                    LocalNative.writeStatus({step: 'hero-dismiss-prepare-ERR', error: String(e)});
+                    G_MainController.setNotice(String(e));
+                    return false;
+                }
+                try { return original.apply(this, arguments); }
+                finally { LocalNative.pendingHeroDismiss = null; }
+            };
+            proto.dismissHero.__localNativeDismiss = true;
+        };
+
+        LocalNative.handleHeroDismiss = function(player, params) {
+            var committed = false, sid = params && params.hero_id;
+            try {
+                if (GS_CURRENT_STAGE !== GS_STAGE_BUILD || sid == null) return false;
+                var disk = LocalNative.readRaw();
+                var receipts = disk.level.player.local_hero_dismiss_receipts || {};
+                if (Object.prototype.hasOwnProperty.call(receipts, String(sid))) return true;
+                var pending = LocalNative.pendingHeroDismiss;
+                if (!pending || pending.player !== player || pending.sid !== String(sid))
+                    throw new Error('Missing dismissal snapshot');
+                var live = G_UnitManager.getUnitBySID(sid);
+                if (live && String(live.sid) === String(sid)) throw new Error('Dismissed hero is still live');
+                LocalNative.writeRaw(pending.store);
+                committed = true;
+                LocalNative.shopSync(player, pending.store.level);
+                // Stock Award.showAward also grants its payload. The transaction
+                // already credited it, so retain the display without granting twice.
+                var inputAward = G_EventManager.inputAward;
+                G_EventManager.inputAward = function() {};
+                try { player.rpc_c_after_dismiss_hero(pending.reply); }
+                finally { G_EventManager.inputAward = inputAward; }
+                LocalNative.writeStatus({step: 'hero-dismiss-saved', sid: sid,
+                    rewards: pending.reply.inputAward, equipmentReturned: !!pending.reply.equip_ret});
+                return true;
+            } catch (e) {
+                LocalNative.writeStatus({step: 'hero-dismiss-ERR', sid: sid,
+                    committed: committed, error: String(e)});
+                G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
         LocalNative.handleHeroSwallow = function(player, params) {
             var committed = false;
             try {
@@ -10274,6 +10378,8 @@
                     }, 0);
                     return true;
                 }
+                if (methodName === 'rpc_s_dismiss_hero')
+                    return LocalNative.handleHeroDismiss(player, params || {});
                 if (methodName === 'rpc_s_swallow_heros')
                     return LocalNative.handleHeroSwallow(player, params || {});
                 if (methodName === 'rpc_s_promote') {
@@ -11547,6 +11653,7 @@
             LocalNative.installActiveSkillSeekFix();
             LocalNative.installRookieSignHooks();
             LocalNative.installSkillReplaceCostFix();
+            LocalNative.installHeroDismiss();
             LocalNative.writeStatus({step: 'installEngineGuards'});
             // Force a real TMX when mapConfig.tile is missing (native crash / empty map).
             try {

@@ -2,6 +2,7 @@
 
 | 优先级 | 验证内容 | 最小上下文 | 完成证据 |
 |---|---|---|---|
+| 后续 | 解散奖励、符文返还、退出重登及进攻回城后角色不再出现 | hero-dismiss 契约、handleHeroDismiss | 已装实例 1；原版调用链及 911 种配置离线通过，待用户游戏复测 |
 | 后续 | 英雄竞技场原生胜利、超时、晋级、周／赛季领奖、战斗中强杀；查明晋级失败扣分，补商店契约 | arena 契约、arena-feasibility 证据、handleArenaRpc | 已装实例 1；镜像五对五判负结算、回城重登通过；用户待验收，勿扩成完整恢复 |
 | 后续 | 吞噬后进攻回城、强杀重登保留成长且材料不返还 | hero-swallow 契约、handleHeroSwallow | 已安装实例 1；用户复测及 hero-swallow-saved 轨迹 |
 | 后续 | 知识古树各类型研究点、自然完成、加速和重登 | knowledge-tree 契约、handleTrainTech、finishResearch | 已安装实例 1；用户游戏复测及研究保存轨迹 |

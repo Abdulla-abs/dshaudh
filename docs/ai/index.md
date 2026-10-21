@@ -6,6 +6,7 @@
 
 | 任务 | 说明入口 | 代码和数据 |
 |---|---|---|
+| 角色解散无奖励且重登恢复 | [解散证据](../../analysis/evidence/hero-dismiss.md)，补删除、奖励及符文同次保存，已安装实例 1，游戏内待复测 | `hero-dismiss.json`、`prepareHeroDismiss`、`handleHeroDismiss`、`check_native_hero_dismiss.cjs` |
 | 随机侦察换敌后加速 | [计时证据](../../analysis/evidence/scout-clock.md)，计时恢复已安装实例 1，实战待复测 | `initLevelFromData`、`restoreHomeClock`、`check_native_battle_clock.cjs` |
 | 云端共享侦察阵容池与游戏同步 | [部署说明](../native/SCOUT-CLOUD.md)、[客户端证据](../../analysis/evidence/scout-cloud-client.md)，用户确认上传；实例 1 联网缓存及重启通过，用户确认游戏测试通过 | `analysis/scout-cloud/`、`scout-cloud-client.json`、`tools/build_scout_cloud_native.cjs`、`analysis/check_native_scout_cloud.cjs` |
 | 战斗 → 英雄竞技场镜像对手 | [镜像对战证据](../../analysis/evidence/arena-feasibility.md)，原生五对五、判负结算、回城重登已观察；失败扣分、商店和排名仍有缺口，用户待验收 | `arena.json`、`inspect_native_arena.py`、`check_native_arena.cjs`、`check_native_arena_device.py` |

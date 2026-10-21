@@ -22,6 +22,7 @@ analysis/evidence/dragon-soldier.md	1	# 龙兵部署与消耗
 analysis/evidence/egg-guide-after.md	1	# 领取免费龙蛋后暂无连续教程
 analysis/evidence/hero-compose.md	1	# 炼金碎片合成角色失败
 analysis/evidence/hero-defense-garrison.md	1	# 龙弹堡驻守进战后消失
+analysis/evidence/hero-dismiss.md	1	# 角色解散没有奖励且重登恢复
 analysis/evidence/hero-equip-slot.md	1	# 四菱解封石误报技能孔已满
 analysis/evidence/hero-exp-level.md	1	# 英雄经验超过阈值仍为 1 级
 analysis/evidence/hero-feed.md	1	# 英雄喂食点击无效
@@ -84,6 +85,7 @@ analysis/evidence/rune-shop.md	5	## 购买失败与扩容
 analysis/evidence/rune-shop.md	19	## 刷新概率调整
 analysis/evidence/scout-abbas.md	1	# 随机侦察新增 abbas
 analysis/evidence/scout-batch-9-18.md	1	# 随机侦察新增十关
+analysis/evidence/scout-clock.md	1	# 随机侦察换敌后加速
 analysis/evidence/scout-cloud-client.md	1	# 游戏云端阵容同步
 analysis/evidence/scout-cloud.md	1	# 云端侦察阵容池 API
 analysis/evidence/scout-loot.md	1	# 随机侦察资源掠夺
