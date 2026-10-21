@@ -393,6 +393,7 @@ analysis/check_native_battle_clock.cjs	verification	3709
 analysis/check_native_battle_life_color.cjs	verification	7497
 analysis/check_native_battle_ownership.cjs	verification	3776
 analysis/check_native_battle_skill.cjs	verification	7476
+analysis/check_native_blueprint_compose.cjs	verification	8419
 analysis/check_native_build_crystal.cjs	verification	5614
 analysis/check_native_building_contract.cjs	verification	11960
 analysis/check_native_building_offline.cjs	verification	4821
@@ -492,6 +493,8 @@ analysis/evidence/battle-clock.md	adapter-source	2477
 analysis/evidence/battle-hero-skills.md	adapter-source	4334
 analysis/evidence/battle-life-color.md	adapter-source	2813
 analysis/evidence/battle-ownership.md	adapter-source	2188
+analysis/evidence/blueprint-compose-stock.js	adapter-source	1885
+analysis/evidence/blueprint-compose.md	adapter-source	3037
 analysis/evidence/build-crystal.md	adapter-source	2480
 analysis/evidence/building-confirm-freeze.md	adapter-source	2961
 analysis/evidence/building-offline.md	adapter-source	2696
@@ -657,7 +660,7 @@ analysis/mine_boot.js	adapter-source	48691
 analysis/mine_validation_boot.js	adapter-source	48711
 analysis/native-entry-fix-verification.json	evidence-or-data	1347
 analysis/native-init-protocol.json	evidence-or-data	8760
-analysis/native_boot.js	adapter-source	980267
+analysis/native_boot.js	adapter-source	984615
 analysis/native_protocol_probe.js	probe-fixture	260983
 analysis/prepare_capacity_validation.py	adapter-source	618
 analysis/prepare_construct_validation.py	adapter-source	759
@@ -713,6 +716,7 @@ analysis/research_hook.cpp	adapter-source	4338
 analysis/rpc-contracts/arena.json	rpc-contract	6192
 analysis/rpc-contracts/battle-finish.json	rpc-contract	7662
 analysis/rpc-contracts/battle-select-region.json	rpc-contract	742
+analysis/rpc-contracts/blueprint-compose.json	rpc-contract	2134
 analysis/rpc-contracts/build-crystal.json	rpc-contract	1707
 analysis/rpc-contracts/building-confirm-freeze.json	rpc-contract	1456
 analysis/rpc-contracts/building-init.json	rpc-contract	1936
@@ -727,7 +731,7 @@ analysis/rpc-contracts/hero-promote.json	rpc-contract	1456
 analysis/rpc-contracts/hero-swallow.json	rpc-contract	1769
 analysis/rpc-contracts/hero-treasure.json	rpc-contract	1735
 analysis/rpc-contracts/invasion.json	rpc-contract	2801
-analysis/rpc-contracts/item-compose.json	rpc-contract	1838
+analysis/rpc-contracts/item-compose.json	rpc-contract	1883
 analysis/rpc-contracts/knowledge-tree.json	rpc-contract	1970
 analysis/rpc-contracts/layout-map.json	rpc-contract	174
 analysis/rpc-contracts/package-slot.json	rpc-contract	1350
@@ -834,12 +838,12 @@ analysis/validate_train.py	verification	12434
 analysis/validate_train_delivery.py	verification	5350
 analysis/validate_upgrade.py	verification	6465
 analysis/validate_upgrade_delivery.py	verification	4461
-docs/ai/current-state.md	docs	50674
+docs/ai/current-state.md	docs	51295
 docs/ai/file-policy.md	docs	3491
 docs/ai/handoff-template.md	docs	891
-docs/ai/index.md	docs	22958
-docs/ai/pending.md	docs	2046
-docs/ai/rpc-map.md	docs	7464
+docs/ai/index.md	docs	23233
+docs/ai/pending.md	docs	2261
+docs/ai/rpc-map.md	docs	7625
 docs/archive/AGENTS-before-organization.md	docs	10219
 docs/archive/README-before-organization.md	docs	8513
 docs/baselines/CAPACITY-BASELINE.json	docs	2230

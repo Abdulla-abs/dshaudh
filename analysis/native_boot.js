@@ -7907,6 +7907,72 @@
             return true;
         };
 
+        LocalNative.handleComposeBlueprint = function(player, params) {
+            var reborn = Number(params.reborn_type), ids = params.blueprints;
+            var count = reborn === 2 ? 5 : reborn === 3 ? 2 : 0;
+            if (!count || !Array.isArray(ids) || ids.length !== count)
+                throw new Error('Invalid blueprint recipe');
+            var needs = {};
+            for (var i = 0; i < ids.length; i++) {
+                var type = Number(ids[i]), cfg = data.item[type];
+                if (!cfg || Number(cfg.item_type) !== 3 || Number(cfg.item_subID) !== 13 ||
+                    Number(cfg.evolve_scroll_level) !== reborn)
+                    throw new Error('Invalid blueprint material');
+                needs[type] = (needs[type] || 0) + 1;
+            }
+            // Stock placeholders encode the result event, including its original weights.
+            var product = data.item[reborn === 2 ? 4041 : 4042];
+            var events = product && product.item_composition_get;
+            var event = events && events.length === 1 && data.input_event_client[events[0]];
+            var itemIds = event && event.putin_event_item;
+            if (!event || event.putin_event_next || !itemIds || itemIds.length !== 1 ||
+                (event.putin_event_resource || []).length || (event.putin_event_hero || []).length ||
+                (event.putin_event_exp || []).length || (event.putin_event_skill || []).length ||
+                (event.putin_event_slot || []).length)
+                throw new Error('Unsupported blueprint reward');
+            var reward = data.item_input[itemIds[0]], pool = reward && reward.item_random_chance;
+            if (!reward || reward.item_id || Number(reward.item_num) !== 1 || !pool || !pool.length ||
+                (reward.item_random_useLimit || []).length)
+                throw new Error('Invalid blueprint reward');
+            for (var p = 0; p < pool.length; p++) {
+                var target = data.item[pool[p][0]];
+                if (!target || Number(target.item_type) !== 3 || Number(target.item_subID) !== 13 ||
+                    Number(target.evolve_scroll_level) !== 3 || !(Number(pool[p][1]) > 0))
+                    throw new Error('Invalid blueprint reward pool');
+            }
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var bag = level.player['package'] && level.player['package'].formula;
+            if (!bag || !bag.item_dict) throw new Error('Missing blueprint package');
+            for (var key in needs) {
+                var remaining = needs[key];
+                for (var oid in bag.item_dict) {
+                    var item = bag.item_dict[oid];
+                    if (Number(item.typeid) !== Number(key)) continue;
+                    var available = Number(item.num);
+                    if (!isFinite(available) || available < 1 || available % 1)
+                        throw new Error('Invalid blueprint inventory');
+                    var take = Math.min(remaining, available);
+                    item.num -= take; remaining -= take;
+                    if (!item.num) delete bag.item_dict[oid];
+                    if (!remaining) break;
+                }
+                if (remaining) throw new Error('Insufficient blueprints');
+            }
+            bag.new_items = Object.keys(bag.item_dict).filter(function(k) {
+                return bag.item_dict[k].is_new;
+            }).length;
+            var consumed = JSON.parse(JSON.stringify(level.player['package']));
+            var ans = LocalNative.shopRollItemEvent(level, itemIds[0]);
+            LocalNative.writeRaw(store);
+            // The original answer grants the item and refreshes the selected slots.
+            // Always return runtime state to the committed package, even if UI fails.
+            try {
+                player.getComponent('PackageManager').init({'package': consumed});
+                player.rpc_c_compose_blueprint_ans({ans: ans});
+            } finally { LocalNative.shopSync(player, level); }
+            return true;
+        };
+
         LocalNative.handleComposeItem = function(player, params) {
             var id = Number(params.product_id), cfg = data.item[id];
             var recipe = cfg && cfg.item_composition, events = cfg && cfg.item_composition_get;
@@ -8112,6 +8178,7 @@
                     rpc_s_dismiss_drawcard: 'handleShopDismiss', rpc_s_buy_package: 'handleShopBuyPackage',
                     rpc_s_use_item: 'handleShopUseItem', rpc_s_buy_package_slot: 'handleBuyPackageSlot',
                     rpc_s_compose_item_inputevent: 'handleComposeItem',
+                    rpc_s_compose_blueprint: 'handleComposeBlueprint',
                     rpc_s_compose_equipment: 'handleComposeEquipment'}[method];
                 var result = LocalNative[fn](player, params || {});
                 LocalNative.writeStatus({step: 'shop-rpc', method: method, ok: !!result});
@@ -8121,7 +8188,8 @@
                 // Restore optimistic stock debits/counters when the transaction failed.
                 LocalNative.shopSync(player, LocalNative.readRaw().level);
                 LocalNative.unlockHeroFeedIfNeeded(params);
-                if (method === 'rpc_s_compose_item_inputevent' || method === 'rpc_s_compose_equipment')
+                if (method === 'rpc_s_compose_item_inputevent' || method === 'rpc_s_compose_equipment' ||
+                    method === 'rpc_s_compose_blueprint')
                     LocalNative.unlockCompose();
                 LocalNative.writeStatus({step: 'shop-rpc-ERR', method: method, error: String(eShop)});
                 if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(eShop));
@@ -10312,7 +10380,8 @@
                 if (methodName === 'rpc_s_drawcard' || methodName === 'rpc_s_gain_drawcard' ||
                     methodName === 'rpc_s_dismiss_drawcard' || methodName === 'rpc_s_buy_package' ||
                     methodName === 'rpc_s_use_item' || methodName === 'rpc_s_compose_item_inputevent' ||
-                    methodName === 'rpc_s_buy_package_slot' || methodName === 'rpc_s_compose_equipment') {
+                    methodName === 'rpc_s_buy_package_slot' || methodName === 'rpc_s_compose_equipment' ||
+                    methodName === 'rpc_s_compose_blueprint') {
                     LocalNative.scheduleOnRoot(function() {
                         LocalNative.runShopRequest(player, methodName, params || {});
                     }, 0);

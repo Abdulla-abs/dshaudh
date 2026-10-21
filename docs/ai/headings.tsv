@@ -14,6 +14,7 @@ analysis/evidence/battle-clock.md	1	# 战斗回城后动画和倒计时加速
 analysis/evidence/battle-hero-skills.md	1	# 战斗中缺少英雄技能图标
 analysis/evidence/battle-life-color.md	1	# 战斗血条阵营颜色
 analysis/evidence/battle-ownership.md	1	# 单人关卡敌方守军可被控制
+analysis/evidence/blueprint-compose.md	1	# 二转图纸无法合成三转图纸
 analysis/evidence/build-crystal.md	1	# 龙晶石无法加速建筑升级
 analysis/evidence/building-confirm-freeze.md	1	# 商店建筑确认后整帧卡死
 analysis/evidence/building-offline.md	1	# 建筑施工期间退出后丢失或停工

@@ -1,0 +1,17 @@
+{
+  "request": "rpc_s_compose_blueprint",
+  "params": {"blueprints": "材料类型编号数组，不是 OID；可重复同类型", "reborn_type": "材料转生档位 2 或 3"},
+  "stockRules": {
+    "2": {"count": 5, "materialLevel": 2, "productPlaceholder": 4041, "event": 53801, "itemInput": 12801, "resultLevel": 3},
+    "3": {"count": 2, "materialLevel": 3, "productPlaceholder": 4042, "event": 53802, "itemInput": 12802, "resultLevel": 3}
+  },
+  "probability": "沿用原 item_input 的 item_random_chance。二转合成的 14 种三转图纸权重不等；三转重合成的 14 种权重均为 100。不修改为等概率，也不从宝藏奖池取候选。",
+  "validation": "材料必须为 formula 背包中的实际二转或三转图纸（item_type=3、item_subID=13、evolve_scroll_level 匹配）；按类型累计需求并验证数量，未知占位图纸不可充当材料。",
+  "transaction": "在 shopTransaction 副本扣除材料，按原表抽取一个结果；同次 writeRaw 保存材料、结果及本地序号。输入数量足够时允许下一次相同配方；材料不足的重复请求失败。原协议没有事务 ID，不能据相同参数推断重复。",
+  "reply": {"method": "rpc_c_compose_blueprint_ans", "params": {"ans": [[19, [{"oid": "生成的结果 OID", "typeid": "原表候选三转图纸", "num": 1, "is_new": true}]]]}},
+  "callback": "先向运行时暴露扣材后背包，再调用原 composeBlueprintAns：inputAward 入库、setComposedBlueprint 更新结果图标、afterReceComposeResult 播放动画。finally 同步已提交背包，防止回调异常造成运行时与磁盘不一致。",
+  "scheduling": "经 scheduleOnRoot 异步处理，等待原按钮设置 playing=true 后再回执。失败走原合成解锁，恢复保存的背包。",
+  "evidence": "analysis/evidence/blueprint-compose.md",
+  "checks": "node analysis/check_native_blueprint_compose.cjs",
+  "acceptance": "原版按钮与回执、两类原池共 56 个区间边界、数量和写盘失败检查通过。已保留存档安装实例 1；实际合成及重登待用户复测，设备图纸未消耗。"
+}

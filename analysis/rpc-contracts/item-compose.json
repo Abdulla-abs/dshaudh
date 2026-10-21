@@ -3,7 +3,7 @@
   "params": {"product_id": 3021, "mtr_list": [{"typeid": 2021, "num": 30, "item_num": 35}]},
   "response": {"method": "rpc_c_compose_item_ans2", "ans": [[19, [{"oid": "generated-or-existing-stack", "typeid": 3021, "num": 1, "is_new": true}]]], "mtr_ans": []},
   "recipe": "data.item[3021].item_composition = [[2021,30]]; item_composition_get[0]=53511; input_event_client[53511].putin_event_item=[12511]; item_input[12511]={item_id:3021,item_num:1}",
-  "scope": "Only deterministic single-product item_composition recipes. Equipment, random skillbook and blueprint RPCs are separate and unchanged.",
+  "scope": "Only deterministic single-product item_composition recipes. Equipment, random skillbook and blueprint RPCs are separate; blueprint support is documented in blueprint-compose.json.",
   "transaction": "Validate request against original recipe; consume matching stacks on cloned save; add product; persist together. Initialize runtime with consumed package, invoke stock answer/inputAward, then sync authoritative package. Failure restores save state and releases compose UI playing flag.",
   "evidence": {
     "stock": ["Client/UI/Package.jsc: AlchemyCompound.onPressOK, afterReceComposeResult", "Client/Components.jsc: PackageManager.composeItemInputEvent, composeItemAns2", "Client/ClientPlayer.jsc: rpc_c_compose_item_ans2"],
