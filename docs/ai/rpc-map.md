@@ -4,6 +4,7 @@
 
 | 请求或初始化 | 处理入口 | 契约 | 最小离线检查 |
 |---|---|---|---|
+| `rpc_s_change_avatar`、`rpc_s_buy_avatar`、`rpc_s_gain_achieve`；头像种子 | `ensureAvatarFields`、`handleChangeAvatar`、`handleBuyAvatar`、`handleGainAchieve` | `analysis/rpc-contracts/avatar-achieve.json` | `node analysis/check_native_avatar_achieve.cjs` |
 | `rpc_s_upgrade_equipment`、`rpc_s_upgrade_equipment_package` 符文升级 | `handleRuneUpgrade`、`unlockRuneUpgrade` | `analysis/rpc-contracts/rune-upgrade.json` | `node analysis/check_native_rune_upgrade.cjs` |
 | `rpc_s_rehandle_equipment`、`rpc_s_rehandle_equipment_package`；结果页保存及取消 | `handleRuneRehandle`、`finishRuneRehandle`、`installRuneRehandle` | `analysis/rpc-contracts/rune-rehandle.json` | `node analysis/check_native_rune_rehandle.cjs` |
 | `rpc_s_compose_skillbook` 技能书合成 | `handleComposeSkillbook` | `analysis/rpc-contracts/skillbook-compose.json` | `node analysis/check_native_skillbook_compose.cjs` |

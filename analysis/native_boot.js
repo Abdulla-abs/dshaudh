@@ -266,8 +266,52 @@
                 letter_paper_num: 0,
                 last_send_letter_time: 0,
                 update_info: {},
-                battle_recorders: []
+                battle_recorders: [],
+                // Stock Personalize.init requires a real player_head id; 0 is invalid.
+                // Table default_have rows are 6 and 36 (Dino heads).
+                avatar_id: 6,
+                avatar_list: [6, 36],
+                achieve_raw: {},
+                gained_achieve: {}
             };
+        };
+
+        // player_head has no id 0. Missing/invalid avatar_id makes refreshAvatar throw
+        // "config is undefined" and blanks the top-left portrait.
+        LocalNative.collectDefaultAvatars = function() {
+            var have = [];
+            if (typeof data !== 'undefined' && data && data.player_head) {
+                for (var id in data.player_head) {
+                    if (!Object.prototype.hasOwnProperty.call(data.player_head, id)) continue;
+                    if (data.player_head[id] && data.player_head[id].default_have)
+                        have.push(Number(id));
+                }
+            }
+            if (!have.length) have = [6, 36];
+            return { list: have, avatar_id: have[0] };
+        };
+
+        LocalNative.ensureAvatarFields = function(player) {
+            if (!player || typeof player !== 'object') return player;
+            var defaults = LocalNative.collectDefaultAvatars();
+            var list = player.avatar_list;
+            if (!Array.isArray(list)) list = defaults.list.slice();
+            else list = list.map(Number).filter(function(id) { return id > 0; });
+            for (var i = 0; i < defaults.list.length; i++) {
+                if (list.indexOf(defaults.list[i]) < 0) list.push(defaults.list[i]);
+            }
+            player.avatar_list = list;
+            var avatarId = Number(player.avatar_id);
+            var head = typeof data !== 'undefined' && data && data.player_head;
+            var valid = avatarId > 0 && (!head || head[avatarId] || head[String(avatarId)]);
+            if (!valid) {
+                avatarId = list.indexOf(defaults.avatar_id) >= 0 ? defaults.avatar_id : list[0];
+                player.avatar_id = avatarId;
+            } else {
+                player.avatar_id = avatarId;
+                if (list.indexOf(avatarId) < 0) list.push(avatarId);
+            }
+            return player;
         };
 
         LocalNative.ensurePlayerSocialFields = function(player) {
@@ -292,6 +336,8 @@
                 hero_slot_buy_num: 0,
                 achieve_raw: {},
                 gained_achieve: {},
+                avatar_id: 6,
+                avatar_list: [6, 36],
                 exp: 0,
                 experience: 0,
                 diamond: 0,
@@ -308,6 +354,7 @@
                 if (player[k] === undefined || player[k] === null)
                     player[k] = defaults[k];
             }
+            LocalNative.ensureAvatarFields(player);
             LocalNative.ensureAvailableStages(player, 'social-fields');
             if (typeof LocalNative.ensureWelcomeLetter === 'function') LocalNative.ensureWelcomeLetter(player);
             return player;
@@ -2647,6 +2694,22 @@
                 var techManager = G_Player.getComponent && G_Player.getComponent('TechManager');
                 if (techManager && techManager.gained_techs)
                     level.player.gained_techs = JSON.parse(JSON.stringify(techManager.gained_techs));
+                var personalize = G_Player.getComponent && G_Player.getComponent('Personalize');
+                if (personalize) {
+                    if (personalize.avatar_id != null) level.player.avatar_id = Number(personalize.avatar_id);
+                    if (Array.isArray(personalize.avatar_list))
+                        level.player.avatar_list = personalize.avatar_list.map(Number);
+                }
+                var achieveRecorder = G_Player.getComponent &&
+                    G_Player.getComponent('AchievementRecorder');
+                if (achieveRecorder) {
+                    if (achieveRecorder.achieve_raw)
+                        level.player.achieve_raw = JSON.parse(JSON.stringify(achieveRecorder.achieve_raw));
+                    if (achieveRecorder.gained_achieve)
+                        level.player.gained_achieve =
+                            JSON.parse(JSON.stringify(achieveRecorder.gained_achieve));
+                }
+                LocalNative.ensureAvatarFields(level.player);
                 // Keep the server-side progress/reward receipts, never save the
                 // stock debug dump {buildings,player:{}} as a login payload.
                 LocalNative.saveLevel(level);
@@ -10647,6 +10710,123 @@
             return true;
         };
 
+        LocalNative.avatarOwned = function(list, avatarId) {
+            if (!Array.isArray(list)) return false;
+            var id = Number(avatarId);
+            for (var i = 0; i < list.length; i++)
+                if (Number(list[i]) === id) return true;
+            return false;
+        };
+
+        // Stock Personalize.changeAvatar already swapped the live id and refreshed HUD.
+        LocalNative.handleChangeAvatar = function(player, params) {
+            var avatarId = Number(params && params.avatar_id);
+            var store = LocalNative.readRaw();
+            if (!store || !store.level || !store.level.player || !(avatarId > 0)) return false;
+            var head = data.player_head && (data.player_head[avatarId] || data.player_head[String(avatarId)]);
+            if (!head) return false;
+            var personalize = player.getComponent && player.getComponent('Personalize');
+            var list = personalize && Array.isArray(personalize.avatar_list) ?
+                personalize.avatar_list : store.level.player.avatar_list;
+            LocalNative.ensureAvatarFields(store.level.player);
+            if (!LocalNative.avatarOwned(list, avatarId) &&
+                !LocalNative.avatarOwned(store.level.player.avatar_list, avatarId))
+                return false;
+            store.level.player.avatar_id = avatarId;
+            if (Array.isArray(list)) store.level.player.avatar_list = list.map(Number);
+            if (personalize) personalize.avatar_id = avatarId;
+            LocalNative.writeRaw(store);
+            LocalNative.writeStatus({step: 'change-avatar-ok', avatar_id: avatarId});
+            return true;
+        };
+
+        // Stock buyAvatar only checkRes; gems are charged here, then rpc_c_unlock_avatar
+        // pushes the live list and refreshes the portrait picker.
+        LocalNative.handleBuyAvatar = function(player, params) {
+            var avatarId = Number(params && params.avatar_id);
+            var cfg = data.player_head && (data.player_head[avatarId] || data.player_head[String(avatarId)]);
+            if (!(avatarId > 0) || !cfg) return false;
+            var personalize = player.getComponent && player.getComponent('Personalize');
+            if (!personalize || !Array.isArray(personalize.avatar_list)) return false;
+            // Duplicate buy RPC: already unlocked; do not push again.
+            if (LocalNative.avatarOwned(personalize.avatar_list, avatarId)) return true;
+            var cost = Number(cfg.need_gems) || 0;
+            var rm = LocalNative.getResourceManager();
+            if (cost > 0) {
+                if (!rm || typeof rm.useRes !== 'function' ||
+                    !rm.useRes(cost, RES_TYPE_DIAMOND)) return false;
+            }
+            var store = LocalNative.readRaw();
+            if (!store || !store.level || !store.level.player) return false;
+            LocalNative.ensureAvatarFields(store.level.player);
+            if (rm && rm.Res) store.level.player.diamond = Number(rm.Res[RES_TYPE_DIAMOND]);
+            if (!LocalNative.avatarOwned(store.level.player.avatar_list, avatarId))
+                store.level.player.avatar_list.push(avatarId);
+            LocalNative.writeRaw(store);
+            // Live list must not already contain the id; unlockAvatar always pushes.
+            player.rpc_c_unlock_avatar({avatar_id: avatarId});
+            store = LocalNative.readRaw();
+            if (store && store.level && store.level.player && personalize &&
+                Array.isArray(personalize.avatar_list)) {
+                store.level.player.avatar_list = personalize.avatar_list.map(Number);
+                if (personalize.avatar_id != null)
+                    store.level.player.avatar_id = Number(personalize.avatar_id);
+                if (rm && rm.Res) store.level.player.diamond = Number(rm.Res[RES_TYPE_DIAMOND]);
+                LocalNative.writeRaw(store);
+            }
+            LocalNative.writeStatus({step: 'buy-avatar-ok', avatar_id: avatarId, cost: cost});
+            return true;
+        };
+
+        // Stock gainAchievement already marks gained_achieve and advances the chain.
+        // Grant the original input_id wallet rewards (and table reward_exp) then persist.
+        LocalNative.handleGainAchieve = function(player, params) {
+            var achieveId = Number(params && params.achieve_id);
+            var cfg = data.achieve && (data.achieve[achieveId] || data.achieve[String(achieveId)]);
+            if (!(achieveId > 0) || !cfg) throw new Error('Invalid achieve');
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            LocalNative.ensurePlayerSocialFields(level.player);
+            if (!level.player.gained_achieve || typeof level.player.gained_achieve !== 'object')
+                level.player.gained_achieve = {};
+            var already = Object.prototype.hasOwnProperty.call(level.player.gained_achieve, achieveId) ||
+                Object.prototype.hasOwnProperty.call(level.player.gained_achieve, String(achieveId));
+            var reward = [];
+            if (!already) {
+                if (cfg.input_id)
+                    reward = LocalNative.collectQuestPutinRewards(level, cfg.input_id,
+                        LocalNative.questPlayerLevel(level, player));
+                var expGain = Number(cfg.reward_exp) || 0;
+                if (expGain > 0) {
+                    if (typeof player.addExp === 'function') player.addExp(expGain);
+                    else if (typeof player.rpc_c_add_player_exp === 'function')
+                        player.rpc_c_add_player_exp({exp: expGain});
+                    LocalNative.copyAccountProgress(level.player, player);
+                }
+            }
+            var recorder = player.getComponent && player.getComponent('AchievementRecorder');
+            if (recorder && recorder.gained_achieve)
+                level.player.gained_achieve = JSON.parse(JSON.stringify(recorder.gained_achieve));
+            if (!Object.prototype.hasOwnProperty.call(level.player.gained_achieve, achieveId) &&
+                !Object.prototype.hasOwnProperty.call(level.player.gained_achieve, String(achieveId)))
+                level.player.gained_achieve[achieveId] = {
+                    gain_time: Math.floor(Date.now() / 1000)
+                };
+            if (recorder) {
+                recorder.gained_achieve = level.player.gained_achieve;
+                if (recorder.achieve_raw) level.player.achieve_raw =
+                    JSON.parse(JSON.stringify(recorder.achieve_raw));
+            }
+            LocalNative.writeRaw(store);
+            LocalNative.syncQuestPackageAndWallet(player, level);
+            if (typeof player.noticeDiamondReward === 'function') player.noticeDiamondReward();
+            LocalNative.writeStatus({
+                step: 'gain-achieve-ok', achieve_id: achieveId, already: !!already,
+                rewardTypes: reward.map(function(row) { return row[0]; }),
+                exp: Number(cfg.reward_exp) || 0
+            });
+            return true;
+        };
+
         LocalNative.installCallServer = function(player) {
             if (!player || player.__localNativeCallServer) return;
             var orig = player.callServer ? player.callServer.bind(player) : null;
@@ -10766,6 +10946,28 @@
                 if (methodName === 'rpc_s_change_nickname') {
                     LocalNative.scheduleOnRoot(function() {
                         LocalNative.handleChangeNickname(player, params || {});
+                    }, 0);
+                    return true;
+                }
+
+                if (methodName === 'rpc_s_change_avatar' || methodName === 'rpc_s_buy_avatar' ||
+                    methodName === 'rpc_s_gain_achieve') {
+                    LocalNative.scheduleOnRoot(function() {
+                        try {
+                            if (methodName === 'rpc_s_change_avatar')
+                                LocalNative.handleChangeAvatar(player, params || {});
+                            else if (methodName === 'rpc_s_buy_avatar')
+                                LocalNative.handleBuyAvatar(player, params || {});
+                            else LocalNative.handleGainAchieve(player, params || {});
+                        } catch (eAvatarRpc) {
+                            LocalNative.writeStatus({
+                                step: 'avatar-achieve-rpc-ERR', method: methodName,
+                                error: String(eAvatarRpc)
+                            });
+                            if (typeof G_MainController !== 'undefined' && G_MainController &&
+                                typeof G_MainController.setNotice === 'function')
+                                G_MainController.setNotice(String(eAvatarRpc));
+                        }
                     }, 0);
                     return true;
                 }
@@ -11450,7 +11652,8 @@
                 'exp', 'experience', 'new_message', 'login_warn_attack_num', 'unlooked_attack_num',
                 'letters', 'sys_letters', 'letter_paper_num', 'last_send_letter_time',
                 'update_info', 'battle_recorders', 'main_quest', 'finish_main_quest_timestamp',
-                'hero_slot_num', 'hero_slot_buy_num', 'achieve_raw', 'gained_achieve'
+                'hero_slot_num', 'hero_slot_buy_num', 'achieve_raw', 'gained_achieve',
+                'avatar_id', 'avatar_list'
             ];
             for (var i = 0; i < keys.length; i++) {
                 var k = keys[i];
@@ -11573,6 +11776,33 @@
                 }
             } catch (eAdv) {
                 LocalNative.writeStatus({step: 'adventure-component-seed-ERR', error: String(eAdv)});
+            }
+            try {
+                LocalNative.ensureAvatarFields(player);
+                var personalize = player.getComponent('Personalize');
+                if (personalize) {
+                    personalize.avatar_id = Number(player.avatar_id) || 6;
+                    personalize.avatar_list = Array.isArray(player.avatar_list) ?
+                        player.avatar_list.map(Number) : [6, 36];
+                }
+                var recorder = player.getComponent('AchievementRecorder');
+                if (recorder) {
+                    var rawStats = player.achieve_raw && typeof player.achieve_raw === 'object' ?
+                        player.achieve_raw : {};
+                    var gained = player.gained_achieve && typeof player.gained_achieve === 'object' ?
+                        player.gained_achieve : {};
+                    recorder.achieve_raw = rawStats;
+                    recorder.gained_achieve = gained;
+                    if (recorder.achieveChains) {
+                        for (var ac = 0; ac < recorder.achieveChains.length; ac++) {
+                            if (recorder.achieveChains[ac] &&
+                                typeof recorder.achieveChains[ac].init === 'function')
+                                recorder.achieveChains[ac].init(gained);
+                        }
+                    }
+                }
+            } catch (eAvatar) {
+                LocalNative.writeStatus({step: 'avatar-achieve-seed-ERR', error: String(eAvatar)});
             }
         };
 

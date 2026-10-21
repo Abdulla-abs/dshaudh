@@ -6,6 +6,7 @@
 
 | 任务 | 说明入口 | 代码和数据 |
 |---|---|---|
+| 左上角头像空白／成就领取无效 | [头像成就证据](../../analysis/evidence/avatar-achieve.md)，修非法 avatar_id=0，接换装／购买／领取，已安装实例 1，游戏内待复测 | `avatar-achieve.json`、`ensureAvatarFields`、`handleChangeAvatar`、`handleBuyAvatar`、`handleGainAchieve`、`check_native_avatar_achieve.cjs` |
 | 技能书合成无效 | [合成证据](../../analysis/evidence/skillbook-compose.md)，补三本材料与原奖池抽取，已安装实例 1，游戏内待复测 | `skillbook-compose.json`、`handleComposeSkillbook`、`check_native_skillbook_compose.cjs` |
 | 符文升级无效 | [升级证据](../../analysis/evidence/rune-upgrade.md)，补背包／穿戴升级请求、扣材与原回执，已安装实例 1，游戏内待复测 | `rune-upgrade.json`、`handleRuneUpgrade`、`check_native_rune_upgrade.cjs` |
 | 符文重铸无效 | [重铸证据](../../analysis/evidence/rune-rehandle.md)，补待确认、保存和半额取消返还，已安装实例 1，游戏内待复测 | `rune-rehandle.json`、`handleRuneRehandle`、`finishRuneRehandle`、`check_native_rune_rehandle.cjs` |

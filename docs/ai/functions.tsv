@@ -15,437 +15,443 @@ analysis/native_boot.js	159	LocalNative.snapshotSettleGc	gc
 analysis/native_boot.js	182	LocalNative.readRaw	
 analysis/native_boot.js	188	LocalNative.writeRaw	obj
 analysis/native_boot.js	206	LocalNative.defaultPlayer	
-analysis/native_boot.js	273	LocalNative.ensurePlayerSocialFields	player
-analysis/native_boot.js	319	LocalNative.normalizeStageMap	value, asVirtual
-analysis/native_boot.js	336	LocalNative.readPveStageLoot	stageId
-analysis/native_boot.js	353	LocalNative.ensureAvailableStages	player, reason
-analysis/native_boot.js	416	LocalNative.toBuildingRecord	source
-analysis/native_boot.js	443	LocalNative.unit	sid, typeid, x, y, extra
-analysis/native_boot.js	472	LocalNative.defaultStarterHero	
-analysis/native_boot.js	495	LocalNative.defaultHeros	
-analysis/native_boot.js	500	LocalNative.applyHeroDefense	params
-analysis/native_boot.js	521	LocalNative.normalizeHeroExperience	level, hero, added
-analysis/native_boot.js	552	LocalNative.normalizeHeroSkillSlots	hero
-analysis/native_boot.js	569	LocalNative.getMaxSunshineCapacity	level
-analysis/native_boot.js	593	LocalNative.resolveSkillWoodCost	slot, level
-analysis/native_boot.js	613	LocalNative.installSkillReplaceCostFix	
-analysis/native_boot.js	614	patch	proto, field, labelNode
-analysis/native_boot.js	618	proto.setButton	
-analysis/native_boot.js	654	LocalNative.ensureHeroSkill	hero, preferred
-analysis/native_boot.js	688	LocalNative.makeHomeInitDict	level
-analysis/native_boot.js	710	LocalNative.ensureStarterHeros	level
-analysis/native_boot.js	779	LocalNative.defaultLevelDict	
-analysis/native_boot.js	811	LocalNative.normalizeStarterBuildings	level
-analysis/native_boot.js	821	free	x, y
-analysis/native_boot.js	849	LocalNative.kickBeginRookie	reason
-analysis/native_boot.js	916	LocalNative.markFirstMoviePlayed	player
-analysis/native_boot.js	929	LocalNative.installFirstMovieGuide	
-analysis/native_boot.js	935	FirstMovie.prototype.begin	
-analysis/native_boot.js	972	LocalNative.validateStore	value
-analysis/native_boot.js	993	LocalNative.loadOrCreate	
-analysis/native_boot.js	1050	LocalNative.saveLevel	levelDict
-analysis/native_boot.js	1128	LocalNative.mergeUserConfig	patch
-analysis/native_boot.js	1174	LocalNative.syncNextSid	units
-analysis/native_boot.js	1191	LocalNative.allocateSid	
-analysis/native_boot.js	1214	LocalNative.findPendingBuildUnit	
-analysis/native_boot.js	1245	LocalNative.resolveBuildTime	typeid, unit
-analysis/native_boot.js	1261	LocalNative.probeUnitMain	typeid
-analysis/native_boot.js	1285	LocalNative.readResAmount	rm, resType
-analysis/native_boot.js	1325	LocalNative.getResourceManager	
-analysis/native_boot.js	1344	LocalNative.setWalletAmount	rm, resType, amount, setters
-analysis/native_boot.js	1370	LocalNative.fillBuildingStorages	goldAmt, woodAmt
-analysis/native_boot.js	1478	LocalNative.refreshResHud	
-analysis/native_boot.js	1507	LocalNative.seedStarterResources	
-analysis/native_boot.js	1647	LocalNative.collectHomeBuildings	gc
-analysis/native_boot.js	1661	LocalNative.resumeConstructions	player
-analysis/native_boot.js	1710	LocalNative.resolveBuildTarget	params
-analysis/native_boot.js	1778	LocalNative.ensureUnitBuildCompleteHook	
-analysis/native_boot.js	1786	Unit.prototype.server_build_complete	dict
-analysis/native_boot.js	1813	LocalNative.ensureUnitSid	unit, sid
-analysis/native_boot.js	1828	LocalNative.lookupUnitMain	typeid
-analysis/native_boot.js	1837	LocalNative.resolveRealTypeID	unit
-analysis/native_boot.js	1851	LocalNative.buildFinishSwapParams	unit, targetType
-analysis/native_boot.js	1911	LocalNative.unitStillOnMap	unit
-analysis/native_boot.js	1927	LocalNative.unitHasVisibleRoot	unit
-analysis/native_boot.js	1943	LocalNative.ensureQuestManagerSafe	
-analysis/native_boot.js	1991	LocalNative.repairFinishedBuildingVisual	unit, swapParams
-analysis/native_boot.js	2111	LocalNative.snapshotBuildingRecord	unit
-analysis/native_boot.js	2121	cp	name
-analysis/native_boot.js	2166	LocalNative.persistFinishedUnit	unit
-analysis/native_boot.js	2231	LocalNative.finishViaBuilder	unit, reason
-analysis/native_boot.js	2354	LocalNative.forceFinishBuilding	player, params, reason
-analysis/native_boot.js	2418	LocalNative.ackBuildComplete	player, sid, reason
-analysis/native_boot.js	2434	LocalNative.scheduleOnRoot	fn, delaySec
-analysis/native_boot.js	2489	LocalNative.copyAccountProgress	target, player
-analysis/native_boot.js	2500	LocalNative.installAccountProgressPersistence	proto
-analysis/native_boot.js	2524	LocalNative.handleUpgradeWalls	player, params
-analysis/native_boot.js	2579	LocalNative.snapshotHeroEquipment	level
-analysis/native_boot.js	2591	LocalNative.persistHeroEquipment	params
-analysis/native_boot.js	2608	LocalNative.tryDumpAndSave	
-analysis/native_boot.js	2663	LocalNative.getAnyGameController	
-analysis/native_boot.js	2677	LocalNative.finishRookieProcessSafe	reason
-analysis/native_boot.js	2713	LocalNative.buildEnemyAttackBattleLogStub	selfPlayer, oppoPlayer
-analysis/native_boot.js	2774	ensureFn	obj, name, fn
-analysis/native_boot.js	2793	LocalNative.ensureEnemyAttackBattleLog	selfPlayer, oppoPlayer
-analysis/native_boot.js	2807	LocalNative.normalizeReplayUnits	units
-analysis/native_boot.js	2846	LocalNative.remapBattleUnitIds	units, baseSid
-analysis/native_boot.js	2868	LocalNative.makeBattleSide	player, extras
-analysis/native_boot.js	2897	LocalNative.countBattleUnits	gc
-analysis/native_boot.js	2931	LocalNative.battleBuildingKey	unit
-analysis/native_boot.js	2940	LocalNative.battleCreatedKeySet	gc
-analysis/native_boot.js	2946	LocalNative.markBattleBuildingCreated	gc, spec
-analysis/native_boot.js	2957	LocalNative.unitMatchesBattleSpec	existing, spec
-analysis/native_boot.js	2985	LocalNative.eachBattleCandidate	gc, visit
-analysis/native_boot.js	2988	pushOne	item, via
-analysis/native_boot.js	3009	walkList	list, via
-analysis/native_boot.js	3026	LocalNative.findBattleBuildingMatch	gc, spec
-analysis/native_boot.js	3047	LocalNative.hasBattleBuilding	gc, spec
-analysis/native_boot.js	3051	LocalNative.listMissingBattleBuildings	gc, units
-analysis/native_boot.js	3064	LocalNative.resolveBattleClient	faction
-analysis/native_boot.js	3127	LocalNative.bindBattleClientFaction	client, faction
-analysis/native_boot.js	3141	LocalNative.ensureBattleClients	gc
-analysis/native_boot.js	3207	LocalNative.withBattleClient	unit, client
-analysis/native_boot.js	3223	LocalNative.forceCreateBattleUnits	gc, units
-analysis/native_boot.js	3301	LocalNative.ensureBattleVillageUnits	gc, units, reason
-analysis/native_boot.js	3341	LocalNative.resolveBattleUnitById	id
-analysis/native_boot.js	3363	LocalNative.resolveUnitCid	unit
-analysis/native_boot.js	3386	LocalNative.isBattleMapUnit	unit
-analysis/native_boot.js	3397	LocalNative.resolveUnitBattleController	unit
-analysis/native_boot.js	3416	LocalNative.eachBattleDefenderUnit	gc, visit
-analysis/native_boot.js	3431	LocalNative.probeDefenderBattleReady	gc
-analysis/native_boot.js	3466	LocalNative.clearBattleOperGates	gc
-analysis/native_boot.js	3486	LocalNative.enableDefenderLiveCombat	gc, reason
-analysis/native_boot.js	3516	LocalNative.spawnStubAttackers	gc
-analysis/native_boot.js	3592	LocalNative.maybeRetestEnemyAttack	
-analysis/native_boot.js	3619	LocalNative.buildEnemyAttackReplayDict	stageId
-analysis/native_boot.js	3727	LocalNative.clearLoadingSafe	
-analysis/native_boot.js	3748	LocalNative.abortBattleEnterToHome	reason
-analysis/native_boot.js	3797	LocalNative.buildEditorPveVillage	stageId, gold, wood, layout
-analysis/native_boot.js	3813	putLoot	family, type, amount
-analysis/native_boot.js	3834	LocalNative.buildStageSevenVillage	gold, wood
-analysis/native_boot.js	3857	line	x1, y1, x2, y2
-analysis/native_boot.js	3875	LocalNative.inferredPveVillageUnits	stageId, gold, wood
-analysis/native_boot.js	3892	LocalNative.installBattleLifeBarColors	
-analysis/native_boot.js	3899	proto._initLifeBar	
-analysis/native_boot.js	3931	LocalNative.installManualHeroSkillGuard	
-analysis/native_boot.js	3937	liveOwnHero	bc
-analysis/native_boot.js	3946	proto.doCastActiveSkill	skillID, targetID, auto
-analysis/native_boot.js	3966	proto.tryOnceAutoAttack	
-analysis/native_boot.js	3971	proto._delayedInit	
-analysis/native_boot.js	3980	LocalNative.syncBattleSkillTarget	bc, targetID, purpose
-analysis/native_boot.js	3992	LocalNative.installActiveSkillSeekFix	
-analysis/native_boot.js	3999	tproto.onHit	cid, value
-analysis/native_boot.js	4045	sproto.onUserCastSkillToTarget	targetID, skillID
-analysis/native_boot.js	4049	this.__setNextSkill	sid, tid
-analysis/native_boot.js	4062	sproto._realDoCastSkill	skillID, targetID
-analysis/native_boot.js	4077	hproto.onUserCastSkillToTarget	targetID, skillID
-analysis/native_boot.js	4095	hproto.onEventUserChangeToAttack	
-analysis/native_boot.js	4112	LocalNative.prepareHeroBattleSkills	hero
-analysis/native_boot.js	4118	add	id
-analysis/native_boot.js	4132	LocalNative.collectAttackHerosForPve	level, selfPlayer
-analysis/native_boot.js	4171	LocalNative.collectBattleSoldiers	level
-analysis/native_boot.js	4187	LocalNative.handleDispatchSoldier	params
-analysis/native_boot.js	4219	LocalNative.arenaNow	
-analysis/native_boot.js	4223	LocalNative.ensureArenaState	level
-analysis/native_boot.js	4230	fresh	
-analysis/native_boot.js	4252	LocalNative.arenaAttackCounter	level
-analysis/native_boot.js	4269	LocalNative.syncArenaState	player, level
-analysis/native_boot.js	4279	LocalNative.buildArenaBattleDict	level
-analysis/native_boot.js	4340	LocalNative.traceArenaBattleStart	gc
-analysis/native_boot.js	4352	team	params
-analysis/native_boot.js	4368	LocalNative.traceArenaInit	gc
-analysis/native_boot.js	4381	LocalNative.handleArenaRpc	player, method
-analysis/native_boot.js	4446	LocalNative.completeArenaBattle	player, early
-analysis/native_boot.js	4494	LocalNative.arenaBattleToHome	player, early
-analysis/native_boot.js	4514	LocalNative.buildPveBattleDict	stageId, scoutLayout
-analysis/native_boot.js	4617	LocalNative.scoutCloudStatus	step, detail
-analysis/native_boot.js	4623	LocalNative.validateScoutCloudEntry	entry, expected
-analysis/native_boot.js	4625	fail	
-analysis/native_boot.js	4626	integer	v, low, high
-analysis/native_boot.js	4627	object	v
-analysis/native_boot.js	4636	occupy	x, y
-analysis/native_boot.js	4699	LocalNative.validateScoutCloudSnapshot	snapshot
-analysis/native_boot.js	4713	LocalNative.ensureScoutCloudState	
-analysis/native_boot.js	4737	LocalNative.getScoutCandidatePool	
-analysis/native_boot.js	4743	LocalNative.commitScoutCloudSnapshot	snapshot
-analysis/native_boot.js	4761	LocalNative.decodeScoutCloudText	text
-analysis/native_boot.js	4771	LocalNative.requestScoutCloudJson	path, callback
-analysis/native_boot.js	4773	finish	error, value
-analysis/native_boot.js	4781	xhr.onreadystatechange	
-analysis/native_boot.js	4791	xhr.onerror	
-analysis/native_boot.js	4792	xhr.ontimeout	
-analysis/native_boot.js	4799	LocalNative.syncScoutCloudPool	
-analysis/native_boot.js	4804	fail	error
-analysis/native_boot.js	4805	manifest	data
-analysis/native_boot.js	4830	accept	entry, row
-analysis/native_boot.js	4836	next	
-analysis/native_boot.js	4869	LocalNative.startScoutCloudSync	
-analysis/native_boot.js	4874	tick	
-analysis/native_boot.js	4884	LocalNative.readScoutHeadquartersLevel	level
-analysis/native_boot.js	4893	LocalNative.selectScoutLevel	level, random
-analysis/native_boot.js	4913	LocalNative.fillScoutResourceLoot	units
-analysis/native_boot.js	4936	LocalNative.readScoutBattleLoot	gc, session
-analysis/native_boot.js	4945	amount	type, max
-analysis/native_boot.js	4952	LocalNative.buildPvpBattleDict	level, player
-analysis/native_boot.js	4985	LocalNative.handleEnterPvpBattle	player
-analysis/native_boot.js	5001	LocalNative.handleStartPvpBattle	gc
-analysis/native_boot.js	5015	LocalNative.handleCompletePvpBattle	player
-analysis/native_boot.js	5046	LocalNative.handlePvpBattleToHome	player
-analysis/native_boot.js	5057	LocalNative.handleEnterPveBattle	player, params
-analysis/native_boot.js	5106	LocalNative.getBattleController	
-analysis/native_boot.js	5122	LocalNative.readLivePveStageId	
-analysis/native_boot.js	5133	LocalNative.isLocalPveBattleActive	
-analysis/native_boot.js	5143	LocalNative.isLocalRaidActive	
-analysis/native_boot.js	5149	LocalNative.applyPveStageProgress	player, stageId, starNum, winGold, winWood
-analysis/native_boot.js	5203	LocalNative.buildPveBattleResultDict	gc, stageId
-analysis/native_boot.js	5252	LocalNative.grantPveLoot	winGold, winWood, level
-analysis/native_boot.js	5255	add	type, amount, field, configField
-analysis/native_boot.js	5279	LocalNative.applyPveItemReward	level, eventId, receiptKey
-analysis/native_boot.js	5299	LocalNative.applyPveBattleItemRewards	level, eventId, stageId
-analysis/native_boot.js	5325	LocalNative.applyPveHeroRewards	level, eventId, stageId
-analysis/native_boot.js	5367	LocalNative.handleCompletePveBattle	player, params
-analysis/native_boot.js	5473	LocalNative.restoreHomeClock	
-analysis/native_boot.js	5497	LocalNative.handlePveBattleToHome	player, params
-analysis/native_boot.js	5557	LocalNative.classifyPveSweepItem	typeid
-analysis/native_boot.js	5566	LocalNative.collectPveSweepLootPools	stageId
-analysis/native_boot.js	5589	LocalNative.snapshotPveSweepTili	player, level
-analysis/native_boot.js	5603	LocalNative.syncPveSweepTili	player, level
-analysis/native_boot.js	5617	LocalNative.consumePveSweepPeriod	level, periodId
-analysis/native_boot.js	5636	LocalNative.syncPveSweepPeriod	player, level, periodId
-analysis/native_boot.js	5653	LocalNative.rollPveSweepItems	level, stageId
-analysis/native_boot.js	5687	LocalNative.handlePveSweep	player, params
-analysis/native_boot.js	5803	LocalNative.handleRefreshSweepInfo	player
-analysis/native_boot.js	5831	LocalNative.getInvasionController	
-analysis/native_boot.js	5846	LocalNative.unitsArrayToIdMap	units, baseSid
-analysis/native_boot.js	5860	LocalNative.heroDefenseAnchor	hero
-analysis/native_boot.js	5868	LocalNative.buildRemappedUnitsMap	units, baseSid
-analysis/native_boot.js	5888	LocalNative.injectDefenseHerosIntoUnitsMap	unitsMap, sidMap, nextSid, heros
-analysis/native_boot.js	5925	LocalNative.buildInvasionEnterDict	
-analysis/native_boot.js	5977	LocalNative.readInvasionAbsoluteWave	relativeWave
-analysis/native_boot.js	5999	LocalNative.pickInvasionWaveHeroes	waveCfg
-analysis/native_boot.js	6032	LocalNative.buildInvasionWaveStartDict	absoluteWave
-analysis/native_boot.js	6043	LocalNative.applyInvasionEventRewards	level, eventId, receiptKey
-analysis/native_boot.js	6092	LocalNative.finishInvasionUnlockGuide	reason
-analysis/native_boot.js	6169	LocalNative.handleEnterInvasion	player, params
-analysis/native_boot.js	6205	LocalNative.handleInvasionWaveReady	player, params
-analysis/native_boot.js	6250	LocalNative.handleInvasionWaveStart	player, params
-analysis/native_boot.js	6255	LocalNative.handleInvasionWaveEnd	player, params
-analysis/native_boot.js	6330	LocalNative.handleInvasionToHome	player, params
-analysis/native_boot.js	6361	LocalNative.handleEnterEnemyAttackReplay	player, params
-analysis/native_boot.js	6432	LocalNative.localRaidAllAttackersDead	gc
-analysis/native_boot.js	6446	LocalNative.queueLocalRaidReplayEnd	gc
-analysis/native_boot.js	6474	LocalNative.recordLocalRaidCompletion	player, level, stage
-analysis/native_boot.js	6496	LocalNative.closeLocalRaidSessionOnHome	gc
-analysis/native_boot.js	6507	LocalNative.handleFinishEnemyAttackReplay	player, params
-analysis/native_boot.js	6565	LocalNative.handleBattleToHome	player, params
-analysis/native_boot.js	6577	LocalNative.ensureWelcomeLetter	player
-analysis/native_boot.js	6599	LocalNative.syncSavedHomeWallet	level
-analysis/native_boot.js	6622	LocalNative.handleWelcomeLetterReward	player, params
-analysis/native_boot.js	6658	LocalNative.rookieSignNow	
-analysis/native_boot.js	6669	LocalNative.ensureRookieSign	level
-analysis/native_boot.js	6700	LocalNative.syncRookieSign	player, level
-analysis/native_boot.js	6715	LocalNative.applyRookieSignRewards	level, day
-analysis/native_boot.js	6771	LocalNative.handleRookieSignReward	player
-analysis/native_boot.js	6818	LocalNative.maybeShowRookieSign	player, gc
-analysis/native_boot.js	6819	gate	reason, details
-analysis/native_boot.js	6868	LocalNative.startRookieSignClock	gc
-analysis/native_boot.js	6873	root.__localRookieSignTick	
-analysis/native_boot.js	6896	LocalNative.installRookieSignHooks	
-analysis/native_boot.js	6900	proto.open	
-analysis/native_boot.js	6912	LocalNative.installMonthlySignRewards	year
-analysis/native_boot.js	6932	LocalNative.ensureMonthlySign	level
-analysis/native_boot.js	6966	LocalNative.syncMonthlySign	player, level
-analysis/native_boot.js	6986	LocalNative.handleMonthlySignReward	player, params
-analysis/native_boot.js	7029	LocalNative.refreshMonthlySign	player, markShown
-analysis/native_boot.js	7057	LocalNative.shopState	level
-analysis/native_boot.js	7064	LocalNative.shopPick	entries
-analysis/native_boot.js	7076	LocalNative.snapshotResearch	level, player
-analysis/native_boot.js	7084	LocalNative.restoreResearch	player
-analysis/native_boot.js	7110	LocalNative.handleTrainTech	player, params
-analysis/native_boot.js	7136	LocalNative.finishResearch	player, forcedId
-analysis/native_boot.js	7171	LocalNative.startResearchClock	
-analysis/native_boot.js	7174	root.__localResearchTick	
-analysis/native_boot.js	7182	LocalNative.shopTransaction	player
-analysis/native_boot.js	7212	LocalNative.shopSync	player, level
-analysis/native_boot.js	7240	LocalNative.ensurePackageSlotMetadata	level
-analysis/native_boot.js	7249	LocalNative.handleBuyPackageSlot	player, params
-analysis/native_boot.js	7274	LocalNative.shopAddItem	level, typeid, num
-analysis/native_boot.js	7309	LocalNative.shopHeroPools	
-analysis/native_boot.js	7343	LocalNative.shopRollHeroes	level, count
-analysis/native_boot.js	7370	LocalNative.shopShowPending	player, level
-analysis/native_boot.js	7390	LocalNative.handleShopDraw	player, params
-analysis/native_boot.js	7423	LocalNative.handleShopGain	player
-analysis/native_boot.js	7458	LocalNative.handleShopDismiss	player, params
-analysis/native_boot.js	7475	LocalNative.shopRollItemEvent	level, eventId, rewardPolicy
-analysis/native_boot.js	7504	LocalNative.shopTreasureRewards	level, itemId
-analysis/native_boot.js	7568	LocalNative.handleShopBuyPackage	player, params
-analysis/native_boot.js	7592	LocalNative.resolveSkillBookReplaceId	typeid
-analysis/native_boot.js	7602	LocalNative.isSkillEnforceBook	typeid
-analysis/native_boot.js	7612	LocalNative.applySkillBookUse	level, typeid, useParams
-analysis/native_boot.js	7661	LocalNative.isHeroFeedUse	typeid, useParams
-analysis/native_boot.js	7671	LocalNative.findHeroRecord	level, sid
-analysis/native_boot.js	7678	LocalNative.pickMutateId	typeid
-analysis/native_boot.js	7692	LocalNative.pickFeedSlotSkill	hero
-analysis/native_boot.js	7709	LocalNative.applyHeroFeedUse	level, typeid, useParams, num
-analysis/native_boot.js	7790	LocalNative.unlockHeroFeedIfNeeded	params
-analysis/native_boot.js	7800	LocalNative.applyBuildTimeUse	level, typeid, params, num
-analysis/native_boot.js	7834	LocalNative.scheduleAcceleratedBuild	player, sid
-analysis/native_boot.js	7852	LocalNative.handleShopUseItem	player, params
-analysis/native_boot.js	7917	LocalNative.handleComposeSkillbook	player, params
-analysis/native_boot.js	7991	LocalNative.handleComposeBlueprint	player, params
-analysis/native_boot.js	8057	LocalNative.handleComposeItem	player, params
-analysis/native_boot.js	8157	LocalNative.generateComposedRune	id
-analysis/native_boot.js	8186	LocalNative.handleComposeEquipment	player, params
-analysis/native_boot.js	8193	pieces	input, category, pointsNeeded
-analysis/native_boot.js	8246	LocalNative.runeRehandleTarget	level, target
-analysis/native_boot.js	8258	LocalNative.handleRuneUpgrade	player, params, inPackage
-analysis/native_boot.js	8281	pieces	input, category, required
-analysis/native_boot.js	8339	LocalNative.showRuneRehandle	player, pending
-analysis/native_boot.js	8348	LocalNative.handleRuneRehandle	player, params, inPackage
-analysis/native_boot.js	8370	pieces	input, category, required
-analysis/native_boot.js	8432	LocalNative.finishRuneRehandle	player, id, cancel
-analysis/native_boot.js	8476	G_EventManager.inputAward	
-analysis/native_boot.js	8483	LocalNative.installRuneRehandle	
-analysis/native_boot.js	8487	proto._saveEquipment	
-analysis/native_boot.js	8508	proto.realCancelRehandle	
-analysis/native_boot.js	8520	LocalNative.unlockCompose	
-analysis/native_boot.js	8530	LocalNative.unlockRuneUpgrade	
-analysis/native_boot.js	8537	LocalNative.runShopRequest	player, method, params
-analysis/native_boot.js	8575	LocalNative.installTraderPolicy	
-analysis/native_boot.js	8585	LocalNative.pickTraderOfferIds	pool
-analysis/native_boot.js	8597	LocalNative.ensureTrader	level, force
-analysis/native_boot.js	8658	LocalNative.syncTrader	player, level
-analysis/native_boot.js	8672	LocalNative.traderItemCount	level, typeid
-analysis/native_boot.js	8682	LocalNative.traderCheckItemDebit	before, after, typeid, num
-analysis/native_boot.js	8689	LocalNative.traderEventItems	level, cfg, num
-analysis/native_boot.js	8707	LocalNative.runTraderRequest	player, method, params
-analysis/native_boot.js	8787	LocalNative.repairPromotionCounter	level
-analysis/native_boot.js	8813	LocalNative.handleHeroReincarnate	player, params
-analysis/native_boot.js	8924	LocalNative.probeHeroSwallowContract	
-analysis/native_boot.js	8939	LocalNative.prepareHeroDismiss	player, unit
-analysis/native_boot.js	8990	LocalNative.installHeroDismiss	
-analysis/native_boot.js	8994	proto.dismissHero	
-analysis/native_boot.js	9011	LocalNative.handleHeroDismiss	player, params
-analysis/native_boot.js	9029	G_EventManager.inputAward	
-analysis/native_boot.js	9043	LocalNative.handleHeroSwallow	player, params
-analysis/native_boot.js	9104	LocalNative.handleHeroPromote	player, params
-analysis/native_boot.js	9150	LocalNative.handlePveMapEgg	player, params
-analysis/native_boot.js	9225	LocalNative.adventureCostFor	eventId
-analysis/native_boot.js	9232	LocalNative.readAdventureState	level
-analysis/native_boot.js	9241	LocalNative.writeAdventureState	level, state
-analysis/native_boot.js	9247	LocalNative.syncAdventureManager	player, state
-analysis/native_boot.js	9256	LocalNative.consumeAdventureEntry	level
-analysis/native_boot.js	9260	LocalNative.resetAdventureEntryCount	level
-analysis/native_boot.js	9272	LocalNative.clearAdventureInterval	level
-analysis/native_boot.js	9288	LocalNative.adventureRandInt	min, max
-analysis/native_boot.js	9295	LocalNative.readAdventureUnfortunateCount	level
-analysis/native_boot.js	9306	LocalNative.writeAdventureUnfortunateCount	level, count
-analysis/native_boot.js	9317	LocalNative.applyAdventureCaptureLoot	player, level
-analysis/native_boot.js	9363	LocalNative.handleEnterDiceEvent	player
-analysis/native_boot.js	9404	LocalNative.handleResetDiceEvent1	player
-analysis/native_boot.js	9423	LocalNative.handleClearDiceEvent1Interval	player
-analysis/native_boot.js	9439	LocalNative.adventureCaptureAnswer	player, mode
-analysis/native_boot.js	9524	LocalNative.handleDiceEvent2Torture	player
-analysis/native_boot.js	9528	LocalNative.handleDiceEvent2Release	player
-analysis/native_boot.js	9532	LocalNative.markAdventureCaptureAfterPveWin	player, level
-analysis/native_boot.js	9552	LocalNative.clearAdventureProgress	player, level
-analysis/native_boot.js	9566	LocalNative.wantedCounter	level, id
-analysis/native_boot.js	9574	LocalNative.wantedPeriod	level, id, consume
-analysis/native_boot.js	9596	LocalNative.wantedPick	level, order
-analysis/native_boot.js	9620	LocalNative.ensureWantedCards	level
-analysis/native_boot.js	9629	LocalNative.syncWanted	player, level
-analysis/native_boot.js	9639	LocalNative.installWantedAwardDisplay	
-analysis/native_boot.js	9644	proto.getWantedReward	rewardGet, reward
-analysis/native_boot.js	9660	LocalNative.buildWantedEquipment	order
-analysis/native_boot.js	9700	LocalNative.runWantedTargetTrigger	player, gc, payload
-analysis/native_boot.js	9705	gc.createUnit	params
-analysis/native_boot.js	9721	LocalNative.buildWantedTargetTrigger	wantedId
-analysis/native_boot.js	9790	LocalNative.castWantedGroundAndAirField	mfid, faction, casterMir, targetID, pos, dir
-analysis/native_boot.js	9802	LocalNative.allowWantedTargetGroundAndAir	unit
-analysis/native_boot.js	9814	LocalNative.applyWantedTargetBuff	unit, session
-analysis/native_boot.js	9829	LocalNative.handleWantedRpc	player, method, params
-analysis/native_boot.js	9974	LocalNative.completeWantedBattle	player, params
-analysis/native_boot.js	10004	LocalNative.handleLoadDiceEvent1Pve	player
-analysis/native_boot.js	10043	LocalNative.handleTutorialEggDraw	player, params
-analysis/native_boot.js	10075	LocalNative.handleTutorialEggGain	player
-analysis/native_boot.js	10108	LocalNative.questPlayerLevel	level, player
-analysis/native_boot.js	10114	LocalNative.questScaledResAmount	resCfg, playerLevel
-analysis/native_boot.js	10123	LocalNative.collectQuestPutinRewards	level, putinId, playerLevel
-analysis/native_boot.js	10161	LocalNative.previewQuestRewards	putinId, playerLevel
-analysis/native_boot.js	10187	LocalNative.ensureQuestRewardPreviews	player
-analysis/native_boot.js	10189	fill	current, table
-analysis/native_boot.js	10225	LocalNative.ensureDailyQuestBucket	level, rootQuestId
-analysis/native_boot.js	10242	LocalNative.seedDailyQuestRoots	player
-analysis/native_boot.js	10282	LocalNative.seedMainQuestRoots	player
-analysis/native_boot.js	10318	LocalNative.ensureQuestProgressSeeded	levelOrPlayer
-analysis/native_boot.js	10327	LocalNative.applyQuestSeedToLive	player, level
-analysis/native_boot.js	10344	LocalNative.ensureLiveQuestSeed	
-analysis/native_boot.js	10364	LocalNative.saveLiveQuestProgress	player
-analysis/native_boot.js	10378	LocalNative.installDailyQuestProgress	qm
-analysis/native_boot.js	10395	refresh	manager, field
-analysis/native_boot.js	10432	LocalNative.syncQuestEventRecorder	player, level
-analysis/native_boot.js	10441	LocalNative.nextDailyQuestIds	questId
-analysis/native_boot.js	10448	LocalNative.bumpDailyTasknum	level
-analysis/native_boot.js	10462	LocalNative.advanceDailyQuestCounter	level, field, amount
-analysis/native_boot.js	10477	LocalNative.syncQuestPackageAndWallet	player, level
-analysis/native_boot.js	10484	LocalNative.handleRefreshDailyQuest	player, params
-analysis/native_boot.js	10508	LocalNative.handleFinishDailyQuest	player, params
-analysis/native_boot.js	10566	LocalNative.handleFinishMainQuest	player, params
-analysis/native_boot.js	10617	LocalNative.handleChangeNickname	player, params
-analysis/native_boot.js	10650	LocalNative.installCallServer	player
-analysis/native_boot.js	10653	player.callServer	methodName, params
-analysis/native_boot.js	11087	ackMove	
-analysis/native_boot.js	11378	LocalNative.ensureLeague	
-analysis/native_boot.js	11396	zero	
-analysis/native_boot.js	11397	empty	
-analysis/native_boot.js	11398	no	
-analysis/native_boot.js	11399	noop	
-analysis/native_boot.js	11438	LocalNative.applyPlayerFallback	player, dict
-analysis/native_boot.js	11482	LocalNative.seedPlayerComponents	player
-analysis/native_boot.js	11581	LocalNative.getBuildController	
-analysis/native_boot.js	11589	LocalNative.getMenuController	
-analysis/native_boot.js	11599	LocalNative.getScheduleRoot	
-analysis/native_boot.js	11614	LocalNative.setLabelText	node, text
-analysis/native_boot.js	11639	LocalNative.refreshHud	
-analysis/native_boot.js	11730	LocalNative.getBuildingBuilder	unit
-analysis/native_boot.js	11768	LocalNative.cancelBlockedPlacement	
-analysis/native_boot.js	11884	LocalNative.writeStatus	obj
-analysis/native_boot.js	11917	LocalNative.afterWorldReady	gc
-analysis/native_boot.js	11984	cancelTick	
-analysis/native_boot.js	12012	LocalNative.bootstrapRookieFallback	gc, userConfig
-analysis/native_boot.js	12093	LocalNative.installEngineGuards	
-analysis/native_boot.js	12108	Game.MapManager.prototype.init	config
-analysis/native_boot.js	12141	cpp.initByServer	dict
-analysis/native_boot.js	12226	bp.initLevelFromData	dict
-analysis/native_boot.js	12255	bp._enterWorldAction	
-analysis/native_boot.js	12303	bp.initRookieByServer	userConfig
-analysis/native_boot.js	12435	btp.getReplayBattleLog	
-analysis/native_boot.js	12454	btp.getReplayBattleLog	
-analysis/native_boot.js	12469	btp._createBattleUnitWhenInit	unitDict, client
-analysis/native_boot.js	12544	btp.startBattle	
-analysis/native_boot.js	12605	btp.afterInitWorld	
-analysis/native_boot.js	12632	btp.initLevelFromData	dict
-analysis/native_boot.js	12849	SelectorTask.prototype._executeSelector	
-analysis/native_boot.js	12869	BaseTask.prototype.execute	
-analysis/native_boot.js	12892	mbp.onReplayEnd	
-analysis/native_boot.js	12919	mbp.onBattleTimeout	
-analysis/native_boot.js	12945	mbp.onBattlePrepareTimeout	
-analysis/native_boot.js	13091	brp.getBattleLog	
-analysis/native_boot.js	13103	brp.getBattleLog	
-analysis/native_boot.js	13112	brp.initByServer	params
-analysis/native_boot.js	13183	ClientPlayer.prototype.getComponent	key
-analysis/native_boot.js	13299	BBC.prototype.onPressNO	
-analysis/native_boot.js	13321	cc.TMXTiledMap.create	path
-analysis/native_boot.js	13361	Rookie.decodeFinishedRookiePIDs	cfg
-analysis/native_boot.js	13413	LocalNative.countBuildings	gc
-analysis/native_boot.js	13432	LocalNative.diagnoseBuild	
-analysis/native_boot.js	13459	LocalNative.ensurePlayer	
-analysis/native_boot.js	13474	LocalNative.unlockEnter	
-analysis/native_boot.js	13479	LocalNative.getDurableScheduleRoot	
-analysis/native_boot.js	13494	LocalNative.startGame	
-analysis/native_boot.js	13585	kickStart	
-analysis/native_boot.js	13618	saver	
-analysis/native_boot.js	13666	startWrapped	
-analysis/native_boot.js	13727	menu.isLegalAgreed	
-analysis/native_boot.js	13730	menu.isLegalAgreed	
-analysis/native_boot.js	13737	legalKeep	
+analysis/native_boot.js	281	LocalNative.collectDefaultAvatars	
+analysis/native_boot.js	294	LocalNative.ensureAvatarFields	player
+analysis/native_boot.js	317	LocalNative.ensurePlayerSocialFields	player
+analysis/native_boot.js	366	LocalNative.normalizeStageMap	value, asVirtual
+analysis/native_boot.js	383	LocalNative.readPveStageLoot	stageId
+analysis/native_boot.js	400	LocalNative.ensureAvailableStages	player, reason
+analysis/native_boot.js	463	LocalNative.toBuildingRecord	source
+analysis/native_boot.js	490	LocalNative.unit	sid, typeid, x, y, extra
+analysis/native_boot.js	519	LocalNative.defaultStarterHero	
+analysis/native_boot.js	542	LocalNative.defaultHeros	
+analysis/native_boot.js	547	LocalNative.applyHeroDefense	params
+analysis/native_boot.js	568	LocalNative.normalizeHeroExperience	level, hero, added
+analysis/native_boot.js	599	LocalNative.normalizeHeroSkillSlots	hero
+analysis/native_boot.js	616	LocalNative.getMaxSunshineCapacity	level
+analysis/native_boot.js	640	LocalNative.resolveSkillWoodCost	slot, level
+analysis/native_boot.js	660	LocalNative.installSkillReplaceCostFix	
+analysis/native_boot.js	661	patch	proto, field, labelNode
+analysis/native_boot.js	665	proto.setButton	
+analysis/native_boot.js	701	LocalNative.ensureHeroSkill	hero, preferred
+analysis/native_boot.js	735	LocalNative.makeHomeInitDict	level
+analysis/native_boot.js	757	LocalNative.ensureStarterHeros	level
+analysis/native_boot.js	826	LocalNative.defaultLevelDict	
+analysis/native_boot.js	858	LocalNative.normalizeStarterBuildings	level
+analysis/native_boot.js	868	free	x, y
+analysis/native_boot.js	896	LocalNative.kickBeginRookie	reason
+analysis/native_boot.js	963	LocalNative.markFirstMoviePlayed	player
+analysis/native_boot.js	976	LocalNative.installFirstMovieGuide	
+analysis/native_boot.js	982	FirstMovie.prototype.begin	
+analysis/native_boot.js	1019	LocalNative.validateStore	value
+analysis/native_boot.js	1040	LocalNative.loadOrCreate	
+analysis/native_boot.js	1097	LocalNative.saveLevel	levelDict
+analysis/native_boot.js	1175	LocalNative.mergeUserConfig	patch
+analysis/native_boot.js	1221	LocalNative.syncNextSid	units
+analysis/native_boot.js	1238	LocalNative.allocateSid	
+analysis/native_boot.js	1261	LocalNative.findPendingBuildUnit	
+analysis/native_boot.js	1292	LocalNative.resolveBuildTime	typeid, unit
+analysis/native_boot.js	1308	LocalNative.probeUnitMain	typeid
+analysis/native_boot.js	1332	LocalNative.readResAmount	rm, resType
+analysis/native_boot.js	1372	LocalNative.getResourceManager	
+analysis/native_boot.js	1391	LocalNative.setWalletAmount	rm, resType, amount, setters
+analysis/native_boot.js	1417	LocalNative.fillBuildingStorages	goldAmt, woodAmt
+analysis/native_boot.js	1525	LocalNative.refreshResHud	
+analysis/native_boot.js	1554	LocalNative.seedStarterResources	
+analysis/native_boot.js	1694	LocalNative.collectHomeBuildings	gc
+analysis/native_boot.js	1708	LocalNative.resumeConstructions	player
+analysis/native_boot.js	1757	LocalNative.resolveBuildTarget	params
+analysis/native_boot.js	1825	LocalNative.ensureUnitBuildCompleteHook	
+analysis/native_boot.js	1833	Unit.prototype.server_build_complete	dict
+analysis/native_boot.js	1860	LocalNative.ensureUnitSid	unit, sid
+analysis/native_boot.js	1875	LocalNative.lookupUnitMain	typeid
+analysis/native_boot.js	1884	LocalNative.resolveRealTypeID	unit
+analysis/native_boot.js	1898	LocalNative.buildFinishSwapParams	unit, targetType
+analysis/native_boot.js	1958	LocalNative.unitStillOnMap	unit
+analysis/native_boot.js	1974	LocalNative.unitHasVisibleRoot	unit
+analysis/native_boot.js	1990	LocalNative.ensureQuestManagerSafe	
+analysis/native_boot.js	2038	LocalNative.repairFinishedBuildingVisual	unit, swapParams
+analysis/native_boot.js	2158	LocalNative.snapshotBuildingRecord	unit
+analysis/native_boot.js	2168	cp	name
+analysis/native_boot.js	2213	LocalNative.persistFinishedUnit	unit
+analysis/native_boot.js	2278	LocalNative.finishViaBuilder	unit, reason
+analysis/native_boot.js	2401	LocalNative.forceFinishBuilding	player, params, reason
+analysis/native_boot.js	2465	LocalNative.ackBuildComplete	player, sid, reason
+analysis/native_boot.js	2481	LocalNative.scheduleOnRoot	fn, delaySec
+analysis/native_boot.js	2536	LocalNative.copyAccountProgress	target, player
+analysis/native_boot.js	2547	LocalNative.installAccountProgressPersistence	proto
+analysis/native_boot.js	2571	LocalNative.handleUpgradeWalls	player, params
+analysis/native_boot.js	2626	LocalNative.snapshotHeroEquipment	level
+analysis/native_boot.js	2638	LocalNative.persistHeroEquipment	params
+analysis/native_boot.js	2655	LocalNative.tryDumpAndSave	
+analysis/native_boot.js	2726	LocalNative.getAnyGameController	
+analysis/native_boot.js	2740	LocalNative.finishRookieProcessSafe	reason
+analysis/native_boot.js	2776	LocalNative.buildEnemyAttackBattleLogStub	selfPlayer, oppoPlayer
+analysis/native_boot.js	2837	ensureFn	obj, name, fn
+analysis/native_boot.js	2856	LocalNative.ensureEnemyAttackBattleLog	selfPlayer, oppoPlayer
+analysis/native_boot.js	2870	LocalNative.normalizeReplayUnits	units
+analysis/native_boot.js	2909	LocalNative.remapBattleUnitIds	units, baseSid
+analysis/native_boot.js	2931	LocalNative.makeBattleSide	player, extras
+analysis/native_boot.js	2960	LocalNative.countBattleUnits	gc
+analysis/native_boot.js	2994	LocalNative.battleBuildingKey	unit
+analysis/native_boot.js	3003	LocalNative.battleCreatedKeySet	gc
+analysis/native_boot.js	3009	LocalNative.markBattleBuildingCreated	gc, spec
+analysis/native_boot.js	3020	LocalNative.unitMatchesBattleSpec	existing, spec
+analysis/native_boot.js	3048	LocalNative.eachBattleCandidate	gc, visit
+analysis/native_boot.js	3051	pushOne	item, via
+analysis/native_boot.js	3072	walkList	list, via
+analysis/native_boot.js	3089	LocalNative.findBattleBuildingMatch	gc, spec
+analysis/native_boot.js	3110	LocalNative.hasBattleBuilding	gc, spec
+analysis/native_boot.js	3114	LocalNative.listMissingBattleBuildings	gc, units
+analysis/native_boot.js	3127	LocalNative.resolveBattleClient	faction
+analysis/native_boot.js	3190	LocalNative.bindBattleClientFaction	client, faction
+analysis/native_boot.js	3204	LocalNative.ensureBattleClients	gc
+analysis/native_boot.js	3270	LocalNative.withBattleClient	unit, client
+analysis/native_boot.js	3286	LocalNative.forceCreateBattleUnits	gc, units
+analysis/native_boot.js	3364	LocalNative.ensureBattleVillageUnits	gc, units, reason
+analysis/native_boot.js	3404	LocalNative.resolveBattleUnitById	id
+analysis/native_boot.js	3426	LocalNative.resolveUnitCid	unit
+analysis/native_boot.js	3449	LocalNative.isBattleMapUnit	unit
+analysis/native_boot.js	3460	LocalNative.resolveUnitBattleController	unit
+analysis/native_boot.js	3479	LocalNative.eachBattleDefenderUnit	gc, visit
+analysis/native_boot.js	3494	LocalNative.probeDefenderBattleReady	gc
+analysis/native_boot.js	3529	LocalNative.clearBattleOperGates	gc
+analysis/native_boot.js	3549	LocalNative.enableDefenderLiveCombat	gc, reason
+analysis/native_boot.js	3579	LocalNative.spawnStubAttackers	gc
+analysis/native_boot.js	3655	LocalNative.maybeRetestEnemyAttack	
+analysis/native_boot.js	3682	LocalNative.buildEnemyAttackReplayDict	stageId
+analysis/native_boot.js	3790	LocalNative.clearLoadingSafe	
+analysis/native_boot.js	3811	LocalNative.abortBattleEnterToHome	reason
+analysis/native_boot.js	3860	LocalNative.buildEditorPveVillage	stageId, gold, wood, layout
+analysis/native_boot.js	3876	putLoot	family, type, amount
+analysis/native_boot.js	3897	LocalNative.buildStageSevenVillage	gold, wood
+analysis/native_boot.js	3920	line	x1, y1, x2, y2
+analysis/native_boot.js	3938	LocalNative.inferredPveVillageUnits	stageId, gold, wood
+analysis/native_boot.js	3955	LocalNative.installBattleLifeBarColors	
+analysis/native_boot.js	3962	proto._initLifeBar	
+analysis/native_boot.js	3994	LocalNative.installManualHeroSkillGuard	
+analysis/native_boot.js	4000	liveOwnHero	bc
+analysis/native_boot.js	4009	proto.doCastActiveSkill	skillID, targetID, auto
+analysis/native_boot.js	4029	proto.tryOnceAutoAttack	
+analysis/native_boot.js	4034	proto._delayedInit	
+analysis/native_boot.js	4043	LocalNative.syncBattleSkillTarget	bc, targetID, purpose
+analysis/native_boot.js	4055	LocalNative.installActiveSkillSeekFix	
+analysis/native_boot.js	4062	tproto.onHit	cid, value
+analysis/native_boot.js	4108	sproto.onUserCastSkillToTarget	targetID, skillID
+analysis/native_boot.js	4112	this.__setNextSkill	sid, tid
+analysis/native_boot.js	4125	sproto._realDoCastSkill	skillID, targetID
+analysis/native_boot.js	4140	hproto.onUserCastSkillToTarget	targetID, skillID
+analysis/native_boot.js	4158	hproto.onEventUserChangeToAttack	
+analysis/native_boot.js	4175	LocalNative.prepareHeroBattleSkills	hero
+analysis/native_boot.js	4181	add	id
+analysis/native_boot.js	4195	LocalNative.collectAttackHerosForPve	level, selfPlayer
+analysis/native_boot.js	4234	LocalNative.collectBattleSoldiers	level
+analysis/native_boot.js	4250	LocalNative.handleDispatchSoldier	params
+analysis/native_boot.js	4282	LocalNative.arenaNow	
+analysis/native_boot.js	4286	LocalNative.ensureArenaState	level
+analysis/native_boot.js	4293	fresh	
+analysis/native_boot.js	4315	LocalNative.arenaAttackCounter	level
+analysis/native_boot.js	4332	LocalNative.syncArenaState	player, level
+analysis/native_boot.js	4342	LocalNative.buildArenaBattleDict	level
+analysis/native_boot.js	4403	LocalNative.traceArenaBattleStart	gc
+analysis/native_boot.js	4415	team	params
+analysis/native_boot.js	4431	LocalNative.traceArenaInit	gc
+analysis/native_boot.js	4444	LocalNative.handleArenaRpc	player, method
+analysis/native_boot.js	4509	LocalNative.completeArenaBattle	player, early
+analysis/native_boot.js	4557	LocalNative.arenaBattleToHome	player, early
+analysis/native_boot.js	4577	LocalNative.buildPveBattleDict	stageId, scoutLayout
+analysis/native_boot.js	4680	LocalNative.scoutCloudStatus	step, detail
+analysis/native_boot.js	4686	LocalNative.validateScoutCloudEntry	entry, expected
+analysis/native_boot.js	4688	fail	
+analysis/native_boot.js	4689	integer	v, low, high
+analysis/native_boot.js	4690	object	v
+analysis/native_boot.js	4699	occupy	x, y
+analysis/native_boot.js	4762	LocalNative.validateScoutCloudSnapshot	snapshot
+analysis/native_boot.js	4776	LocalNative.ensureScoutCloudState	
+analysis/native_boot.js	4800	LocalNative.getScoutCandidatePool	
+analysis/native_boot.js	4806	LocalNative.commitScoutCloudSnapshot	snapshot
+analysis/native_boot.js	4824	LocalNative.decodeScoutCloudText	text
+analysis/native_boot.js	4834	LocalNative.requestScoutCloudJson	path, callback
+analysis/native_boot.js	4836	finish	error, value
+analysis/native_boot.js	4844	xhr.onreadystatechange	
+analysis/native_boot.js	4854	xhr.onerror	
+analysis/native_boot.js	4855	xhr.ontimeout	
+analysis/native_boot.js	4862	LocalNative.syncScoutCloudPool	
+analysis/native_boot.js	4867	fail	error
+analysis/native_boot.js	4868	manifest	data
+analysis/native_boot.js	4893	accept	entry, row
+analysis/native_boot.js	4899	next	
+analysis/native_boot.js	4932	LocalNative.startScoutCloudSync	
+analysis/native_boot.js	4937	tick	
+analysis/native_boot.js	4947	LocalNative.readScoutHeadquartersLevel	level
+analysis/native_boot.js	4956	LocalNative.selectScoutLevel	level, random
+analysis/native_boot.js	4976	LocalNative.fillScoutResourceLoot	units
+analysis/native_boot.js	4999	LocalNative.readScoutBattleLoot	gc, session
+analysis/native_boot.js	5008	amount	type, max
+analysis/native_boot.js	5015	LocalNative.buildPvpBattleDict	level, player
+analysis/native_boot.js	5048	LocalNative.handleEnterPvpBattle	player
+analysis/native_boot.js	5064	LocalNative.handleStartPvpBattle	gc
+analysis/native_boot.js	5078	LocalNative.handleCompletePvpBattle	player
+analysis/native_boot.js	5109	LocalNative.handlePvpBattleToHome	player
+analysis/native_boot.js	5120	LocalNative.handleEnterPveBattle	player, params
+analysis/native_boot.js	5169	LocalNative.getBattleController	
+analysis/native_boot.js	5185	LocalNative.readLivePveStageId	
+analysis/native_boot.js	5196	LocalNative.isLocalPveBattleActive	
+analysis/native_boot.js	5206	LocalNative.isLocalRaidActive	
+analysis/native_boot.js	5212	LocalNative.applyPveStageProgress	player, stageId, starNum, winGold, winWood
+analysis/native_boot.js	5266	LocalNative.buildPveBattleResultDict	gc, stageId
+analysis/native_boot.js	5315	LocalNative.grantPveLoot	winGold, winWood, level
+analysis/native_boot.js	5318	add	type, amount, field, configField
+analysis/native_boot.js	5342	LocalNative.applyPveItemReward	level, eventId, receiptKey
+analysis/native_boot.js	5362	LocalNative.applyPveBattleItemRewards	level, eventId, stageId
+analysis/native_boot.js	5388	LocalNative.applyPveHeroRewards	level, eventId, stageId
+analysis/native_boot.js	5430	LocalNative.handleCompletePveBattle	player, params
+analysis/native_boot.js	5536	LocalNative.restoreHomeClock	
+analysis/native_boot.js	5560	LocalNative.handlePveBattleToHome	player, params
+analysis/native_boot.js	5620	LocalNative.classifyPveSweepItem	typeid
+analysis/native_boot.js	5629	LocalNative.collectPveSweepLootPools	stageId
+analysis/native_boot.js	5652	LocalNative.snapshotPveSweepTili	player, level
+analysis/native_boot.js	5666	LocalNative.syncPveSweepTili	player, level
+analysis/native_boot.js	5680	LocalNative.consumePveSweepPeriod	level, periodId
+analysis/native_boot.js	5699	LocalNative.syncPveSweepPeriod	player, level, periodId
+analysis/native_boot.js	5716	LocalNative.rollPveSweepItems	level, stageId
+analysis/native_boot.js	5750	LocalNative.handlePveSweep	player, params
+analysis/native_boot.js	5866	LocalNative.handleRefreshSweepInfo	player
+analysis/native_boot.js	5894	LocalNative.getInvasionController	
+analysis/native_boot.js	5909	LocalNative.unitsArrayToIdMap	units, baseSid
+analysis/native_boot.js	5923	LocalNative.heroDefenseAnchor	hero
+analysis/native_boot.js	5931	LocalNative.buildRemappedUnitsMap	units, baseSid
+analysis/native_boot.js	5951	LocalNative.injectDefenseHerosIntoUnitsMap	unitsMap, sidMap, nextSid, heros
+analysis/native_boot.js	5988	LocalNative.buildInvasionEnterDict	
+analysis/native_boot.js	6040	LocalNative.readInvasionAbsoluteWave	relativeWave
+analysis/native_boot.js	6062	LocalNative.pickInvasionWaveHeroes	waveCfg
+analysis/native_boot.js	6095	LocalNative.buildInvasionWaveStartDict	absoluteWave
+analysis/native_boot.js	6106	LocalNative.applyInvasionEventRewards	level, eventId, receiptKey
+analysis/native_boot.js	6155	LocalNative.finishInvasionUnlockGuide	reason
+analysis/native_boot.js	6232	LocalNative.handleEnterInvasion	player, params
+analysis/native_boot.js	6268	LocalNative.handleInvasionWaveReady	player, params
+analysis/native_boot.js	6313	LocalNative.handleInvasionWaveStart	player, params
+analysis/native_boot.js	6318	LocalNative.handleInvasionWaveEnd	player, params
+analysis/native_boot.js	6393	LocalNative.handleInvasionToHome	player, params
+analysis/native_boot.js	6424	LocalNative.handleEnterEnemyAttackReplay	player, params
+analysis/native_boot.js	6495	LocalNative.localRaidAllAttackersDead	gc
+analysis/native_boot.js	6509	LocalNative.queueLocalRaidReplayEnd	gc
+analysis/native_boot.js	6537	LocalNative.recordLocalRaidCompletion	player, level, stage
+analysis/native_boot.js	6559	LocalNative.closeLocalRaidSessionOnHome	gc
+analysis/native_boot.js	6570	LocalNative.handleFinishEnemyAttackReplay	player, params
+analysis/native_boot.js	6628	LocalNative.handleBattleToHome	player, params
+analysis/native_boot.js	6640	LocalNative.ensureWelcomeLetter	player
+analysis/native_boot.js	6662	LocalNative.syncSavedHomeWallet	level
+analysis/native_boot.js	6685	LocalNative.handleWelcomeLetterReward	player, params
+analysis/native_boot.js	6721	LocalNative.rookieSignNow	
+analysis/native_boot.js	6732	LocalNative.ensureRookieSign	level
+analysis/native_boot.js	6763	LocalNative.syncRookieSign	player, level
+analysis/native_boot.js	6778	LocalNative.applyRookieSignRewards	level, day
+analysis/native_boot.js	6834	LocalNative.handleRookieSignReward	player
+analysis/native_boot.js	6881	LocalNative.maybeShowRookieSign	player, gc
+analysis/native_boot.js	6882	gate	reason, details
+analysis/native_boot.js	6931	LocalNative.startRookieSignClock	gc
+analysis/native_boot.js	6936	root.__localRookieSignTick	
+analysis/native_boot.js	6959	LocalNative.installRookieSignHooks	
+analysis/native_boot.js	6963	proto.open	
+analysis/native_boot.js	6975	LocalNative.installMonthlySignRewards	year
+analysis/native_boot.js	6995	LocalNative.ensureMonthlySign	level
+analysis/native_boot.js	7029	LocalNative.syncMonthlySign	player, level
+analysis/native_boot.js	7049	LocalNative.handleMonthlySignReward	player, params
+analysis/native_boot.js	7092	LocalNative.refreshMonthlySign	player, markShown
+analysis/native_boot.js	7120	LocalNative.shopState	level
+analysis/native_boot.js	7127	LocalNative.shopPick	entries
+analysis/native_boot.js	7139	LocalNative.snapshotResearch	level, player
+analysis/native_boot.js	7147	LocalNative.restoreResearch	player
+analysis/native_boot.js	7173	LocalNative.handleTrainTech	player, params
+analysis/native_boot.js	7199	LocalNative.finishResearch	player, forcedId
+analysis/native_boot.js	7234	LocalNative.startResearchClock	
+analysis/native_boot.js	7237	root.__localResearchTick	
+analysis/native_boot.js	7245	LocalNative.shopTransaction	player
+analysis/native_boot.js	7275	LocalNative.shopSync	player, level
+analysis/native_boot.js	7303	LocalNative.ensurePackageSlotMetadata	level
+analysis/native_boot.js	7312	LocalNative.handleBuyPackageSlot	player, params
+analysis/native_boot.js	7337	LocalNative.shopAddItem	level, typeid, num
+analysis/native_boot.js	7372	LocalNative.shopHeroPools	
+analysis/native_boot.js	7406	LocalNative.shopRollHeroes	level, count
+analysis/native_boot.js	7433	LocalNative.shopShowPending	player, level
+analysis/native_boot.js	7453	LocalNative.handleShopDraw	player, params
+analysis/native_boot.js	7486	LocalNative.handleShopGain	player
+analysis/native_boot.js	7521	LocalNative.handleShopDismiss	player, params
+analysis/native_boot.js	7538	LocalNative.shopRollItemEvent	level, eventId, rewardPolicy
+analysis/native_boot.js	7567	LocalNative.shopTreasureRewards	level, itemId
+analysis/native_boot.js	7631	LocalNative.handleShopBuyPackage	player, params
+analysis/native_boot.js	7655	LocalNative.resolveSkillBookReplaceId	typeid
+analysis/native_boot.js	7665	LocalNative.isSkillEnforceBook	typeid
+analysis/native_boot.js	7675	LocalNative.applySkillBookUse	level, typeid, useParams
+analysis/native_boot.js	7724	LocalNative.isHeroFeedUse	typeid, useParams
+analysis/native_boot.js	7734	LocalNative.findHeroRecord	level, sid
+analysis/native_boot.js	7741	LocalNative.pickMutateId	typeid
+analysis/native_boot.js	7755	LocalNative.pickFeedSlotSkill	hero
+analysis/native_boot.js	7772	LocalNative.applyHeroFeedUse	level, typeid, useParams, num
+analysis/native_boot.js	7853	LocalNative.unlockHeroFeedIfNeeded	params
+analysis/native_boot.js	7863	LocalNative.applyBuildTimeUse	level, typeid, params, num
+analysis/native_boot.js	7897	LocalNative.scheduleAcceleratedBuild	player, sid
+analysis/native_boot.js	7915	LocalNative.handleShopUseItem	player, params
+analysis/native_boot.js	7980	LocalNative.handleComposeSkillbook	player, params
+analysis/native_boot.js	8054	LocalNative.handleComposeBlueprint	player, params
+analysis/native_boot.js	8120	LocalNative.handleComposeItem	player, params
+analysis/native_boot.js	8220	LocalNative.generateComposedRune	id
+analysis/native_boot.js	8249	LocalNative.handleComposeEquipment	player, params
+analysis/native_boot.js	8256	pieces	input, category, pointsNeeded
+analysis/native_boot.js	8309	LocalNative.runeRehandleTarget	level, target
+analysis/native_boot.js	8321	LocalNative.handleRuneUpgrade	player, params, inPackage
+analysis/native_boot.js	8344	pieces	input, category, required
+analysis/native_boot.js	8402	LocalNative.showRuneRehandle	player, pending
+analysis/native_boot.js	8411	LocalNative.handleRuneRehandle	player, params, inPackage
+analysis/native_boot.js	8433	pieces	input, category, required
+analysis/native_boot.js	8495	LocalNative.finishRuneRehandle	player, id, cancel
+analysis/native_boot.js	8539	G_EventManager.inputAward	
+analysis/native_boot.js	8546	LocalNative.installRuneRehandle	
+analysis/native_boot.js	8550	proto._saveEquipment	
+analysis/native_boot.js	8571	proto.realCancelRehandle	
+analysis/native_boot.js	8583	LocalNative.unlockCompose	
+analysis/native_boot.js	8593	LocalNative.unlockRuneUpgrade	
+analysis/native_boot.js	8600	LocalNative.runShopRequest	player, method, params
+analysis/native_boot.js	8638	LocalNative.installTraderPolicy	
+analysis/native_boot.js	8648	LocalNative.pickTraderOfferIds	pool
+analysis/native_boot.js	8660	LocalNative.ensureTrader	level, force
+analysis/native_boot.js	8721	LocalNative.syncTrader	player, level
+analysis/native_boot.js	8735	LocalNative.traderItemCount	level, typeid
+analysis/native_boot.js	8745	LocalNative.traderCheckItemDebit	before, after, typeid, num
+analysis/native_boot.js	8752	LocalNative.traderEventItems	level, cfg, num
+analysis/native_boot.js	8770	LocalNative.runTraderRequest	player, method, params
+analysis/native_boot.js	8850	LocalNative.repairPromotionCounter	level
+analysis/native_boot.js	8876	LocalNative.handleHeroReincarnate	player, params
+analysis/native_boot.js	8987	LocalNative.probeHeroSwallowContract	
+analysis/native_boot.js	9002	LocalNative.prepareHeroDismiss	player, unit
+analysis/native_boot.js	9053	LocalNative.installHeroDismiss	
+analysis/native_boot.js	9057	proto.dismissHero	
+analysis/native_boot.js	9074	LocalNative.handleHeroDismiss	player, params
+analysis/native_boot.js	9092	G_EventManager.inputAward	
+analysis/native_boot.js	9106	LocalNative.handleHeroSwallow	player, params
+analysis/native_boot.js	9167	LocalNative.handleHeroPromote	player, params
+analysis/native_boot.js	9213	LocalNative.handlePveMapEgg	player, params
+analysis/native_boot.js	9288	LocalNative.adventureCostFor	eventId
+analysis/native_boot.js	9295	LocalNative.readAdventureState	level
+analysis/native_boot.js	9304	LocalNative.writeAdventureState	level, state
+analysis/native_boot.js	9310	LocalNative.syncAdventureManager	player, state
+analysis/native_boot.js	9319	LocalNative.consumeAdventureEntry	level
+analysis/native_boot.js	9323	LocalNative.resetAdventureEntryCount	level
+analysis/native_boot.js	9335	LocalNative.clearAdventureInterval	level
+analysis/native_boot.js	9351	LocalNative.adventureRandInt	min, max
+analysis/native_boot.js	9358	LocalNative.readAdventureUnfortunateCount	level
+analysis/native_boot.js	9369	LocalNative.writeAdventureUnfortunateCount	level, count
+analysis/native_boot.js	9380	LocalNative.applyAdventureCaptureLoot	player, level
+analysis/native_boot.js	9426	LocalNative.handleEnterDiceEvent	player
+analysis/native_boot.js	9467	LocalNative.handleResetDiceEvent1	player
+analysis/native_boot.js	9486	LocalNative.handleClearDiceEvent1Interval	player
+analysis/native_boot.js	9502	LocalNative.adventureCaptureAnswer	player, mode
+analysis/native_boot.js	9587	LocalNative.handleDiceEvent2Torture	player
+analysis/native_boot.js	9591	LocalNative.handleDiceEvent2Release	player
+analysis/native_boot.js	9595	LocalNative.markAdventureCaptureAfterPveWin	player, level
+analysis/native_boot.js	9615	LocalNative.clearAdventureProgress	player, level
+analysis/native_boot.js	9629	LocalNative.wantedCounter	level, id
+analysis/native_boot.js	9637	LocalNative.wantedPeriod	level, id, consume
+analysis/native_boot.js	9659	LocalNative.wantedPick	level, order
+analysis/native_boot.js	9683	LocalNative.ensureWantedCards	level
+analysis/native_boot.js	9692	LocalNative.syncWanted	player, level
+analysis/native_boot.js	9702	LocalNative.installWantedAwardDisplay	
+analysis/native_boot.js	9707	proto.getWantedReward	rewardGet, reward
+analysis/native_boot.js	9723	LocalNative.buildWantedEquipment	order
+analysis/native_boot.js	9763	LocalNative.runWantedTargetTrigger	player, gc, payload
+analysis/native_boot.js	9768	gc.createUnit	params
+analysis/native_boot.js	9784	LocalNative.buildWantedTargetTrigger	wantedId
+analysis/native_boot.js	9853	LocalNative.castWantedGroundAndAirField	mfid, faction, casterMir, targetID, pos, dir
+analysis/native_boot.js	9865	LocalNative.allowWantedTargetGroundAndAir	unit
+analysis/native_boot.js	9877	LocalNative.applyWantedTargetBuff	unit, session
+analysis/native_boot.js	9892	LocalNative.handleWantedRpc	player, method, params
+analysis/native_boot.js	10037	LocalNative.completeWantedBattle	player, params
+analysis/native_boot.js	10067	LocalNative.handleLoadDiceEvent1Pve	player
+analysis/native_boot.js	10106	LocalNative.handleTutorialEggDraw	player, params
+analysis/native_boot.js	10138	LocalNative.handleTutorialEggGain	player
+analysis/native_boot.js	10171	LocalNative.questPlayerLevel	level, player
+analysis/native_boot.js	10177	LocalNative.questScaledResAmount	resCfg, playerLevel
+analysis/native_boot.js	10186	LocalNative.collectQuestPutinRewards	level, putinId, playerLevel
+analysis/native_boot.js	10224	LocalNative.previewQuestRewards	putinId, playerLevel
+analysis/native_boot.js	10250	LocalNative.ensureQuestRewardPreviews	player
+analysis/native_boot.js	10252	fill	current, table
+analysis/native_boot.js	10288	LocalNative.ensureDailyQuestBucket	level, rootQuestId
+analysis/native_boot.js	10305	LocalNative.seedDailyQuestRoots	player
+analysis/native_boot.js	10345	LocalNative.seedMainQuestRoots	player
+analysis/native_boot.js	10381	LocalNative.ensureQuestProgressSeeded	levelOrPlayer
+analysis/native_boot.js	10390	LocalNative.applyQuestSeedToLive	player, level
+analysis/native_boot.js	10407	LocalNative.ensureLiveQuestSeed	
+analysis/native_boot.js	10427	LocalNative.saveLiveQuestProgress	player
+analysis/native_boot.js	10441	LocalNative.installDailyQuestProgress	qm
+analysis/native_boot.js	10458	refresh	manager, field
+analysis/native_boot.js	10495	LocalNative.syncQuestEventRecorder	player, level
+analysis/native_boot.js	10504	LocalNative.nextDailyQuestIds	questId
+analysis/native_boot.js	10511	LocalNative.bumpDailyTasknum	level
+analysis/native_boot.js	10525	LocalNative.advanceDailyQuestCounter	level, field, amount
+analysis/native_boot.js	10540	LocalNative.syncQuestPackageAndWallet	player, level
+analysis/native_boot.js	10547	LocalNative.handleRefreshDailyQuest	player, params
+analysis/native_boot.js	10571	LocalNative.handleFinishDailyQuest	player, params
+analysis/native_boot.js	10629	LocalNative.handleFinishMainQuest	player, params
+analysis/native_boot.js	10680	LocalNative.handleChangeNickname	player, params
+analysis/native_boot.js	10713	LocalNative.avatarOwned	list, avatarId
+analysis/native_boot.js	10722	LocalNative.handleChangeAvatar	player, params
+analysis/native_boot.js	10745	LocalNative.handleBuyAvatar	player, params
+analysis/native_boot.js	10783	LocalNative.handleGainAchieve	player, params
+analysis/native_boot.js	10830	LocalNative.installCallServer	player
+analysis/native_boot.js	10833	player.callServer	methodName, params
+analysis/native_boot.js	11289	ackMove	
+analysis/native_boot.js	11580	LocalNative.ensureLeague	
+analysis/native_boot.js	11598	zero	
+analysis/native_boot.js	11599	empty	
+analysis/native_boot.js	11600	no	
+analysis/native_boot.js	11601	noop	
+analysis/native_boot.js	11640	LocalNative.applyPlayerFallback	player, dict
+analysis/native_boot.js	11685	LocalNative.seedPlayerComponents	player
+analysis/native_boot.js	11811	LocalNative.getBuildController	
+analysis/native_boot.js	11819	LocalNative.getMenuController	
+analysis/native_boot.js	11829	LocalNative.getScheduleRoot	
+analysis/native_boot.js	11844	LocalNative.setLabelText	node, text
+analysis/native_boot.js	11869	LocalNative.refreshHud	
+analysis/native_boot.js	11960	LocalNative.getBuildingBuilder	unit
+analysis/native_boot.js	11998	LocalNative.cancelBlockedPlacement	
+analysis/native_boot.js	12114	LocalNative.writeStatus	obj
+analysis/native_boot.js	12147	LocalNative.afterWorldReady	gc
+analysis/native_boot.js	12214	cancelTick	
+analysis/native_boot.js	12242	LocalNative.bootstrapRookieFallback	gc, userConfig
+analysis/native_boot.js	12323	LocalNative.installEngineGuards	
+analysis/native_boot.js	12338	Game.MapManager.prototype.init	config
+analysis/native_boot.js	12371	cpp.initByServer	dict
+analysis/native_boot.js	12456	bp.initLevelFromData	dict
+analysis/native_boot.js	12485	bp._enterWorldAction	
+analysis/native_boot.js	12533	bp.initRookieByServer	userConfig
+analysis/native_boot.js	12665	btp.getReplayBattleLog	
+analysis/native_boot.js	12684	btp.getReplayBattleLog	
+analysis/native_boot.js	12699	btp._createBattleUnitWhenInit	unitDict, client
+analysis/native_boot.js	12774	btp.startBattle	
+analysis/native_boot.js	12835	btp.afterInitWorld	
+analysis/native_boot.js	12862	btp.initLevelFromData	dict
+analysis/native_boot.js	13079	SelectorTask.prototype._executeSelector	
+analysis/native_boot.js	13099	BaseTask.prototype.execute	
+analysis/native_boot.js	13122	mbp.onReplayEnd	
+analysis/native_boot.js	13149	mbp.onBattleTimeout	
+analysis/native_boot.js	13175	mbp.onBattlePrepareTimeout	
+analysis/native_boot.js	13321	brp.getBattleLog	
+analysis/native_boot.js	13333	brp.getBattleLog	
+analysis/native_boot.js	13342	brp.initByServer	params
+analysis/native_boot.js	13413	ClientPlayer.prototype.getComponent	key
+analysis/native_boot.js	13529	BBC.prototype.onPressNO	
+analysis/native_boot.js	13551	cc.TMXTiledMap.create	path
+analysis/native_boot.js	13591	Rookie.decodeFinishedRookiePIDs	cfg
+analysis/native_boot.js	13643	LocalNative.countBuildings	gc
+analysis/native_boot.js	13662	LocalNative.diagnoseBuild	
+analysis/native_boot.js	13689	LocalNative.ensurePlayer	
+analysis/native_boot.js	13704	LocalNative.unlockEnter	
+analysis/native_boot.js	13709	LocalNative.getDurableScheduleRoot	
+analysis/native_boot.js	13724	LocalNative.startGame	
+analysis/native_boot.js	13815	kickStart	
+analysis/native_boot.js	13848	saver	
+analysis/native_boot.js	13896	startWrapped	
+analysis/native_boot.js	13957	menu.isLegalAgreed	
+analysis/native_boot.js	13960	menu.isLegalAgreed	
+analysis/native_boot.js	13967	legalKeep	

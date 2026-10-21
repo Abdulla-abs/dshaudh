@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "status": "installed-device-pending",
+  "source": "Components.Personalize + AchieveComponent.AchievementRecorder + UI.AvataInfo + MenuControllerBuild.refreshAvatar + data.player_head/achieve/input_event_client",
+  "seed": {
+    "why": "refreshAvatar does data.player_head[Personalize.avatar_id]; id 0 is not in the table and throws config is undefined",
+    "default_have": [6, 36],
+    "hooks": "defaultPlayer, ensurePlayerSocialFields/ensureAvatarFields, applyPlayerFallback keys, seedPlayerComponents, tryDumpAndSave"
+  },
+  "rpc_s_change_avatar": {
+    "request": {"avatar_id": "owned player_head id"},
+    "client_before": "Personalize.changeAvatar sets live avatar_id and refreshAvatar",
+    "server": "persist avatar_id/avatar_list when owned; reject unowned"
+  },
+  "rpc_s_buy_avatar": {
+    "request": {"avatar_id": "player_head id with need_gems"},
+    "client_before": "buyAvatar only checkRes; does not debit",
+    "server": "useRes(need_gems), save list, rpc_c_unlock_avatar (live push + UI); duplicate buy is no-op"
+  },
+  "rpc_s_gain_achieve": {
+    "request": {"achieve_id": "data.achieve id"},
+    "client_before": "gainAchievement marks gained_achieve and advances chain before callServer",
+    "reward": "cfg.input_id → collectQuestPutinRewards (gems match reward_gem); cfg.reward_exp via addExp when present",
+    "idempotent": "saved gained_achieve skips wallet/exp grant on repeat"
+  }
+}

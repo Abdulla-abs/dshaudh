@@ -1,5 +1,7 @@
 # 当前状态（2026-10-21）
 
+左上角头像与成就：用户报告头像／成就异常。设备曾记录 `MenuBuild.refreshAvatar-soft`／`config is undefined`；根因是本地 `avatar_id=0` 不在原表 `player_head`（默认拥有 6／36）。已修种子与组件同步，并接 `rpc_s_change_avatar`／`rpc_s_buy_avatar`／`rpc_s_gain_achieve`（购买扣钻后走原 `rpc_c_unlock_avatar`；领取按 `input_id` 发钻并加 `reward_exp`）。离线检查通过；已保留存档覆盖安装并启动实例 1，前后 9 个存档文件一致。APK SHA-256：`c5d6eca2a1cfe2ee76c959396929b5b04cd778ac9078b192fac03af154bbe824`。游戏内待复测。见 [头像成就证据](../../analysis/evidence/avatar-achieve.md)。
+
 每日签到钻石：按用户要求由 10 万改为 100 万。展示表与领取加钻／回执均为 `1000000`；离线检查通过。已保留存档覆盖安装并启动实例 1，前后 9 个存档文件一致。APK SHA-256：`7f445f2e7b28f8d4b9f95308d6b83edee440635e65e2b1de490839c277ff9972`。游戏内领取待复测。见 [签到额度证据](../../analysis/evidence/monthly-sign-diamond.md)。
 
 云端阵容池线上已 28 份（revision 28，名称／ID 无重复）。实例 1 本地缓存仍停在 revision 1（仅「巷子里的猫」），最近状态 `sync-failed`／`Cloud watchdog timeout`，故侦察反复同一阵容。根因是同步超时未替换缓存，不是云端重复入库。见 [陈旧缓存证据](../../analysis/evidence/scout-cloud-stale-cache.md)。

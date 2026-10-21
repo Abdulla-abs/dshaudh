@@ -60,6 +60,7 @@ analysis/evidence/layout-editor-runes.md	1	# 布局编辑器守军符文
 analysis/evidence/layout-editor-traps.md	1	# 布局编辑器陷阱
 analysis/evidence/layout-editor.md	1	# 用户编写关卡布局
 analysis/evidence/map-decorations.md	1	# 原版非商店地图对象清单
+analysis/evidence/monthly-sign-diamond.md	1	# 每日签到钻石额度
 analysis/evidence/native-findings.md	1	# 原流程短证据目录
 analysis/evidence/pve-book-drop.md	1	# 单人关卡龙族秘笈掉落概率
 analysis/evidence/pve-book-drop.md	7	## 当前本地结论
@@ -90,9 +91,11 @@ analysis/evidence/scout-abbas.md	1	# 随机侦察新增 abbas
 analysis/evidence/scout-batch-9-18.md	1	# 随机侦察新增十关
 analysis/evidence/scout-clock.md	1	# 随机侦察换敌后加速
 analysis/evidence/scout-cloud-client.md	1	# 游戏云端阵容同步
+analysis/evidence/scout-cloud-stale-cache.md	1	# 模拟器侦察仍重复同一云端阵容
 analysis/evidence/scout-cloud.md	1	# 云端侦察阵容池 API
 analysis/evidence/scout-loot.md	1	# 随机侦察资源掠夺
 analysis/evidence/scout-map-bounds.md	1	# 巷子里的猫建筑落到地图外
+analysis/evidence/scout-pool-exclude-pve.md	1	# 侦察池剔除单人关卡副本
 analysis/evidence/scout-pool.md	1	# 随机侦察预定义关卡池
 analysis/evidence/seven-day-sign.md	1	# 新手七日签到存在性
 analysis/evidence/shop-treasure-audit.md	1	# 商店宝藏数据完整性调查

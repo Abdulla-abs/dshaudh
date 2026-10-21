@@ -540,6 +540,7 @@ analysis/evidence/layout-editor-runes.md	adapter-source	3007
 analysis/evidence/layout-editor-traps.md	adapter-source	1774
 analysis/evidence/layout-editor.md	adapter-source	2704
 analysis/evidence/map-decorations.md	adapter-source	2928
+analysis/evidence/monthly-sign-diamond.md	adapter-source	1114
 analysis/evidence/native-findings.md	adapter-source	4160
 analysis/evidence/pve-book-drop.md	adapter-source	3546
 analysis/evidence/pve-map-egg.md	adapter-source	2233
@@ -564,9 +565,11 @@ analysis/evidence/scout-abbas.md	adapter-source	1724
 analysis/evidence/scout-batch-9-18.md	adapter-source	2302
 analysis/evidence/scout-clock.md	adapter-source	1939
 analysis/evidence/scout-cloud-client.md	adapter-source	2878
+analysis/evidence/scout-cloud-stale-cache.md	adapter-source	1153
 analysis/evidence/scout-cloud.md	adapter-source	2602
 analysis/evidence/scout-loot.md	adapter-source	2602
 analysis/evidence/scout-map-bounds.md	adapter-source	2987
+analysis/evidence/scout-pool-exclude-pve.md	adapter-source	978
 analysis/evidence/scout-pool.md	adapter-source	4098
 analysis/evidence/seven-day-sign.md	adapter-source	2129
 analysis/evidence/shop-treasure-audit.md	adapter-source	3633
@@ -667,7 +670,7 @@ analysis/mine_boot.js	adapter-source	48691
 analysis/mine_validation_boot.js	adapter-source	48711
 analysis/native-entry-fix-verification.json	evidence-or-data	1347
 analysis/native-init-protocol.json	evidence-or-data	8760
-analysis/native_boot.js	adapter-source	1003278
+analysis/native_boot.js	adapter-source	1016709
 analysis/native_protocol_probe.js	probe-fixture	260983
 analysis/prepare_capacity_validation.py	adapter-source	618
 analysis/prepare_construct_validation.py	adapter-source	759
@@ -848,12 +851,12 @@ analysis/validate_train.py	verification	12434
 analysis/validate_train_delivery.py	verification	5350
 analysis/validate_upgrade.py	verification	6465
 analysis/validate_upgrade_delivery.py	verification	4461
-docs/ai/current-state.md	docs	54635
+docs/ai/current-state.md	docs	55284
 docs/ai/file-policy.md	docs	3491
 docs/ai/handoff-template.md	docs	891
-docs/ai/index.md	docs	24332
+docs/ai/index.md	docs	24689
 docs/ai/pending.md	docs	2930
-docs/ai/rpc-map.md	docs	8280
+docs/ai/rpc-map.md	docs	8551
 docs/archive/AGENTS-before-organization.md	docs	10219
 docs/archive/README-before-organization.md	docs	8513
 docs/baselines/CAPACITY-BASELINE.json	docs	2230
