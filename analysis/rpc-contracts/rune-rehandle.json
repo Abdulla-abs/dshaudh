@@ -1,0 +1,20 @@
+{
+  "requests": {
+    "rpc_s_rehandle_equipment": {"sid": "角色 SID，可为字符串", "slot": "符文槽，0～4", "hero_pieces": "英雄碎片类型到数量", "prop_pieces": "转生碎片类型到数量"},
+    "rpc_s_rehandle_equipment_package": {"pkgid": 2, "oid": "背包中符文 OID", "hero_pieces": "英雄碎片类型到数量", "prop_pieces": "转生碎片类型到数量"}
+  },
+  "cost": "原按钮预扣 item_reforge_cost；按 item_reforge 校验两类碎片点数并扣除第三项道具。二级转生碎片每个 3 点，其余每个 1 点。保存预扣钱包，不二次收费。",
+  "candidatePolicy": {"source": "沿用已建立的本地符文随机方式，非已验证官方概率", "attributes": "从 equipment_attribute 对应层的有效编号均匀抽取；保留原各层属性条数，缺字段时按现有本地符文规则生成一条", "identity": "保留类型、等级、OID、专属英雄属性及其他元数据"},
+  "pending": "local_rune_rehandle 保存原符文、新候选、目标、实际耗材、费用及序号。生成候选与扣材同次写盘。候选未确认前保留原符文；再次请求和回城／重登展示同一候选，恢复重复预扣费用，不重新抽取。",
+  "answers": {
+    "hero": "rpc_c_rehandle_ans({sid,slot,after_equip})",
+    "package": "rpc_c_rehandle_ans2({pkgid:2,oid,after_equip})",
+    "cancel": "rpc_c_cancel_rehandle_ans({input_rst:实际返还数组})，临时抑制 Award.showAward 的重复发奖"
+  },
+  "save": "原结果页保存及关闭均调用 _saveEquipment，没有另发保存 RPC。本地包装先保存新符文并清待确认记录，再执行原版属性刷新；字符串角色 SID 兼容原 sid>-1 的数字判断。",
+  "cancel": {"authorization": "用户在本轮明确选择：保留原符文，退还一半本次耗材和费用", "rule": "按每种实际耗材及费用分别 floor(数量/2)，保留原符文；资源沿用主城容量上限", "entry": "保留原取消确认弹窗，在 realCancelRehandle 边界执行本地事务，然后关闭结果页", "exclusion": "不使用原 item_function_cancel_output，因用户已指定半额退实际耗材规则"},
+  "atomicity": "保存／取消均先持久化再同步；local_rune_rehandle_receipt 防止重复确认。写盘失败保留候选，返还背包满则不提交；目标身份或属性已变化时拒绝旧结果。主城快照保留权威待确认和收据，防止遗失或恢复旧候选。",
+  "evidence": "analysis/evidence/rune-rehandle.md",
+  "checks": "node analysis/check_native_rune_rehandle.cjs",
+  "acceptance": "原版背包及穿戴请求／结果流程、45 种配方、保存／取消、冷恢复、重复及失败检查通过。已保留存档安装实例 1；游戏内待用户复测，未消耗设备符文和材料。"
+}

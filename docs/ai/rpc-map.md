@@ -4,6 +4,8 @@
 
 | 请求或初始化 | 处理入口 | 契约 | 最小离线检查 |
 |---|---|---|---|
+| `rpc_s_upgrade_equipment`、`rpc_s_upgrade_equipment_package` 符文升级 | `handleRuneUpgrade`、`unlockRuneUpgrade` | `analysis/rpc-contracts/rune-upgrade.json` | `node analysis/check_native_rune_upgrade.cjs` |
+| `rpc_s_rehandle_equipment`、`rpc_s_rehandle_equipment_package`；结果页保存及取消 | `handleRuneRehandle`、`finishRuneRehandle`、`installRuneRehandle` | `analysis/rpc-contracts/rune-rehandle.json` | `node analysis/check_native_rune_rehandle.cjs` |
 | `rpc_s_compose_blueprint` | `handleComposeBlueprint` | `analysis/rpc-contracts/blueprint-compose.json` | `node analysis/check_native_blueprint_compose.cjs` |
 | `rpc_s_dismiss_hero` | `prepareHeroDismiss`、`handleHeroDismiss` | `analysis/rpc-contracts/hero-dismiss.json` | `node analysis/check_native_hero_dismiss.cjs` |
 | `rpc_s_enter_arena_battle`、`rpc_s_gain_arena_rewards`、竞技场结算／回城 | `handleArenaRpc`、`completeArenaBattle`、`arenaBattleToHome` | `analysis/rpc-contracts/arena.json` | `python analysis/inspect_native_arena.py`、`node analysis/check_native_arena.cjs` |

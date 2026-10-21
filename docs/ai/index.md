@@ -6,6 +6,8 @@
 
 | 任务 | 说明入口 | 代码和数据 |
 |---|---|---|
+| 符文升级无效 | [升级证据](../../analysis/evidence/rune-upgrade.md)，补背包／穿戴升级请求、扣材与原回执，已安装实例 1，游戏内待复测 | `rune-upgrade.json`、`handleRuneUpgrade`、`check_native_rune_upgrade.cjs` |
+| 符文重铸无效 | [重铸证据](../../analysis/evidence/rune-rehandle.md)，补待确认、保存和半额取消返还，已安装实例 1，游戏内待复测 | `rune-rehandle.json`、`handleRuneRehandle`、`finishRuneRehandle`、`check_native_rune_rehandle.cjs` |
 | 二转图纸无法合成三转图纸 | [合成证据](../../analysis/evidence/blueprint-compose.md)，补原图纸独立请求及保存，已安装实例 1，游戏内待复测 | `blueprint-compose.json`、`handleComposeBlueprint`、`check_native_blueprint_compose.cjs` |
 | 角色解散无奖励且重登恢复 | [解散证据](../../analysis/evidence/hero-dismiss.md)，补删除、奖励及符文同次保存，已安装实例 1，游戏内待复测 | `hero-dismiss.json`、`prepareHeroDismiss`、`handleHeroDismiss`、`check_native_hero_dismiss.cjs` |
 | 随机侦察换敌后加速 | [计时证据](../../analysis/evidence/scout-clock.md)，计时恢复已安装实例 1，实战待复测 | `initLevelFromData`、`restoreHomeClock`、`check_native_battle_clock.cjs` |

@@ -1055,6 +1055,13 @@
                 if (store.level.localTutorialEgg) levelDict.localTutorialEgg = store.level.localTutorialEgg;
                 if (store.level.localPveFirstRewards) levelDict.localPveFirstRewards = store.level.localPveFirstRewards;
                 if (store.level.localTrader) levelDict.localTrader = store.level.localTrader;
+                if (levelDict.player && store.level.player) {
+                    ['local_rune_rehandle', 'local_rune_rehandle_receipt'].forEach(function(key) {
+                        if (Object.prototype.hasOwnProperty.call(store.level.player, key))
+                            levelDict.player[key] = JSON.parse(JSON.stringify(store.level.player[key]));
+                        else delete levelDict.player[key];
+                    });
+                }
                 if (store.level.player && store.level.player.arena_state) {
                     levelDict.player.arena_state = JSON.parse(JSON.stringify(store.level.player.arena_state));
                     levelDict.player.arena_score = store.level.player.arena_score;
@@ -8162,6 +8169,280 @@
             return true;
         };
 
+        LocalNative.runeRehandleTarget = function(level, target) {
+            if (target.kind === 'package') {
+                var bag = level.player['package'] && level.player['package'].advanced_prop;
+                return bag && bag.item_dict && bag.item_dict[target.oid];
+            }
+            var heroes = level.heros || [];
+            for (var i = 0; i < heroes.length; i++)
+                if (String(heroes[i].sid) === String(target.sid))
+                    return heroes[i].eqp && heroes[i].eqp[target.slot];
+            return null;
+        };
+
+        LocalNative.handleRuneUpgrade = function(player, params, inPackage) {
+            // Stock decompiles `pkgid = config.item_type || 0` poorly; treat a missing
+            // pkgid as advanced_prop (2) when the package OID is present.
+            var pkgid = params.pkgid == null ? 2 : Number(params.pkgid);
+            var target = inPackage ? {kind: 'package', oid: params.oid} :
+                {kind: 'hero', sid: params.sid, slot: Number(params.slot)};
+            if ((inPackage && (pkgid !== 2 || params.oid == null)) ||
+                (!inPackage && (params.sid == null || !isFinite(target.slot) || target.slot % 1 ||
+                    target.slot < 0 || target.slot > 4)))
+                throw new Error('Invalid upgrade target');
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            LocalNative.snapshotHeroEquipment(level);
+            var before = LocalNative.runeRehandleTarget(level, target), cfg = before && data.item[before.typeid];
+            if (!before || !cfg || Number(cfg.item_type) !== 2 || Number(cfg.item_subID) !== 9 ||
+                Number(before.num || 1) !== 1)
+                throw new Error('Missing upgrade rune');
+            var nextIds = cfg.item_can_be_update_to, nextId = nextIds && nextIds[0], next = nextId && data.item[nextId];
+            if (!nextIds || nextIds.length !== 1 || !next || Number(next.item_level) !== Number(cfg.item_level) + 1 ||
+                Number(next.item_form) !== Number(cfg.item_form) || Number(cfg.item_level) >= 3)
+                throw new Error('Invalid upgrade path');
+            var recipe = next.item_update_mat_need, cost = next.item_update_res_need, needs = {};
+            if (!recipe || recipe.length !== 3 || !cost || cost.length !== 2)
+                throw new Error('Invalid upgrade recipe');
+            function pieces(input, category, required) {
+                if (!input || typeof input !== 'object' || Array.isArray(input))
+                    throw new Error('Invalid upgrade pieces');
+                var points = 0;
+                for (var key in input) {
+                    var num = Number(input[key]), item = data.item[key];
+                    if (!item || Number(item.item_subID) !== category || !isFinite(num) || num < 1 || num % 1)
+                        throw new Error('Invalid upgrade fragment');
+                    points += num * (category === 11 && Number(item.item_level) === 2 ? 3 : 1);
+                    needs[key] = (needs[key] || 0) + num;
+                }
+                if (points < Number(required)) throw new Error('Insufficient upgrade points');
+            }
+            pieces(params.hero_pieces, 7, recipe[0][1]);
+            pieces(params.prop_pieces, 11, recipe[1][1]);
+            needs[recipe[2][0]] = Number(recipe[2][1]);
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            for (var type in needs) {
+                var remaining = needs[type];
+                if (!isFinite(remaining) || remaining < 1 || remaining % 1) throw new Error('Invalid upgrade material');
+                for (var p = 0; p < names.length && remaining; p++) {
+                    var bag = level.player['package'][names[p]];
+                    if (!bag) continue;
+                    for (var oid in bag.item_dict) {
+                        var item = bag.item_dict[oid];
+                        if (Number(item.typeid) !== Number(type)) continue;
+                        var available = Number(item.num);
+                        if (!isFinite(available) || available < 1 || available % 1)
+                            throw new Error('Invalid fragment inventory');
+                        var take = Math.min(remaining, available);
+                        item.num -= take; remaining -= take;
+                        if (!item.num) delete bag.item_dict[oid];
+                        if (!remaining) break;
+                    }
+                    bag.new_items = Object.keys(bag.item_dict).filter(function(k) {
+                        return bag.item_dict[k].is_new;
+                    }).length;
+                }
+                if (remaining) throw new Error('Insufficient upgrade materials');
+            }
+            // Keep attributes and identity; only advance the stock typeid/level.
+            var after = JSON.parse(JSON.stringify(before));
+            after.typeid = Number(nextId);
+            if (target.kind === 'package')
+                level.player['package'].advanced_prop.item_dict[target.oid] = after;
+            else for (var h = 0; h < level.heros.length; h++)
+                if (String(level.heros[h].sid) === String(target.sid))
+                    level.heros[h].eqp[target.slot] = after;
+            LocalNative.writeRaw(store);
+            LocalNative.shopSync(player, level);
+            if (target.kind === 'hero')
+                player.rpc_c_upgrade_equip_ans({succeed: true, sid: target.sid, slot: target.slot, new_equip: after});
+            else player.rpc_c_upgrade_equip_ans2({succeed: true, pkgid: 2, oid: target.oid, new_equip: after});
+            LocalNative.writeStatus({step: 'rune-upgrade-saved', from: before.typeid, to: after.typeid,
+                target: target});
+            return true;
+        };
+
+        LocalNative.showRuneRehandle = function(player, pending) {
+            var ui = G_UIManager.get_ui(UI.EquipRehandleResult.UIID);
+            ui.__localRuneRehandleId = pending.id;
+            if (pending.target.kind === 'hero')
+                player.rpc_c_rehandle_ans({sid: pending.target.sid, slot: pending.target.slot,
+                    after_equip: pending.after});
+            else player.rpc_c_rehandle_ans2({pkgid: 2, oid: pending.target.oid, after_equip: pending.after});
+        };
+
+        LocalNative.handleRuneRehandle = function(player, params, inPackage) {
+            var target = inPackage ? {kind: 'package', oid: params.oid} :
+                {kind: 'hero', sid: params.sid, slot: Number(params.slot)};
+            if ((inPackage && (Number(params.pkgid) !== 2 || params.oid == null)) ||
+                (!inPackage && (params.sid == null || !isFinite(target.slot) || target.slot % 1 || target.slot < 0 || target.slot > 4)))
+                throw new Error('Invalid rehandle target');
+            var disk = LocalNative.readRaw(), oldPending = disk.level.player.local_rune_rehandle;
+            if (oldPending) {
+                // The stock button may already have paid again. Restore the saved
+                // first payment and show the same persisted candidate, never reroll.
+                LocalNative.shopSync(player, disk.level);
+                LocalNative.showRuneRehandle(player, oldPending);
+                return true;
+            }
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            LocalNative.snapshotHeroEquipment(level);
+            var before = LocalNative.runeRehandleTarget(level, target), cfg = before && data.item[before.typeid];
+            if (!before || !cfg || !cfg.rune_type || Number(cfg.item_type) !== 2 || Number(before.num || 1) !== 1)
+                throw new Error('Missing rehandle rune');
+            var recipe = cfg.item_reforge, cost = cfg.item_reforge_cost, needs = {};
+            if (!recipe || recipe.length !== 3 || !cost || cost.length !== 2)
+                throw new Error('Invalid rehandle recipe');
+            function pieces(input, category, required) {
+                if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid rehandle pieces');
+                var points = 0;
+                for (var key in input) {
+                    var num = Number(input[key]), item = data.item[key];
+                    if (!item || Number(item.item_subID) !== category || !isFinite(num) || num < 1 || num % 1)
+                        throw new Error('Invalid rehandle fragment');
+                    points += num * (category === 11 && Number(item.item_level) === 2 ? 3 : 1);
+                    needs[key] = (needs[key] || 0) + num;
+                }
+                if (points < Number(required)) throw new Error('Insufficient rehandle points');
+            }
+            pieces(params.hero_pieces, 7, recipe[0][1]);
+            pieces(params.prop_pieces, 11, recipe[1][1]);
+            needs[recipe[2][0]] = Number(recipe[2][1]);
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            for (var type in needs) {
+                var remaining = needs[type];
+                if (!isFinite(remaining) || remaining < 1 || remaining % 1) throw new Error('Invalid rehandle material');
+                for (var p = 0; p < names.length && remaining; p++) {
+                    var bag = level.player['package'][names[p]];
+                    if (!bag) continue;
+                    for (var oid in bag.item_dict) {
+                        var item = bag.item_dict[oid];
+                        if (Number(item.typeid) !== Number(type)) continue;
+                        var available = Number(item.num);
+                        if (!isFinite(available) || available < 1 || available % 1) throw new Error('Invalid fragment inventory');
+                        var take = Math.min(remaining, available);
+                        item.num -= take; remaining -= take;
+                        if (!item.num) delete bag.item_dict[oid];
+                        if (!remaining) break;
+                    }
+                    bag.new_items = Object.keys(bag.item_dict).filter(function(k) {return bag.item_dict[k].is_new;}).length;
+                }
+                if (remaining) throw new Error('Insufficient rehandle materials');
+            }
+            var after = JSON.parse(JSON.stringify(before));
+            var layers = {base_attr: 'att_basic_color', two_attr: 'att_evolve2_color', three_attr: 'att_evolve3_color'};
+            for (var layer in layers) {
+                // Continue the established local rune policy. Keep the existing
+                // number of attributes and the exclusive hero attribute.
+                var pool = [], size = Array.isArray(before[layer]) ? before[layer].length : 1;
+                if (size > 20) throw new Error('Invalid rune attribute count');
+                for (var attrId in data.equipment_attribute) {
+                    var attr = data.equipment_attribute[attrId];
+                    if (attr.attr_name && Number(attr[layers[layer]]) > 0) pool.push(Number(attrId));
+                }
+                if (!pool.length) throw new Error('Missing rehandle attribute pool');
+                after[layer] = [];
+                for (var a = 0; a < size; a++) after[layer].push(pool[Math.floor(Math.random() * pool.length)]);
+            }
+            var state = LocalNative.shopState(level), last = level.player.local_rune_rehandle_receipt;
+            state.sequence = Math.max(state.sequence + 1, (Number(last && last.id) || 0) + 1);
+            var pending = {id: state.sequence, target: target,
+                before: JSON.parse(JSON.stringify(before)), after: after, used: needs, cost: cost.slice(0)};
+            level.player.local_rune_rehandle = pending;
+            LocalNative.writeRaw(store);
+            LocalNative.shopSync(player, level);
+            LocalNative.showRuneRehandle(player, pending);
+            return true;
+        };
+
+        LocalNative.finishRuneRehandle = function(player, id, cancel) {
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            LocalNative.snapshotHeroEquipment(level);
+            var pending = level.player.local_rune_rehandle, receipt = level.player.local_rune_rehandle_receipt;
+            if (!pending) return !!(receipt && receipt.id === id && receipt.cancel === cancel);
+            if (pending.id !== id) throw new Error('Stale rehandle result');
+            var current = LocalNative.runeRehandleTarget(level, pending.target);
+            if (!current || Number(current.typeid) !== Number(pending.before.typeid) ||
+                String(current.oid) !== String(pending.before.oid)) throw new Error('Rehandle rune moved');
+            var fields = ['base_attr', 'two_attr', 'three_attr', 'hero_attr'];
+            for (var f = 0; f < fields.length; f++)
+                if (JSON.stringify(current[fields[f]]) !== JSON.stringify(pending.before[fields[f]]))
+                    throw new Error('Rehandle rune changed');
+            var rewards = [];
+            if (cancel) {
+                // User-selected local rule: keep the original rune, refund half
+                // the actual consumed items and fee; fractional units round down.
+                for (var type in pending.used) {
+                    var count = Math.floor(pending.used[type] / 2);
+                    if (count) rewards.push([19, LocalNative.shopAddItem(level, Number(type), count)]);
+                }
+                var amount = Math.floor(Number(pending.cost[1]) / 2), res = Number(pending.cost[0]);
+                if (res === 1 || res === 2) {
+                    var gained = LocalNative.grantPveLoot(res === 2 ? amount : 0, res === 1 ? amount : 0, level);
+                    var actual = res === 2 ? gained.gold : gained.wood;
+                    if (actual) rewards.push([res === 2 ? 3 : 2, actual]);
+                } else if (res === 3 || res === 4) {
+                    level.player[res === 3 ? 'diamond' : 'spirit'] += amount;
+                    if (amount) rewards.push([res === 3 ? 4 : 11, amount]);
+                } else throw new Error('Invalid rehandle refund currency');
+            } else {
+                var result = JSON.parse(JSON.stringify(pending.after));
+                if (pending.target.kind === 'package') level.player['package'].advanced_prop.item_dict[pending.target.oid] = result;
+                else for (var h = 0; h < level.heros.length; h++)
+                    if (String(level.heros[h].sid) === String(pending.target.sid)) level.heros[h].eqp[pending.target.slot] = result;
+            }
+            level.player.local_rune_rehandle = null;
+            level.player.local_rune_rehandle_receipt = {id: id, cancel: cancel};
+            LocalNative.writeRaw(store);
+            LocalNative.shopSync(player, level);
+            LocalNative.writeStatus({step: cancel ? 'rune-rehandle-cancel-saved' : 'rune-rehandle-saved',
+                id: id, target: pending.target, refund: rewards});
+            if (cancel) {
+                var input = G_EventManager.inputAward;
+                G_EventManager.inputAward = function() {};
+                try { player.rpc_c_cancel_rehandle_ans({input_rst: rewards}); }
+                finally { G_EventManager.inputAward = input; }
+            }
+            return true;
+        };
+
+        LocalNative.installRuneRehandle = function() {
+            if (typeof UI === 'undefined' || !UI.EquipRehandleResult) return;
+            var proto = UI.EquipRehandleResult.prototype, save = proto._saveEquipment;
+            if (typeof save !== 'function' || save.__localRuneRehandle) return;
+            proto._saveEquipment = function() {
+                try {
+                    if (!LocalNative.finishRuneRehandle(G_Player, this.__localRuneRehandleId, false)) return false;
+                    // Stock tests sid > -1, but local heroes can have string SIDs.
+                    if (this.sid !== -1 && !(this.sid > -1)) {
+                        var hero = G_UnitManager.getUnitBySID(this.sid);
+                        if (!hero || String(hero.sid) !== String(this.sid)) throw new Error('Missing rehandle hero');
+                        hero.getComponent('HeroEquipment').rehandleEquipmentAns(this.slot, this.after_equip);
+                        var ui = G_UIManager.get_ui(UI.Hero.UIID);
+                        if (ui && ui.selectedItem && ui.selectedItem.hero && String(ui.selectedItem.hero.sid) === String(this.sid))
+                            ui.equipPanel.controller.refreshEquipmentUI();
+                        return this._closeUI();
+                    }
+                    return save.apply(this, arguments);
+                } catch (e) {
+                    LocalNative.writeStatus({step: 'rune-rehandle-save-ERR', error: String(e)});
+                    G_MainController.setNotice(String(e));
+                    return false;
+                }
+            };
+            proto._saveEquipment.__localRuneRehandle = true;
+            proto.realCancelRehandle = function() {
+                try {
+                    if (!LocalNative.finishRuneRehandle(G_Player, this.__localRuneRehandleId, true)) return false;
+                    return this._closeUI();
+                } catch (e) {
+                    LocalNative.writeStatus({step: 'rune-rehandle-cancel-ERR', error: String(e)});
+                    G_MainController.setNotice(String(e));
+                    return false;
+                }
+            };
+        };
+
         LocalNative.unlockCompose = function() {
             if (typeof G_UIManager === 'undefined' || typeof UI === 'undefined' || !UI.AlchemyCompound)
                 return;
@@ -8172,6 +8453,13 @@
             }
         };
 
+        LocalNative.unlockRuneUpgrade = function() {
+            if (typeof G_UIManager === 'undefined' || typeof UI === 'undefined' || !UI.EquipmentUpgrade)
+                return;
+            if (!G_UIManager.isUIOpen(UI.EquipmentUpgrade.UIID)) return;
+            G_UIManager.get_ui(UI.EquipmentUpgrade.UIID).afterReceUpgradeResult(null, false);
+        };
+
         LocalNative.runShopRequest = function(player, method, params) {
             try {
                 var fn = {rpc_s_drawcard: 'handleShopDraw', rpc_s_gain_drawcard: 'handleShopGain',
@@ -8179,8 +8467,14 @@
                     rpc_s_use_item: 'handleShopUseItem', rpc_s_buy_package_slot: 'handleBuyPackageSlot',
                     rpc_s_compose_item_inputevent: 'handleComposeItem',
                     rpc_s_compose_blueprint: 'handleComposeBlueprint',
+                    rpc_s_rehandle_equipment: 'handleRuneRehandle',
+                    rpc_s_rehandle_equipment_package: 'handleRuneRehandle',
+                    rpc_s_upgrade_equipment: 'handleRuneUpgrade',
+                    rpc_s_upgrade_equipment_package: 'handleRuneUpgrade',
                     rpc_s_compose_equipment: 'handleComposeEquipment'}[method];
-                var result = LocalNative[fn](player, params || {});
+                var result = LocalNative[fn](player, params || {},
+                    method === 'rpc_s_rehandle_equipment_package' ||
+                    method === 'rpc_s_upgrade_equipment_package');
                 LocalNative.writeStatus({step: 'shop-rpc', method: method, ok: !!result});
                 if (!result) LocalNative.unlockHeroFeedIfNeeded(params);
                 return result;
@@ -8191,6 +8485,8 @@
                 if (method === 'rpc_s_compose_item_inputevent' || method === 'rpc_s_compose_equipment' ||
                     method === 'rpc_s_compose_blueprint')
                     LocalNative.unlockCompose();
+                if (method === 'rpc_s_upgrade_equipment' || method === 'rpc_s_upgrade_equipment_package')
+                    LocalNative.unlockRuneUpgrade();
                 LocalNative.writeStatus({step: 'shop-rpc-ERR', method: method, error: String(eShop)});
                 if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(eShop));
                 return false;
@@ -10381,7 +10677,10 @@
                     methodName === 'rpc_s_dismiss_drawcard' || methodName === 'rpc_s_buy_package' ||
                     methodName === 'rpc_s_use_item' || methodName === 'rpc_s_compose_item_inputevent' ||
                     methodName === 'rpc_s_buy_package_slot' || methodName === 'rpc_s_compose_equipment' ||
-                    methodName === 'rpc_s_compose_blueprint') {
+                    methodName === 'rpc_s_compose_blueprint' || methodName === 'rpc_s_rehandle_equipment' ||
+                    methodName === 'rpc_s_rehandle_equipment_package' ||
+                    methodName === 'rpc_s_upgrade_equipment' ||
+                    methodName === 'rpc_s_upgrade_equipment_package') {
                     LocalNative.scheduleOnRoot(function() {
                         LocalNative.runShopRequest(player, methodName, params || {});
                     }, 0);
@@ -11723,6 +12022,7 @@
             LocalNative.installRookieSignHooks();
             LocalNative.installSkillReplaceCostFix();
             LocalNative.installHeroDismiss();
+            LocalNative.installRuneRehandle();
             LocalNative.writeStatus({step: 'installEngineGuards'});
             // Force a real TMX when mapConfig.tile is missing (native crash / empty map).
             try {
@@ -11884,6 +12184,15 @@
                             try {
                                 var re = origEnter.apply(this, arguments);
                                 LocalNative.writeStatus({step: '_enterWorldAction-exit'});
+                                LocalNative.scheduleOnRoot(function() {
+                                    try {
+                                        if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) return;
+                                        var pending = LocalNative.readRaw().level.player.local_rune_rehandle;
+                                        if (pending) LocalNative.showRuneRehandle(G_Player, pending);
+                                    } catch (eResumeRune) {
+                                        LocalNative.writeStatus({step: 'rune-rehandle-resume-ERR', error: String(eResumeRune)});
+                                    }
+                                }, 0.25);
                                 // If firstMovie.begin was missing/no-op, still start Rookie shortly.
                                 var selfEnter = this;
                                 try {

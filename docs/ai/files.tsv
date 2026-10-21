@@ -432,6 +432,7 @@ analysis/check_native_rookie_sign.cjs	verification	8447
 analysis/check_native_rune_compose.cjs	verification	7547
 analysis/check_native_rune_device.py	verification	2141
 analysis/check_native_rune_persistence.cjs	verification	6463
+analysis/check_native_rune_rehandle.cjs	verification	12935
 analysis/check_native_save_safety.cjs	verification	1521
 analysis/check_native_scout_cloud.cjs	verification	8629
 analysis/check_native_scout_loot.cjs	verification	6303
@@ -553,6 +554,8 @@ analysis/evidence/rookie-train-stall.md	adapter-source	3122
 analysis/evidence/rookie-training-upgrade.md	adapter-source	1969
 analysis/evidence/rune-compose.md	adapter-source	2561
 analysis/evidence/rune-persistence.md	adapter-source	2538
+analysis/evidence/rune-rehandle-stock.js	adapter-source	2518
+analysis/evidence/rune-rehandle.md	adapter-source	3927
 analysis/evidence/rune-shop.md	adapter-source	3683
 analysis/evidence/scout-abbas.md	adapter-source	1724
 analysis/evidence/scout-batch-9-18.md	adapter-source	2302
@@ -660,7 +663,7 @@ analysis/mine_boot.js	adapter-source	48691
 analysis/mine_validation_boot.js	adapter-source	48711
 analysis/native-entry-fix-verification.json	evidence-or-data	1347
 analysis/native-init-protocol.json	evidence-or-data	8760
-analysis/native_boot.js	adapter-source	984615
+analysis/native_boot.js	adapter-source	1005015
 analysis/native_protocol_probe.js	probe-fixture	260983
 analysis/prepare_capacity_validation.py	adapter-source	618
 analysis/prepare_construct_validation.py	adapter-source	759
@@ -748,6 +751,7 @@ analysis/rpc-contracts/quest-finish.json	rpc-contract	2470
 analysis/rpc-contracts/rebirth-treasure.json	rpc-contract	1535
 analysis/rpc-contracts/rookie-sign.json	rpc-contract	15111
 analysis/rpc-contracts/rune-compose.json	rpc-contract	1284
+analysis/rpc-contracts/rune-rehandle.json	rpc-contract	2817
 analysis/rpc-contracts/scout-cloud-client.json	rpc-contract	583
 analysis/rpc-contracts/scout-cloud.json	rpc-contract	1669
 analysis/rpc-contracts/scout-layouts/abbas.json	rpc-contract	21079
@@ -838,12 +842,12 @@ analysis/validate_train.py	verification	12434
 analysis/validate_train_delivery.py	verification	5350
 analysis/validate_upgrade.py	verification	6465
 analysis/validate_upgrade_delivery.py	verification	4461
-docs/ai/current-state.md	docs	51295
+docs/ai/current-state.md	docs	52745
 docs/ai/file-policy.md	docs	3491
 docs/ai/handoff-template.md	docs	891
-docs/ai/index.md	docs	23233
-docs/ai/pending.md	docs	2261
-docs/ai/rpc-map.md	docs	7625
+docs/ai/index.md	docs	23761
+docs/ai/pending.md	docs	2721
+docs/ai/rpc-map.md	docs	8103
 docs/archive/AGENTS-before-organization.md	docs	10219
 docs/archive/README-before-organization.md	docs	8513
 docs/baselines/CAPACITY-BASELINE.json	docs	2230

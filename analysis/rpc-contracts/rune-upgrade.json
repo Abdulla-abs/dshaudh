@@ -1,0 +1,18 @@
+{
+  "requests": {
+    "rpc_s_upgrade_equipment": {"sid": "角色 SID，可为字符串", "slot": "符文槽，0～4", "hero_pieces": "英雄碎片类型到数量", "prop_pieces": "转生碎片类型到数量"},
+    "rpc_s_upgrade_equipment_package": {"pkgid": 2, "oid": "背包中符文 OID", "hero_pieces": "英雄碎片类型到数量", "prop_pieces": "转生碎片类型到数量"}
+  },
+  "path": "data.item[current].item_can_be_update_to[0]；仅允许同形升一级，最高 3 级",
+  "cost": "原按钮预扣目标符文 item_update_res_need；保存 ResourceManager／仓库快照，不二次收费。1→2 为 [2,400000]，2→3 为 [2,1000000]",
+  "materials": "目标符文 item_update_mat_need：英雄碎片点数、转生碎片点数、第三项图纸。二级转生碎片每个 3 点，其余每个 1 点。1→2 为 [[7201,30],[7202,30],[7102,1]]，2→3 为 [[7201,80],[7202,80],[7103,1]]",
+  "result": "保留 OID、属性层、专属英雄属性及其他元数据，仅将 typeid 改为升级目标。本地身份升级策略，非已证明的官方重随规则",
+  "answers": {
+    "hero": "rpc_c_upgrade_equip_ans({succeed,sid,slot,new_equip})",
+    "package": "rpc_c_upgrade_equip_ans2({succeed,pkgid:2,oid,new_equip})"
+  },
+  "failure": "不写盘；shopSync 恢复预扣费用和材料；调用 afterReceUpgradeResult(null,false) 解锁升级页",
+  "evidence": "analysis/evidence/rune-upgrade.md",
+  "checks": "node analysis/check_native_rune_upgrade.cjs",
+  "acceptance": "原版背包及穿戴升级请求／回执、30 条升级路径、材料点数、费用不双扣、失败回滚及写盘失败检查通过。已保留存档安装实例 1；游戏内待复测"
+}
