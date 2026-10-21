@@ -280,6 +280,6 @@ rpc_s_build	analysis/native_boot.js	11345	lexical-reference
 rpc_c_battle_to_home	analysis/native_boot.js	11355	lexical-reference
 rpc_c_load_letter	analysis/native_boot.js	11411	lexical-reference
 rpc_c_start_game	analysis/native_boot.js	11626	lexical-reference
-rpc_c_start_game	analysis/native_boot.js	13023	lexical-reference
-rpc_c_start_game	analysis/native_boot.js	13033	lexical-reference
+rpc_c_start_game	analysis/native_boot.js	13028	lexical-reference
 rpc_c_start_game	analysis/native_boot.js	13038	lexical-reference
+rpc_c_start_game	analysis/native_boot.js	13043	lexical-reference

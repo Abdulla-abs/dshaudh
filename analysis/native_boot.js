@@ -12069,6 +12069,11 @@
                         !btp.initLevelFromData.__localNativePatched) {
                         var origBattleILD = btp.initLevelFromData;
                         btp.initLevelFromData = function(dict) {
+                            // Stock preLeaveWorld enables fixed steps even when only
+                            // replacing a scout target. Normalize after teardown,
+                            // before the next map; startBattle retains stock timing.
+                            if (dict && dict.source === 'local-predefined-scout')
+                                LocalNative.restoreHomeClock();
                             // Guarantee nested oppo.player and defender structures before stock code touches it.
                             try {
                                 if (dict && typeof dict === 'object') {

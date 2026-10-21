@@ -406,27 +406,27 @@ analysis/native_boot.js	11908	btp._createBattleUnitWhenInit	unitDict, client
 analysis/native_boot.js	11983	btp.startBattle	
 analysis/native_boot.js	12044	btp.afterInitWorld	
 analysis/native_boot.js	12071	btp.initLevelFromData	dict
-analysis/native_boot.js	12283	SelectorTask.prototype._executeSelector	
-analysis/native_boot.js	12303	BaseTask.prototype.execute	
-analysis/native_boot.js	12326	mbp.onReplayEnd	
-analysis/native_boot.js	12353	mbp.onBattleTimeout	
-analysis/native_boot.js	12379	mbp.onBattlePrepareTimeout	
-analysis/native_boot.js	12525	brp.getBattleLog	
-analysis/native_boot.js	12537	brp.getBattleLog	
-analysis/native_boot.js	12546	brp.initByServer	params
-analysis/native_boot.js	12617	ClientPlayer.prototype.getComponent	key
-analysis/native_boot.js	12733	BBC.prototype.onPressNO	
-analysis/native_boot.js	12755	cc.TMXTiledMap.create	path
-analysis/native_boot.js	12795	Rookie.decodeFinishedRookiePIDs	cfg
-analysis/native_boot.js	12847	LocalNative.countBuildings	gc
-analysis/native_boot.js	12866	LocalNative.diagnoseBuild	
-analysis/native_boot.js	12893	LocalNative.ensurePlayer	
-analysis/native_boot.js	12908	LocalNative.unlockEnter	
-analysis/native_boot.js	12913	LocalNative.getDurableScheduleRoot	
-analysis/native_boot.js	12928	LocalNative.startGame	
-analysis/native_boot.js	13019	kickStart	
-analysis/native_boot.js	13052	saver	
-analysis/native_boot.js	13100	startWrapped	
-analysis/native_boot.js	13161	menu.isLegalAgreed	
-analysis/native_boot.js	13164	menu.isLegalAgreed	
-analysis/native_boot.js	13171	legalKeep	
+analysis/native_boot.js	12288	SelectorTask.prototype._executeSelector	
+analysis/native_boot.js	12308	BaseTask.prototype.execute	
+analysis/native_boot.js	12331	mbp.onReplayEnd	
+analysis/native_boot.js	12358	mbp.onBattleTimeout	
+analysis/native_boot.js	12384	mbp.onBattlePrepareTimeout	
+analysis/native_boot.js	12530	brp.getBattleLog	
+analysis/native_boot.js	12542	brp.getBattleLog	
+analysis/native_boot.js	12551	brp.initByServer	params
+analysis/native_boot.js	12622	ClientPlayer.prototype.getComponent	key
+analysis/native_boot.js	12738	BBC.prototype.onPressNO	
+analysis/native_boot.js	12760	cc.TMXTiledMap.create	path
+analysis/native_boot.js	12800	Rookie.decodeFinishedRookiePIDs	cfg
+analysis/native_boot.js	12852	LocalNative.countBuildings	gc
+analysis/native_boot.js	12871	LocalNative.diagnoseBuild	
+analysis/native_boot.js	12898	LocalNative.ensurePlayer	
+analysis/native_boot.js	12913	LocalNative.unlockEnter	
+analysis/native_boot.js	12918	LocalNative.getDurableScheduleRoot	
+analysis/native_boot.js	12933	LocalNative.startGame	
+analysis/native_boot.js	13024	kickStart	
+analysis/native_boot.js	13057	saver	
+analysis/native_boot.js	13105	startWrapped	
+analysis/native_boot.js	13166	menu.isLegalAgreed	
+analysis/native_boot.js	13169	menu.isLegalAgreed	
+analysis/native_boot.js	13176	legalKeep	

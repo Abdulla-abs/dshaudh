@@ -40,3 +40,24 @@ assert.equal(context.LocalNative.restoreHomeClock(), false);
 assert.equal(scale, 1); assert.equal(interval, 1/30); assert.equal(appInterval, 1/30);
 assert.equal(reports.at(-1).errors.length, 1);
 console.log('PASS: home boundary restores clocks, preserves stock init and battle speed, logs partial failures');
+
+// Execute the actual scout boundary, after stock preLeaveWorld has enabled
+// fixed 1/30 steps. At 60 renders/sec that advances two seconds per second.
+context.G_Director.setFixAnimationInterval = x => {fixed = x;};
+const scoutStart = source.indexOf('                        btp.initLevelFromData = function(dict) {');
+const scoutEnd = source.indexOf('// Guarantee nested oppo.player', scoutStart);
+assert.ok(scoutStart >= 0 && scoutEnd > scoutStart);
+vm.runInContext('var btp = {}; ' + source.slice(scoutStart, scoutEnd) + 'return dict; };', context);
+for (let opponent = 0; opponent < 4; opponent++) {
+    scale = 1; fixed = opponent > 0; interval = appInterval = 1/30;
+    const dict = {source: 'local-predefined-scout'};
+    assert.equal(context.btp.initLevelFromData(dict), dict);
+    assert.equal(fixed, false, 'each scouting map must use elapsed time');
+    assert.equal(scale, 1);
+    assert.equal(interval, 1/30); assert.equal(appInterval, 1/30);
+}
+scale = 2; fixed = true; interval = appInterval = 1/60;
+context.btp.initLevelFromData({source: 'replay'});
+assert.equal(scale, 2); assert.equal(fixed, true);
+assert.equal(interval, 1/60); assert.equal(appInterval, 1/60);
+console.log('PASS: first scout and repeated target changes normalize fixed steps; other battle sources retain timing');
