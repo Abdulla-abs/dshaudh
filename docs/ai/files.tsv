@@ -412,7 +412,7 @@ analysis/check_native_hero_swallow.cjs	verification	7645
 analysis/check_native_invasion.cjs	verification	10201
 analysis/check_native_item_compose.cjs	verification	8359
 analysis/check_native_letter_contract.cjs	verification	2843
-analysis/check_native_monthly_sign.cjs	verification	6596
+analysis/check_native_monthly_sign.cjs	verification	6603
 analysis/check_native_package_slot.cjs	verification	7133
 analysis/check_native_pve_enter.cjs	verification	11403
 analysis/check_native_pve_map_egg.cjs	verification	2904
@@ -444,6 +444,7 @@ analysis/check_native_shop_device.py	verification	2269
 analysis/check_native_skill_life_cost.cjs	verification	3572
 analysis/check_native_skill_replace.cjs	verification	3472
 analysis/check_native_skill_replace_cost.cjs	verification	4736
+analysis/check_native_skillbook_compose.cjs	verification	8063
 analysis/check_native_soldier.cjs	verification	4429
 analysis/check_native_sound.cjs	verification	3508
 analysis/check_native_tech.cjs	verification	6729
@@ -572,6 +573,7 @@ analysis/evidence/shop-treasure-audit.md	adapter-source	3633
 analysis/evidence/shop-treasure-local.md	adapter-source	5474
 analysis/evidence/skill-replace-cost.md	adapter-source	1372
 analysis/evidence/skill-replace-use.md	adapter-source	1405
+analysis/evidence/skillbook-compose.md	adapter-source	1532
 analysis/evidence/spirit-fragment.md	adapter-source	1999
 analysis/evidence/spirit-fragments-60000.md	adapter-source	752
 analysis/evidence/trader-fruits.md	adapter-source	2825
@@ -665,7 +667,7 @@ analysis/mine_boot.js	adapter-source	48691
 analysis/mine_validation_boot.js	adapter-source	48711
 analysis/native-entry-fix-verification.json	evidence-or-data	1347
 analysis/native-init-protocol.json	evidence-or-data	8760
-analysis/native_boot.js	adapter-source	1009834
+analysis/native_boot.js	adapter-source	1003278
 analysis/native_protocol_probe.js	probe-fixture	260983
 analysis/prepare_capacity_validation.py	adapter-source	618
 analysis/prepare_construct_validation.py	adapter-source	759
@@ -774,8 +776,9 @@ analysis/rpc-contracts/scout-layouts/scout-custom-17.json	rpc-contract	13870
 analysis/rpc-contracts/scout-layouts/scout-custom-18.json	rpc-contract	16210
 analysis/rpc-contracts/scout-layouts/scout-custom-9.json	rpc-contract	12984
 analysis/rpc-contracts/scout-loot.json	rpc-contract	2614
-analysis/rpc-contracts/scout-pool.json	rpc-contract	1659
+analysis/rpc-contracts/scout-pool.json	rpc-contract	1400
 analysis/rpc-contracts/shop-treasure.json	rpc-contract	3958
+analysis/rpc-contracts/skillbook-compose.json	rpc-contract	1378
 analysis/rpc-contracts/soldier-dispatch.json	rpc-contract	1143
 analysis/rpc-contracts/spirit-fragment.json	rpc-contract	1228
 analysis/rpc-contracts/trader-fruits.json	rpc-contract	2338
@@ -845,10 +848,10 @@ analysis/validate_train.py	verification	12434
 analysis/validate_train_delivery.py	verification	5350
 analysis/validate_upgrade.py	verification	6465
 analysis/validate_upgrade_delivery.py	verification	4461
-docs/ai/current-state.md	docs	53362
+docs/ai/current-state.md	docs	54635
 docs/ai/file-policy.md	docs	3491
 docs/ai/handoff-template.md	docs	891
-docs/ai/index.md	docs	24021
+docs/ai/index.md	docs	24332
 docs/ai/pending.md	docs	2930
 docs/ai/rpc-map.md	docs	8280
 docs/archive/AGENTS-before-organization.md	docs	10219
@@ -868,7 +871,7 @@ docs/native/NATIVE-BATTLE-HANDOFF.md	docs	16492
 docs/native/NATIVE-DEV-CONTEXT.md	docs	14989
 docs/native/NATIVE-HERO-HANDOFF.md	docs	2608
 docs/native/SCOUT-CLOUD.md	docs	5361
-docs/native/SCOUT-POOL.md	docs	5088
+docs/native/SCOUT-POOL.md	docs	5171
 docs/native/WANTED-TARGET-DATA.md	docs	12234
 docs/operations/LOCAL-CAPACITY.md	docs	2737
 docs/operations/LOCAL-CITYUI.md	docs	2678

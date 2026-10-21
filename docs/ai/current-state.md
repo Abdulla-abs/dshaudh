@@ -1,5 +1,11 @@
 # 当前状态（2026-10-21）
 
+每日签到钻石：按用户要求由 10 万改为 100 万。展示表与领取加钻／回执均为 `1000000`；离线检查通过。已保留存档覆盖安装并启动实例 1，前后 9 个存档文件一致。APK SHA-256：`7f445f2e7b28f8d4b9f95308d6b83edee440635e65e2b1de490839c277ff9972`。游戏内领取待复测。见 [签到额度证据](../../analysis/evidence/monthly-sign-diamond.md)。
+
+云端阵容池线上已 28 份（revision 28，名称／ID 无重复）。实例 1 本地缓存仍停在 revision 1（仅「巷子里的猫」），最近状态 `sync-failed`／`Cloud watchdog timeout`，故侦察反复同一阵容。根因是同步超时未替换缓存，不是云端重复入库。见 [陈旧缓存证据](../../analysis/evidence/scout-cloud-stale-cache.md)。
+
+随机侦察池剔除单人关卡副本：按用户要求从内置池移除 `scout-7`／`scout-16`／`scout-39`（第 7、16、39 关布局副本）。单人关卡注册表与 `pve-layouts` 未改。池现 13 个阵容，全池等概率约 7.69%；云端非空池仍优先，空池回退该内置清单。嵌入与侦察／掠夺／云端回退检查通过；尚未构建安装，游戏内待复测。见 [剔除证据](../../analysis/evidence/scout-pool-exclude-pve.md)。
+
 技能书合成：用户报告炼金“技能书→合成”无效。原版发 `rpc_s_compose_skillbook`，本地此前未接。已按固定三本材料校验普通技能书，依二级书数量选用占位 210001～210004 的原事件 55601～55604，在 4501／4502 奖池按原权重抽取结果并同次保存。原按钮与回执、四级占位池及失败回滚检查通过，图纸／符文合成回归通过。已备份、保留存档安装并启动实例 1，前后 9 个存档文件一致，未消耗设备技能书；游戏内待复测。APK SHA-256：`f05a0b73f5937f83cba4350e5468ac81834f724d4be7aeae0e4033f70f7642dd`。见 [技能书合成证据](../../analysis/evidence/skillbook-compose.md)。
 
 符文升级：用户报告“符文→升级”无效。原版 `EquipmentUpgrade` 预扣费用后发送 `rpc_s_upgrade_equipment`／`package`，本地此前未接。已按目标符文 `item_update_mat_need`／`item_update_res_need` 校验碎片点数并扣除图纸，保存预扣钱包不二次收费；结果保留 OID 与属性，仅提升 typeid。30 条原表路径及背包／穿戴、失败回滚检查通过，重铸／合成／穿脱回归通过。已备份、保留存档安装并启动实例 1，前后 9 个存档文件一致，未消耗设备符文或材料；游戏内待复测。APK SHA-256：`5a81ba7ae1fec3e6c03fa99bc1c8db1611a33f442a795004f472607c8f2c6a39`。见 [升级证据](../../analysis/evidence/rune-upgrade.md)。

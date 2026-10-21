@@ -6,9 +6,9 @@
 
 入口是 `analysis/rpc-contracts/scout-pool.json`。`levels` 的每项包含稳定的 `id` 和布局相对路径 `layout`。布局统一放在 `analysis/rpc-contracts/scout-layouts/`，使用已有布局编辑器的 `dino-pve-layout/v1` 格式。
 
-初始池复用第 7、16、39 关的用户布局副本。它们是本地自定义关卡。后续修改单人关卡文件，不会改变这些副本。布局中的 `stage` 仅供现有编译器生成单位编号，不控制侦察匹配或单人关卡解锁。
+单人关卡只通过单人模式注册表进场，不进入侦察池。曾作为初始副本入池的第 7、16、39 关（`scout-7`／`scout-16`／`scout-39`）已从清单剔除；布局中的 `stage` 仅供现有编译器生成单位编号，不控制侦察匹配或单人关卡解锁。剔除证据见 `analysis/evidence/scout-pool-exclude-pve.md`。
 
-当前池共 16 个阵容：初始 3 份布局、两份同名“巷子里的猫”（`alley-cat`、`alley-cat-8`）、用户提供的第 9～18 关，以及 `abbas`。新增十关依次为“铁壁围城、血战龙庭、双峰哨卫、四门铁闸、回字重墙、蜂巢迷阵、长蛇锁链、双环守卫、三阶梯防、龙巢天罡”，使用 `scout-custom-9` 至 `scout-custom-18` 独立 ID。全池模式下每个阵容匹配概率为 1/16（6.25%），两个同名关卡合计 12.5%。批量布局及安装证据见 `analysis/evidence/scout-batch-9-18.md`。
+当前池共 13 个阵容：两份同名“巷子里的猫”（`alley-cat`、`alley-cat-8`）、用户提供的第 9～18 关，以及 `abbas`。新增十关依次为“铁壁围城、血战龙庭、双峰哨卫、四门铁闸、回字重墙、蜂巢迷阵、长蛇锁链、双环守卫、三阶梯防、龙巢天罡”，使用 `scout-custom-9` 至 `scout-custom-18` 独立 ID。全池模式下每个阵容匹配概率为 1/13（约 7.69%），两个同名关卡合计约 15.38%。批量布局及安装证据见 `analysis/evidence/scout-batch-9-18.md`。
 
 `abbas` 来自用户的“玩家模式阵型-铁心方盒”，保留 8 级大本营、75 个建筑、173 段墙和 8 名守军，除名称外均与原文件一致。独立文件为 `analysis/rpc-contracts/scout-layouts/abbas.json`，接入及安装证据见 `analysis/evidence/scout-abbas.md`。
 

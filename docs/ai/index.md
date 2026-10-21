@@ -12,7 +12,7 @@
 | 二转图纸无法合成三转图纸 | [合成证据](../../analysis/evidence/blueprint-compose.md)，补原图纸独立请求及保存，已安装实例 1，游戏内待复测 | `blueprint-compose.json`、`handleComposeBlueprint`、`check_native_blueprint_compose.cjs` |
 | 角色解散无奖励且重登恢复 | [解散证据](../../analysis/evidence/hero-dismiss.md)，补删除、奖励及符文同次保存，已安装实例 1，游戏内待复测 | `hero-dismiss.json`、`prepareHeroDismiss`、`handleHeroDismiss`、`check_native_hero_dismiss.cjs` |
 | 随机侦察换敌后加速 | [计时证据](../../analysis/evidence/scout-clock.md)，计时恢复已安装实例 1，实战待复测 | `initLevelFromData`、`restoreHomeClock`、`check_native_battle_clock.cjs` |
-| 云端共享侦察阵容池与游戏同步 | [部署说明](../native/SCOUT-CLOUD.md)、[客户端证据](../../analysis/evidence/scout-cloud-client.md)，用户确认上传；实例 1 联网缓存及重启通过，用户确认游戏测试通过 | `analysis/scout-cloud/`、`scout-cloud-client.json`、`tools/build_scout_cloud_native.cjs`、`analysis/check_native_scout_cloud.cjs` |
+| 云端共享侦察阵容池与游戏同步 | [部署说明](../native/SCOUT-CLOUD.md)、[客户端证据](../../analysis/evidence/scout-cloud-client.md)；线上 28 份正常，实例 1 仍 revision 1 因 sync watchdog 超时，见 [陈旧缓存](../../analysis/evidence/scout-cloud-stale-cache.md) | `analysis/scout-cloud/`、`scout-cloud-client.json`、`tools/build_scout_cloud_native.cjs`、`analysis/check_native_scout_cloud.cjs` |
 | 战斗 → 英雄竞技场镜像对手 | [镜像对战证据](../../analysis/evidence/arena-feasibility.md)，原生五对五、判负结算、回城重登已观察；失败扣分、商店和排名仍有缺口，用户待验收 | `arena.json`、`inspect_native_arena.py`、`check_native_arena.cjs`、`check_native_arena_device.py` |
 | 随机侦察按建筑容量掠夺资源 | [资源证据](../../analysis/evidence/scout-loot.md)，仓库 20%、生产 80%，已安装实例 1 待实战 | `scout-loot.json`、`fillScoutResourceLoot`、`readScoutBattleLoot`、`check_native_scout_loot.cjs` |
 | 吞噬后进攻回城返还角色、成长还原 | [吞噬保存证据](../../analysis/evidence/hero-swallow.md)，首版复测失败；第二版修正玩家回退误判，原生探针确认 +100 升级归零；已安装待复测 | `hero-swallow.json`、`handleHeroSwallow`、`check_native_hero_swallow.cjs` |
@@ -26,7 +26,7 @@
 | 布局编辑器防守英雄嵌入符文 | [符文证据](../../analysis/evidence/layout-editor-runes.md)，五槽、分层属性及组合预览；编辑和接入检查通过，实战待复测 | `tools/build_layout_rune_catalog.cjs`、`analysis/check_layout_runes.cjs`、`tools/import_pve_layout.py` |
 | 编辑器范围与游戏地图不一致 | [边界证据](../../analysis/evidence/layout-editor-bounds.md)，已统一为原版地形和 11～48 可建造区，离线 HTML 已重建，真实浏览器检查通过 | `layout-map.json`、`analysis/layout-editor/core.js`、`editor.js`、`tools/import_pve_layout.py` |
 | 随机侦察“巷子里的猫”建筑越界 | [越界证据](../../analysis/evidence/scout-map-bounds.md)，第 8 关布局整体平移并新增真实地形检查，已安装实例 1 待复测 | `scout-layouts/alley-cat-8.json`、`tools/build_scout_pool.py`、`analysis/check_scout_map_bounds.py` |
-| 随机侦察预定义关卡池与等级匹配 | [关卡池说明](../native/SCOUT-POOL.md)、[新增 abbas](../../analysis/evidence/scout-abbas.md)，现共 16 个，全池等概率；等级 ±1 已实现待启用，已保留存档安装实例 1 待实测 | `analysis/rpc-contracts/scout-pool.json`、`scout-layouts/`、`tools/build_scout_pool.py`、`selectScoutLevel` |
+| 随机侦察预定义关卡池与等级匹配 | [关卡池说明](../native/SCOUT-POOL.md)、[剔除单人副本](../../analysis/evidence/scout-pool-exclude-pve.md)，现共 13 个（已去掉第 7／16／39 关副本），全池等概率；等级 ±1 已实现待启用 | `analysis/rpc-contracts/scout-pool.json`、`scout-layouts/`、`tools/build_scout_pool.py`、`selectScoutLevel` |
 | 布局编辑器树、石头等非商店地图装饰 | [接入证据](../../analysis/evidence/layout-editor-decorations.md)、[编号清单](../../analysis/evidence/map-decorations.md)，29 种已加入，编辑及编译检查通过，游戏显示待验证 | `tools/build_layout_decoration_catalog.cjs`、`analysis/inspect_map_decorations.cjs`、`analysis/layout-editor/` |
 | 单人关卡敌方守军可拖动、手动施法 | [操作归属证据](../../analysis/evidence/battle-ownership.md)，修正玩家战斗阵营，已安装实例 1 待实战复测 | `ensureBattleClients`、`check_native_battle_ownership.cjs` |
 | 布局编辑器缺少蛋壳炸弹、网兜等陷阱 | [陷阱证据](../../analysis/evidence/layout-editor-traps.md)，三类原版陷阱、1～10 级，编辑及接入检查通过 | `tools/build_layout_trap_catalog.cjs`、`analysis/layout-editor/`、`artifacts/关卡布局编辑器.html` |
@@ -70,6 +70,7 @@
 | 英雄获取后无技能 | [初始技能修复](../../analysis/evidence/hero-initial-skills.md)，离线通过待设备复测 | `analysis/native_boot.js` 的 `ensureHeroSkill`；`analysis/check_native_shop.cjs` |
 | 商店龙蛋与宝藏 | [本地规则及验证](../../analysis/evidence/shop-treasure-local.md)，用户授权自定概率，单抽／三抽及英雄宝藏已设备验证 | `analysis/rpc-contracts/shop-treasure.json`、`analysis/check_native_shop.cjs`；原调查见 [数据缺项](../../analysis/evidence/shop-treasure-audit.md) |
 | 账号经验退出后丢失 | [经验持久化证据](../../analysis/evidence/account-exp-persistence.md)，离线通过，已覆盖安装，待游戏内复测 | `analysis/native_boot.js` 的 `copyAccountProgress`、`installAccountProgressPersistence`；`analysis/check_native_account_progress.cjs` |
+| 每日签到钻石额度 | [签到额度证据](../../analysis/evidence/monthly-sign-diamond.md)，10 万→100 万，已安装实例 1，游戏内待复测 | `installMonthlySignRewards`、`handleMonthlySignReward`、`check_native_monthly_sign.cjs` |
 | 新手七日签到是否存在 | [静态证据](../../analysis/evidence/seven-day-sign.md)，原包已确认，设备入口待验证 | 原版 `sevendays`、`SignReward`、`RewardInterface`；临时反汇编在 `.local/seven-day-check/` |
 | 字节码版本、函数读取与调用 | [可读性说明](../native/BYTECODE-READABILITY.md) | `analysis/disasm_one.py`、`tools/jsc_decompiler/` |
 | 小绿龙入侵点开始无效 | [入侵证据](../../analysis/evidence/invasion-start.md)，进场／出兵已通 | `invasion.json`、`check_native_invasion.cjs`；`handleInvasionWaveReady` |

@@ -6,18 +6,6 @@
   },
   "levels": [
     {
-      "id": "scout-7",
-      "layout": "scout-layouts/scout-7.json"
-    },
-    {
-      "id": "scout-16",
-      "layout": "scout-layouts/scout-16.json"
-    },
-    {
-      "id": "scout-39",
-      "layout": "scout-layouts/scout-39.json"
-    },
-    {
       "id": "alley-cat",
       "layout": "scout-layouts/alley-cat.json"
     },
