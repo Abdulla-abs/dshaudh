@@ -7914,6 +7914,80 @@
             return true;
         };
 
+        LocalNative.handleComposeSkillbook = function(player, params) {
+            // Stock AlchemyCompound fills ALCHEMY_SKILL_BOOK_COMPOSE_NUM (3) slots.
+            var ids = params.skill_books, count = 3;
+            if (!Array.isArray(ids) || ids.length !== count)
+                throw new Error('Invalid skillbook recipe');
+            var needs = {}, high = 0;
+            for (var i = 0; i < ids.length; i++) {
+                var type = Number(ids[i]), cfg = data.item[type];
+                if (!cfg || Number(cfg.item_subID) !== 3 || Number(cfg.item_type) !== 2 ||
+                    !Number(cfg.skill_level) || type === 210000)
+                    throw new Error('Invalid skillbook material');
+                if (Number(cfg.skill_level) === 2) high++;
+                needs[type] = (needs[type] || 0) + 1;
+            }
+            // Preview placeholders 210001～210004 encode the original reward events.
+            var placeholders = [210001, 210002, 210003, 210004];
+            var product = data.item[placeholders[high]];
+            var events = product && product.item_composition_get;
+            var event = events && events.length === 1 && data.input_event_client[events[0]];
+            var itemIds = event && event.putin_event_item;
+            if (!event || event.putin_event_next || !itemIds || !itemIds.length ||
+                (event.putin_event_resource || []).length || (event.putin_event_hero || []).length ||
+                (event.putin_event_exp || []).length || (event.putin_event_skill || []).length ||
+                (event.putin_event_slot || []).length)
+                throw new Error('Unsupported skillbook reward');
+            for (var p = 0; p < itemIds.length; p++) {
+                var reward = data.item_input[itemIds[p]], pool = reward && reward.item_random_chance;
+                if (!reward || reward.item_id || Number(reward.item_num) !== 1 || !pool || !pool.length ||
+                    (reward.item_random_useLimit || []).length)
+                    throw new Error('Invalid skillbook reward pool');
+                for (var r = 0; r < pool.length; r++) {
+                    var target = data.item[pool[r][0]];
+                    if (!target || Number(target.item_subID) !== 3 || !Number(target.skill_level) ||
+                        !(Number(pool[r][1]) > 0) || Number(pool[r][0]) === 210000)
+                        throw new Error('Invalid skillbook reward candidate');
+                }
+            }
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            for (var key in needs) {
+                var remaining = needs[key];
+                for (var n = 0; n < names.length && remaining; n++) {
+                    var bag = level.player['package'][names[n]];
+                    if (!bag || !bag.item_dict) continue;
+                    for (var oid in bag.item_dict) {
+                        var item = bag.item_dict[oid];
+                        if (Number(item.typeid) !== Number(key)) continue;
+                        var available = Number(item.num);
+                        if (!isFinite(available) || available < 1 || available % 1)
+                            throw new Error('Invalid skillbook inventory');
+                        var take = Math.min(remaining, available);
+                        item.num -= take; remaining -= take;
+                        if (!item.num) delete bag.item_dict[oid];
+                        if (!remaining) break;
+                    }
+                    bag.new_items = Object.keys(bag.item_dict).filter(function(k) {
+                        return bag.item_dict[k].is_new;
+                    }).length;
+                }
+                if (remaining) throw new Error('Insufficient skillbooks');
+            }
+            // Stock treasure paths pick one putin_event_item uniformly, then roll.
+            var picked = itemIds[Math.floor(Math.random() * itemIds.length)];
+            var consumed = JSON.parse(JSON.stringify(level.player['package']));
+            var ans = LocalNative.shopRollItemEvent(level, picked, {bypassLimit: true});
+            if (!ans.length) throw new Error('Empty skillbook compose result');
+            LocalNative.writeRaw(store);
+            try {
+                player.getComponent('PackageManager').init({'package': consumed});
+                player.rpc_c_compose_skillbook_ans({ans: ans});
+            } finally { LocalNative.shopSync(player, level); }
+            return true;
+        };
+
         LocalNative.handleComposeBlueprint = function(player, params) {
             var reborn = Number(params.reborn_type), ids = params.blueprints;
             var count = reborn === 2 ? 5 : reborn === 3 ? 2 : 0;
@@ -8467,6 +8541,7 @@
                     rpc_s_use_item: 'handleShopUseItem', rpc_s_buy_package_slot: 'handleBuyPackageSlot',
                     rpc_s_compose_item_inputevent: 'handleComposeItem',
                     rpc_s_compose_blueprint: 'handleComposeBlueprint',
+                    rpc_s_compose_skillbook: 'handleComposeSkillbook',
                     rpc_s_rehandle_equipment: 'handleRuneRehandle',
                     rpc_s_rehandle_equipment_package: 'handleRuneRehandle',
                     rpc_s_upgrade_equipment: 'handleRuneUpgrade',
@@ -8483,7 +8558,7 @@
                 LocalNative.shopSync(player, LocalNative.readRaw().level);
                 LocalNative.unlockHeroFeedIfNeeded(params);
                 if (method === 'rpc_s_compose_item_inputevent' || method === 'rpc_s_compose_equipment' ||
-                    method === 'rpc_s_compose_blueprint')
+                    method === 'rpc_s_compose_blueprint' || method === 'rpc_s_compose_skillbook')
                     LocalNative.unlockCompose();
                 if (method === 'rpc_s_upgrade_equipment' || method === 'rpc_s_upgrade_equipment_package')
                     LocalNative.unlockRuneUpgrade();
@@ -10677,7 +10752,8 @@
                     methodName === 'rpc_s_dismiss_drawcard' || methodName === 'rpc_s_buy_package' ||
                     methodName === 'rpc_s_use_item' || methodName === 'rpc_s_compose_item_inputevent' ||
                     methodName === 'rpc_s_buy_package_slot' || methodName === 'rpc_s_compose_equipment' ||
-                    methodName === 'rpc_s_compose_blueprint' || methodName === 'rpc_s_rehandle_equipment' ||
+                    methodName === 'rpc_s_compose_blueprint' || methodName === 'rpc_s_compose_skillbook' ||
+                    methodName === 'rpc_s_rehandle_equipment' ||
                     methodName === 'rpc_s_rehandle_equipment_package' ||
                     methodName === 'rpc_s_upgrade_equipment' ||
                     methodName === 'rpc_s_upgrade_equipment_package') {

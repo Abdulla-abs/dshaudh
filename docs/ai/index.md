@@ -6,6 +6,7 @@
 
 | 任务 | 说明入口 | 代码和数据 |
 |---|---|---|
+| 技能书合成无效 | [合成证据](../../analysis/evidence/skillbook-compose.md)，补三本材料与原奖池抽取，已安装实例 1，游戏内待复测 | `skillbook-compose.json`、`handleComposeSkillbook`、`check_native_skillbook_compose.cjs` |
 | 符文升级无效 | [升级证据](../../analysis/evidence/rune-upgrade.md)，补背包／穿戴升级请求、扣材与原回执，已安装实例 1，游戏内待复测 | `rune-upgrade.json`、`handleRuneUpgrade`、`check_native_rune_upgrade.cjs` |
 | 符文重铸无效 | [重铸证据](../../analysis/evidence/rune-rehandle.md)，补待确认、保存和半额取消返还，已安装实例 1，游戏内待复测 | `rune-rehandle.json`、`handleRuneRehandle`、`finishRuneRehandle`、`check_native_rune_rehandle.cjs` |
 | 二转图纸无法合成三转图纸 | [合成证据](../../analysis/evidence/blueprint-compose.md)，补原图纸独立请求及保存，已安装实例 1，游戏内待复测 | `blueprint-compose.json`、`handleComposeBlueprint`、`check_native_blueprint_compose.cjs` |

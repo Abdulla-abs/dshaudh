@@ -2,6 +2,7 @@
 
 | 优先级 | 验证内容 | 最小上下文 | 完成证据 |
 |---|---|---|---|
+| 后续 | 技能书三本合成、结果入库、动画及重登 | skillbook-compose 契约、handleComposeSkillbook | 已装实例 1；原事件池离线通过，设备技能书未消耗，待游戏复测 |
 | 后续 | 背包／穿戴符文升级、属性保留、费用材料扣除及重登 | rune-upgrade 契约、handleRuneUpgrade | 已装实例 1；30 条路径离线通过，设备符文未消耗，待游戏复测 |
 | 后续 | 背包／穿戴符文重铸、保存、半额取消返还，以及待确认时重登恢复 | rune-rehandle 契约、finishRuneRehandle | 已装实例 1；45 种配方及原函数检查通过，设备符文未消耗，待游戏复测 |
 | 后续 | 二转图纸合成三转：扣材、动画、结果入库和重登 | blueprint-compose 契约、handleComposeBlueprint | 已装实例 1；原调用链及权重边界离线通过，设备图纸未消耗 |

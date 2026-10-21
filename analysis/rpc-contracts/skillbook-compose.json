@@ -1,0 +1,15 @@
+{
+  "request": "rpc_s_compose_skillbook",
+  "params": {"skill_books": "3 个技能书类型编号数组，可重复"},
+  "count": 3,
+  "materials": "须为普通技能书：item_type=2、item_subID=3、有 skill_level，且不是强化书 210000",
+  "placeholder": "按材料中 skill_level==2 的本数 high=0～3，预览占位 210001～210004；对应 item_composition_get 为 55601～55604",
+  "probability": "沿用原 putin_event_item：55601～55603 在 4501／4502 两池等概率任选一池，55604 仅 4502；池内按 item_random_chance 权重抽取。不改为等概率。",
+  "cost": "占位符无 item_composition_cost；原按钮不预扣费用",
+  "reply": {"method": "rpc_c_compose_skillbook_ans", "params": {"ans": [[19, [{"oid": "结果 OID", "typeid": "原表候选技能书", "num": 1, "is_new": true}]]]}},
+  "callback": "先向运行时暴露扣材后背包，再调用原 composeSkillbookAns：inputAward 入库、setComposedSkillbook、afterReceComposeResult。finally 同步已提交背包。",
+  "failure": "不写盘；shopSync 恢复；unlockCompose 解除 playing",
+  "evidence": "analysis/evidence/skillbook-compose.md",
+  "checks": "node analysis/check_native_skillbook_compose.cjs",
+  "acceptance": "原版按钮与回执、四级占位事件池、材料不足与写盘失败检查通过。已保留存档安装实例 1；游戏内待复测"
+}
