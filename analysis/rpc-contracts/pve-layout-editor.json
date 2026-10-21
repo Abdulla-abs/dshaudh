@@ -1,0 +1,50 @@
+{
+  "schema": "dino-pve-layout/v1",
+  "purpose": "User-authored enemy campaign layouts from the offline editor",
+  "fields": {
+    "stage": "integer 1..999; does not unlock a stage",
+    "name": "display name, at most 80 characters",
+    "map": {
+      "width": 64,
+      "height": 64
+    },
+    "buildings": "[{id:string,typeid:number,level:number,x:integer,y:integer}]",
+    "walls": "[{x:integer,y:integer,level:1..10}]",
+    "guards": "[{id:string,typeid:base-species-id,level:1..100,anchorId:building.id,evolution?:integer,reborn?:integer,mutateId?:integer,skills?:number[],runes?:[null|rune,null|rune,null|rune,null|rune,null|rune]}]",
+    "mode": "optional free|player, defaults to free for legacy layouts; editor metadata and import validation, not a game mode",
+    "baseLevel": "optional integer 1..10; required in player mode; exactly one matching main base required for export/compilation"
+  },
+  "coordinateContract": {
+    "anchor": "max-x/max-y occupied tile, as in original TileHolder",
+    "footprint": "x-width+1..x, y-height+1..y, inclusive",
+    "isometric": "display x=(gridX-gridY)*24; y=(gridX+gridY)*14",
+    "bounds": "All occupied building and wall cells must be inside x/y 11..48 inclusive, from world1.tmx GameLogicLayer Building=1. JSON map dimensions remain 64x64 for v1 compatibility; original terrain and displayed grid are 60x60.",
+    "sharedMapContract": "analysis/rpc-contracts/layout-map.json"
+  },
+  "catalog": "analysis/layout-editor/catalog.json: original unit_main dimensions and valid completed-building levels; construction placeholders excluded",
+  "guardContract": "Base species typeid stays stable in editor. evolution selects original model; reborn selects original promotion within that model, both default 0. mutateId is original mutate_effect ID (default 0). Resolve actual typeid and original basic attacks from catalog.guards[].variants, indexed by mutation. Fixed skills: up to 3 distinct learnable skill families, encoded as family*100+level; validate hero compatibility and original levels. Omitted skills retains basic attack only. Import preserves all optional fields. Unsupported combinations are rejected by both JS and Python.",
+  "runeContract": {
+    "rune": "{typeid:original-item-id,base_attr?:number[],two_attr?:number[],three_attr?:number[],hero_attr?:original-hero-family-id}",
+    "slots": "Optional array of exactly 5 entries; null means empty. Item item_form must equal slot index + 3. 45 original items, three types and three levels per slot.",
+    "attributes": "Each list uses IDs from catalog.runes.attributes filtered by its original layer color field. At most one value per stat in each layer, maximum 11. Missing lists are empty. hero_attr defaults to 0; otherwise must exist in exclusive_attribute. Manually authored attributes; not a reconstruction of random generation pools.",
+    "runtime": "Compile runes to eqp, preserving null positions and adding slot per equipment entry. Original HeroEquipment evaluates attributes and rune_order skills; do not append rune skills into the three cultivated skills. Missing runes leaves old layouts unchanged.",
+    "preview": "Longest matching contiguous prefix from slot 0; first null stops matching. Skill level follows RUNE_SKILL_LEVEL_RATE [0,0.6,0.8,1], limit 3; family 115 uses original replacement skills when defined."
+  },
+  "application": {
+    "check": "python tools/import_pve_layout.py <user-json> --check",
+    "apply": "python tools/import_pve_layout.py <user-json> --apply",
+    "store": "analysis/rpc-contracts/pve-layouts/stage-<n>.json",
+    "registry": "explicit marker block LocalNative.editorPveLayouts in native_boot.js",
+    "runtime": "buildEditorPveVillage before existing stage fallback; registry empty until an approved file is applied",
+    "guards": "unique battle SIDs and did mapped from anchorId; NO x/y on mobile heroes (no TileHolder); original _setupAllUnit uses did and setAtDefensePos",
+    "loot": "original stage loot passed at runtime, not copied from reference screenshot",
+    "deployment": "apply never builds or installs APK and never modifies device saves"
+  },
+  "checks": [
+    "node analysis/check_layout_editor.cjs",
+    "node analysis/check_layout_runes.cjs",
+    "python analysis/check_layout_editor.py",
+    "node analysis/check_layout_editor_browser.cjs"
+  ],
+  "playerLimits": "analysis/layout-editor/player-rules.json: build_number counts at baseLevel, reachable upgrade chain using previous-level lv_up_able/rely_base_lv. Includes walls. Invalid player drafts remain editable but cannot export/compile. Free mode has no base quota; original catalog levels and geometry still apply."
+}

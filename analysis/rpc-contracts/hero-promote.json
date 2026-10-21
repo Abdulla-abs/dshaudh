@@ -1,0 +1,14 @@
+{
+  "request": "rpc_s_promote",
+  "params": {"uid": "hero SID; added by Unit.callServer"},
+  "source": ["HeroComponents.jsc ExpBar.promote/getRebornID/getRebornmutateid", "Hero.jsc HeroPromotePanel.doPromote", "Unit.jsc server_promote"],
+  "payment": "Stock UI already calls useRes(price, RES_TYPE_WOOD) and useRes(spirit, RES_TYPE_SPIRIT); snapshot current wallet, do not debit twice",
+  "transition": "unit_main[current].upgrade_target; retain live growth level, XP, skills, equipment and mutation; reset invested spirit",
+  "response": {"method": "rpc_c_promote", "dict": {"id": "hero SID", "success": true, "hero": "complete persisted promoted hero record"}},
+  "ordering": "Save hero, post-payment wallet and achieve_raw.hero_reborn_times + 1 together; sync live AchievementRecorder before original callback rebuilds hero components",
+  "failure": "Before commit, restore saved wallet and clear ExpBar.promoting",
+  "duplicate": "Require live ExpBar.promoting and matching saved/live source type",
+  "tutorial": "rookie_controller[204306].rookie_reborn_check=1 checks AchievementRecorder.achieve_raw.hero_reborn_times; do not force tutorial bits",
+  "legacy_repair": "Once per store, recover deduplicated successful promote log events matching a current hero upgrade chain; never infer count from card color alone",
+  "validation": "analysis/check_native_hero_promote.cjs; device shows three saved promotions, tutorial continuation remains pending"
+}

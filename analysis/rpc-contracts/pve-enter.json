@@ -20,6 +20,7 @@
         "oppo.player.stage": "truthy → Tips PVE scenario + ILD PVE map",
         "self.gold/wood/max_*": "loot remaining",
         "self.heros": "state=HERO_STATE_ATTACK and life>0 for deploy tray",
+        "self.soldiers": "sum home units[].sds by unit_type; original choice uses unit_type*100+1; consumption contract: soldier-dispatch.json",
         "oppo.units": "defender buildings (for-in)",
         "replay": "must be falsy for live attack (truthy empty {} forces replay mode)"
       }
@@ -31,7 +32,7 @@
     "ildGuard": "battle ILD patch must not inject empty replay for localNativePve; ensureBattleVillageUnits fill for localNativePve; clear __localBattleBuildingKeys on ILD enter"
   },
   "openGaps": [
-    "Official stage-1 (and later) village coordinates / unit list from server or capture"
+    "Official stage-1 (and later) village coordinates / unit list from server or capture; stage 7 now uses user-reference reconstruction, see pve-stage7.json"
   ],
   "related": "analysis/rpc-contracts/pve-settle.json"
 }

@@ -1,0 +1,64 @@
+{
+  "name": "invasion",
+  "title": "小绿龙入侵",
+  "status": "local-minimal-path",
+  "evidence": "analysis/evidence/invasion-start.md",
+  "check": "node analysis/check_native_invasion.cjs",
+  "stockData": {
+    "waves": "data.invasion[1..54]",
+    "hardness": "data.invasion_hardness[1..3] → waves 1-18 / 19-36 / 37-54",
+    "tutorial": "data.invasion_tutorial",
+    "honor": "data.invasion_honor",
+    "AI_hero_id": "unit_main typeids (e.g. 400101); used directly as heroes[].typeid"
+  },
+  "rpcs": {
+    "rpc_s_enter_invasion": {
+      "request": {},
+      "reply": "rpc_c_enter_invasion(dict)",
+      "localAdapter": "handleEnterInvasion → buildInvasionEnterDict; home buildings remapped into self.units; garrison heros injected into the same map with did remapped to bunker SID",
+      "notes": "Stock GameControllerInvasion.initLevelFromData only creates self.units (not self.heros). Client may call InvasionController.enable() (consume crystal 1105) before RPC"
+    },
+    "rpc_s_invasion_wave_ready": {
+      "request": {},
+      "reply": "rpc_c_start_wave({heroes, time, corner_type})",
+      "localAdapter": "handleInvasionWaveReady → pickInvasionWaveHeroes from data.invasion[absoluteWave]",
+      "heroesItem": "{typeid, level, leadership:[0,0]}",
+      "trigger": "MenuControllerInvasion.onPressStart → InvasionStateMachine.ready"
+    },
+    "rpc_s_invasion_wave_start": {
+      "request": {},
+      "reply": "ack only",
+      "localAdapter": "handleInvasionWaveStart"
+    },
+    "rpc_s_invasion_wave_end": {
+      "request": "{succeed, attackers, tower_skills}",
+      "reply_success": "rpc_c_wave_end({may_input, input_gains})",
+      "reply_fail": "rpc_c_invasion_end({})",
+      "localAdapter": "handleInvasionWaveEnd; first-clear uses input_id_first then input_id; persists localInvasionFirstWaves"
+    },
+    "rpc_s_leave_invasion": {
+      "request": {},
+      "reply": "rpc_c_invasion_to_home(level)",
+      "localAdapter": "handleInvasionToHome"
+    },
+    "rpc_s_invasion_to_home": {
+      "request": {},
+      "reply": "rpc_c_invasion_to_home(level)",
+      "localAdapter": "handleInvasionToHome"
+    },
+    "rpc_s_adjust_battle_time": {
+      "request": "{battle_time}",
+      "localAdapter": "already swallowed as no-op"
+    }
+  },
+  "garrison": {
+    "evidence": "analysis/evidence/invasion-garrison.md",
+    "rule": "heroes with did/defense_id matching a home bunker SID are copied into self.units; attack-team heros stay out"
+  },
+  "openGaps": [
+    "Official server heroes composition / leadership soldiers not restored from capture",
+    "Honor medal kill rewards during wave not yet mirrored",
+    "Invasion shop / rank / crystal unlock persistence beyond enable() client path",
+    "Device Start-button and multi-wave settle still need user retest"
+  ]
+}

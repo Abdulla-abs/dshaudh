@@ -1,0 +1,30 @@
+{
+  "feature": "知识古树研究",
+  "evidence": {
+    "original": ["Client/Components/TechComponent.jsc", "Client/UI/Tech.jsc", "Client/ClientUnits/ClientPlayer.jsc", "Data/Common/tech.jsc"],
+    "recovery": "python analysis/inspect_native_tech.py",
+    "localOutput": ".local/knowledge-tree/"
+  },
+  "requests": {
+    "rpc_s_train_tech": {
+      "params": {"tech_id": "研究分支 ID", "res_type": "原表 resource_type1 中已支付的资源类型"},
+      "ordering": "confirmTrainTech 预扣主资源及可选联盟积分，发送请求，再 addPoint；本地处理必须延后到 addPoint 之后",
+      "effect": "每次增加 1 个研究点；达到 level_stage_num 才开始 train_time 倒计时，不是每次点击都升一级"
+    },
+    "rpc_s_finish_training_now": {
+      "params": {"tech_id": "当前正在研究的分支 ID"},
+      "ordering": "confirmFinishTrainingNow 已预扣钻石；本地只保存支付结果，不重复扣费"
+    }
+  },
+  "response": {"method": "rpc_c_tech_training_complete", "params": {"tech_id": "完成的分支 ID"}, "effect": "原版 onTechTrainingFinish 清理倒计时和动画，将 gained_techs[id].lv 加 1、exp 归零，刷新界面及受影响对象"},
+  "save": {
+    "player.gained_techs": "以研究分支 ID 为键，每条保存 {lv, exp}",
+    "tree": ["training_tech", "last_train_tech_time", "trained_time"],
+    "wallet": "资源仓库库存、钻石、英灵、联盟积分与研究进度同一事务落盘",
+    "completion": "先保存新等级及清空建筑研究字段，再调用原版完成回执；只在主城处理自然完成",
+    "failure": "未提交的预扣资源及研究点从有效存档恢复；自然结束写盘失败保留研究并重试"
+  },
+  "coverage": {"categories": 4, "branches": 29, "levelRows": 950},
+  "verification": "node analysis/check_native_tech.cjs",
+  "status": "离线通过，实例 1 已保留存档覆盖安装，真实研究与重登待用户复测"
+}

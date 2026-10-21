@@ -1,0 +1,14 @@
+{
+  "request": "rpc_s_compose_equipment",
+  "params": {"equip_id": "recipe typeid", "hero_pieces": {"fragment typeid": "count"}, "prop_pieces": {"fragment typeid": "count"}},
+  "handler": "handleComposeEquipment",
+  "recipe": "data.item[equip_id].item_composition: hero points, reborn points, blueprint",
+  "points": {"hero_subID": 7, "reborn_subID": 11, "reborn_level2": 3, "other": 1},
+  "payment": "stock UI prepays item_composition_cost; persist ResourceStorage snapshot without charging again",
+  "answer": {"rpc": "rpc_c_compose_equipment_ans", "ans": [[19, [{"oid": "unique item id", "typeid": "concrete rune typeid", "num": 1, "is_new": true, "base_attr": ["attribute id"], "two_attr": ["attribute id"], "three_attr": ["attribute id"], "hero_attr": 0}]]]},
+  "localPolicy": {"authorization": "user explicitly approved local random rules", "candidateOdds": "equal among three original-table candidates", "attributes": "one uniformly sampled valid id per layer", "exclusiveHero": false},
+  "failure": "no transaction commit; restore saved wallet and package; unlock stock composition UI",
+  "evidence": "analysis/evidence/rune-compose.md",
+  "check": "node analysis/check_native_rune_compose.cjs",
+  "status": "offline passed; installed on instance 1; in-game retest pending"
+}

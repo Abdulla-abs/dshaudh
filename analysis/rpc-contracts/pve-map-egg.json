@@ -1,0 +1,11 @@
+{
+  "request": "rpc_s_get_pve_egg",
+  "params": {"index": "integer stage ID"},
+  "source": ["Client/UI/BattleSelect.jsc HeroCardEgg.onPress", "Client/UI/Chapter.jsc MapView._refreshStage"],
+  "eligibility": "Saved availableStages[index][2] > 0; pve_stage[index].pve_tresure exists; saved pve_awardBox has no index key",
+  "stage3": {"event": 33009, "item_input": 6200, "item_id": 1124, "item_num": 1, "random_drop": false},
+  "persistence": "Commit package and pve_awardBox[index]=1 in one saved store, then initialize live PackageManager from committed package",
+  "failure": "Restore live optimistic pve_awardBox from saved state; preserve inventory and claim eligibility",
+  "scope": "Fixed dragon egg item events only; reject unsupported reward branches",
+  "verification": "analysis/check_native_pve_map_egg.cjs; device claim remains pending"
+}

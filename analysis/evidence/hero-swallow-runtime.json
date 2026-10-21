@@ -1,0 +1,22 @@
+{
+  "observedFailure": [
+    {
+      "step": "hero-swallow-ERR",
+      "committed": false,
+      "error": "Error: Swallowed hero is still live",
+      "t": 1792465551585
+    }
+  ],
+  "nativeProbe": {
+    "step": "hero-swallow-native-contract",
+    "sameHeroExp": 100,
+    "giftAfterOne": {
+      "lv": 1,
+      "exp": 0,
+      "attrs": []
+    },
+    "nextExp": 100,
+    "missingLookupSid": 1,
+    "t": 1792465848409
+  }
+}

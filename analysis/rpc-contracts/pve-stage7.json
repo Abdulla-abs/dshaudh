@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "stage": 7,
+  "provenance": "User screenshot inputs/pve-stage7/reference.png; coordinates and flag style reconstructed, not official server data",
+  "scope": "buildPveBattleDict(7) only; other campaign stages, PVP and adventure retain existing layouts",
+  "structures": [
+    {"sid":91001,"typeid":20101,"name":"龙首之城","x":26,"y":27},
+    {"sid":91002,"typeid":30101,"name":"龙弹堡","x":30,"y":27},
+    {"sid":91003,"typeid":20301,"name":"日光皿","x":33,"y":23},
+    {"sid":91004,"typeid":30201,"name":"投石器","x":24,"y":33},
+    {"sid":91005,"typeid":20201,"name":"日光井","x":34,"y":28},
+    {"sid":91006,"typeid":20501,"name":"龙币库","x":34,"y":33},
+    {"sid":91007,"typeid":20401,"name":"龙银矿","x":39,"y":30},
+    {"sid":91008,"typeid":30301,"name":"剑龙塔","x":29,"y":33},
+    {"sid":91009,"typeid":50701,"name":"恐龙部落旗（款式推定）","x":19,"y":34}
+  ],
+  "guard": {"sid":91010,"typeid":10501,"name":"三角龙","lv":1,"state":2,"did":"91009","skills":[10501]},
+  "walls": {
+    "format": "[level,x,y,damage], passed to oppo.player.walls",
+    "level": 1,
+    "outline": [[20,20],[27,20],[27,19],[35,19],[35,26],[40,26],[40,32],[37,32],[37,35],[30,35],[30,39],[24,39],[24,35],[20,35],[20,20]],
+    "partitions": [[27,20,27,29],[20,29,35,29],[30,29,30,35]],
+    "count": 108
+  },
+  "originalRuntime": {
+    "ids": "localNativeStableSid prevents stock ILD array-index ids from breaking guard.did",
+    "flag": "original decoration and scene faction; volume=1 fills missing anchor radius for original Unit.setAtDefensePos",
+    "dedup": "include gc.sceneObj in battle-local presence/count helpers",
+    "combat": "original unit configs, turret skills, hero AI and wall creation"
+  },
+  "check": "node analysis/check_native_pve_stage7.cjs"
+}

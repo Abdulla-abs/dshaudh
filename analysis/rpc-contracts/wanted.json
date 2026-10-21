@@ -1,0 +1,168 @@
+{
+  "status": "offline-verified-device-retest-in-progress",
+  "source": "Original wanted/reward tables and WantedInterface/HunterManager/TriggerManager bytecode; missing SERVER spawn config replaced by explicit local fallback",
+  "requests": {
+    "rpc_s_refresh_wanted": {},
+    "rpc_s_reset_wanted": {
+      "card_order": "integer 1..3"
+    },
+    "rpc_s_reset_wanted_time": {
+      "card_order": "integer 1..3",
+      "res_type": "diamond|item"
+    },
+    "rpc_s_load_hunter_pve": {
+      "card_order": "integer 1..3"
+    },
+    "rpc_s_get_help_for_wanted": {
+      "card_order": "integer 1..3"
+    },
+    "rpc_s_run_server_trigger": {
+      "trigger_id": "current wanted.server_trigger_id",
+      "cid": "current wantedResideUnit",
+      "args": {
+        "residerDead": 1
+      }
+    },
+    "rpc_s_complete_pve_battle": "Existing result dict; trusted live battleResult.pve_dict.wantedDead determines wanted win",
+    "rpc_s_get_reward_after_hunter_pve": {}
+  },
+  "responses": {
+    "cards": "rpc_c_refresh_daily_event({event_id:1020,event_counter:{c,t,d:{wanted1:{wanted_id,cost},wanted2:{wanted_id,cost},wanted3:{wanted_id,cost}},clientData}})",
+    "refresh": "rpc_c_reset_wanted_ans",
+    "enter": "rpc_c_enter_battle; oppo.player.stage from wanted.stage, pve_mode=3, wanted_id=current target",
+    "trigger": "rpc_c_run_trigger({trigger_id,cid,config:buildWantedTargetTrigger(wantedId),args:{residerDead:1,bossMark}}); never look server IDs up in the unrelated local pve_trigger table",
+    "settle": "rpc_c_battle_result; no campaign unlock or generic stage loot",
+    "claim": "rpc_c_get_reward_after_hunter_pve_ans({reward_get}); original HunterManager speaker and Award UI",
+    "help": "rpc_c_get_help_for_wanted_ans({wanted_id,reward,reward_get})"
+  },
+  "restored_values": {
+    "target_selection": "player_lv_info1..3, choose highest level band <= account level, normalize positive probability weights; exclude zero-weight entries",
+    "win_fragments": "All 27 positive-weight targets: fixed target fragment x4 via original putin_win chain",
+    "spirit": [
+      10,
+      28,
+      48
+    ],
+    "gold_base": [
+      500,
+      1000,
+      2000
+    ],
+    "gold_factor": 0.5,
+    "gold_formula": "floor(base * (1 + playerLevel * 0.5)); limited by existing storage capacity",
+    "entry_cost": [
+      58,
+      1888,
+      5888
+    ],
+    "help_diamond_cost": [
+      19,
+      49,
+      99
+    ],
+    "normal_intervals_seconds": [
+      1800,
+      82800,
+      165600
+    ],
+    "normal_daily_limit": 2,
+    "target_refresh_seconds": 600,
+    "reset_diamond_cost": [
+      100,
+      288,
+      488
+    ],
+    "reset_items": [
+      1116,
+      1117,
+      1118
+    ]
+  },
+  "persistence": "Original DER event counters and cards; settlement commits localWantedReward and player wanted_id/wanted_reward/hunter_win before home; claim clears receipt before original display; display suppresses already-committed inputAward",
+  "local_spawn_fallback": {
+    "reason": "Server trigger metadata only has trigger_times; same numeric IDs in local pve_trigger are unrelated tutorial events that can pause combat or create allied actors",
+    "typeid": "Family from wanted.speaker_id (else wantedId); start with family*100+1, follow hero_evolve entries whose type_required record has origin_typeid=current form and whose target stays in same family; choose card_order-th visual form",
+    "visual_forms_by_card": [
+      1,
+      2,
+      3
+    ],
+    "rebirth_correction": "User expects visual evolution forms, not reborn_times enhancement count. 10401/10421/10441 load 10401/10402/10403.ccbi; old 10402/10403/10404 all load first-form 10401.ccbi.",
+    "levels_by_card": [
+      20,
+      40,
+      60
+    ],
+    "skills": "Keep original unit_battle.skill_nums[0]; additionally choose 1/2/3 distinct family-learnable skills uniformly without replacement, at skill level 10 (advanced interpreted as stock max level). Pool requires matching hero_to_skill and skill_to_hero.to_hero_id, positive learning weight in any tier, and valid skill_data[sid*100+10].",
+    "basic_attack_targets": "After wantedTarget spawn ACK, copy only that instance default skill config via stock setTargetAirAvailable and set target_ground=1. Retain damage/range/actions/target faction and types, other skills and shared data.skill_data. Spawn status groundAndAir records application.",
+    "skill_selection_time": "Once before entering battle, kept on pveSession.wantedTrigger and reused on spawn/retry",
+    "provenance": "User-requested local difficulty, not recovered production spawn values",
+    "camp": 2,
+    "position": "original trigger_pos_type=2 at destroyed hideout caller",
+    "forbidden": [
+      "pause_game",
+      "card_status",
+      "invoke_event",
+      "ignore_user_oper",
+      "close_player_move_screen",
+      "close_user_oper_skill"
+    ],
+    "promotion_by_card": [
+      "下士",
+      "少尉",
+      "准将"
+    ],
+    "promotion_steps_by_card": [
+      5,
+      10,
+      15
+    ],
+    "promotion_resolution": "After choosing visible form, follow upgrade_target 4/9/14 times within same battle_res; e.g. Dino 10405/10430/10455. Rank checked against original Chinese sub_name strings for all 27 enabled targets.",
+    "equipment": {
+      "counts_by_card": [
+        0,
+        2,
+        5
+      ],
+      "level": 2,
+      "medium": "Independent uniform t/x/y per slot 0..1; remaining slots null; native matching may activate a two-rune skill",
+      "advanced": "Uniform choice from 9 stock rune_order keys of length 5; fill all five slot-specific forms, guaranteeing full five-rune skill at native level 2",
+      "attributes": "One uniform original allowed attribute per base_attr/two_attr/three_attr layer; hero_attr=0, following current local rune generation policy",
+      "selection": "Before entry, saved to session wantedTrigger.localWantedEquipment and reused on retry",
+      "delivery": "runWantedTargetTrigger temporarily wraps current controller createUnit only for matching target type and defender camp; deep copies eqp before original components init, restores own/inherited method in finally; no shared tables changed"
+    },
+    "advanced_spawn_buff": {
+      "id": 899801,
+      "scope": "Only cardOrder=3 wanted target after stock spawn callback completes",
+      "application": "Original Buff.BuffManager.handleBuff(899801, unit.faction, bc.getCasterMir(), unit.cid) followed by runBuff(handle)",
+      "deduplication": "Per spawned BattleController _localWantedBuff899801 marker plus existing session.triggered guard",
+      "original_fields": {
+        "scale": 1.5,
+        "attack_rate": 150,
+        "defence_rate": 50,
+        "speed_rate": 200,
+        "attspeed_rate": 200,
+        "buff_time": 999999
+      },
+      "lifecycle": "Stock buff effect, timeout, removal and battle cleanup; never modify shared buff config or player save",
+      "status": "wanted-target-spawn.buff899801Handle"
+    },
+    "basic_attack_field_targets": "For default skill only, override its _castMagicField with castWantedGroundAndAirField: create original field, clone this MagicFieldObjects[handle].config, set air_land=0 before runMagicField. Fixes independent ground-only damage filtering in Pink Dragon 10801 and Mischief 10901. Shared fields, extra skills, radius and damage buff remain unchanged."
+  },
+  "client_debits": "Entry/help/diamond costs are paid by original UI; ticket subtraction occurs after callServer. Home RPCs run on next tick and snapshot those payments without another debit.",
+  "compatibility_limits": [
+    "Enemy village reuses existing compatible PVE payload, not recovered production layouts or score-matching service.",
+    "Original WantedCard/Info does not consume wanted_control.open_level; do not add a new account-level RPC gate. User observed advanced card accessible at level 12.",
+    "Legacy zero-weight full-hero reward branches are not enabled.",
+    "Device natural target emergence, defeat, victory, home reward and ticket reset require retest."
+  ],
+  "checks": [
+    "python analysis/inspect_native_wanted.py",
+    "python analysis/inspect_wanted_targets.py",
+    "node analysis/check_native_wanted.cjs",
+    "node analysis/check_native_wanted_loadout.cjs",
+    "node analysis/check_native_wanted_buff.cjs",
+    "python analysis/inspect_wanted_air_hit.py",
+    "node analysis/check_native_wanted_air_hit.cjs"
+  ]
+}

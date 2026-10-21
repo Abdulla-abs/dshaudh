@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "status": "user-requested-local-balance-not-official",
+  "scope": "item 1504/1505/1506 only, via existing rpc_s_use_item transaction and stock acknowledgement",
+  "fragmentTuple": ["probability per box", "inclusive minimum quantity", "inclusive maximum quantity"],
+  "blueprintTuple": ["second rebirth probability per box", "third rebirth probability per box"],
+  "tiers": {
+    "1504": {"shopId": 92, "secondFragments": [1, 2, 4], "thirdFragments": [0.25, 1, 2], "blueprintChance": [0, 0]},
+    "1505": {"shopId": 93, "secondFragments": [1, 5, 8], "thirdFragments": [0.75, 4, 6], "blueprintChance": [0.10, 0]},
+    "1506": {"shopId": 94, "secondFragments": [1, 16, 22], "thirdFragments": [1, 12, 16], "blueprintChance": [0.15, 0.02]}
+  },
+  "rolls": "second and third fragment rolls are independent; each blueprint stage is independent; quantity is uniform inclusive; original within-tier species weights retained",
+  "originalEvidence": "3001/3002 compose from 2001/2002 and feed 3301 with level-2 scroll 4001; 3003/3004/3005 compose from 2003/2004/2005 and feed 3321 with level-3 scroll 4021",
+  "preserved": ["prices", "purchase limits", "resource stages", "other consumable stages", "stock UI", "save transaction and rollback", "other six treasure types", "original Data tables"],
+  "activation": "next opening after updated APK installation, including already-owned unopened treasure; previous rewards unchanged",
+  "check": "node analysis/check_rebirth_treasure.cjs && node analysis/check_native_shop.cjs"
+}

@@ -1,0 +1,15 @@
+{
+  "request": "rpc_s_build_update",
+  "params": {"uid": "Unit.callServer 提供的建筑 SID"},
+  "response": "rpc_c_ans_building_upgrade",
+  "successFields": {"success": true, "cid": "建筑客户端 ID", "id": "建筑 SID"},
+  "originalEvidence": [
+    "ClientPlayer.rpc_c_ans_building_upgrade: getUnit(dict.cid).setSid(dict.id)",
+    "BuildingBuilder.init: buildTime=config.lv_up_time || 0",
+    "unit_main 21101..21110 无 lv_up_time，各级 home_res 不同"
+  ],
+  "completion": "零耗时立即走 ackBuildComplete/finishViaBuilder；正耗时按目标建筑 buildTime 调度，禁止引用其他 activeBuilder 的时间",
+  "resume": "已保存 bs=1 的零耗时城墙使用 resumeConstructions，沿用原完工和持久化链路，不再扣费",
+  "check": "node analysis/check_native_building_contract.cjs",
+  "status": "离线通过，实例 1 已保留数据覆盖安装；实际城墙画面待用户复测"
+}

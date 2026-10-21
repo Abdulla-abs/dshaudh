@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "preview": {
+    "field": "current[quest_id].reward",
+    "source": "read-only mt_putin chain, questScaledResAmount, fixed item_input",
+    "hooks": "ensureQuestProgressSeeded (old/new saves), daily refresh, next daily/main receipt",
+    "itemShape": "[19,{typeid,num}]",
+    "noSideEffects": "no wallet/package grants, no random counters"
+  },
+  "status": "offline-checked-device-pending",
+  "source": "QuestManager.decompiled.js + ClientPlayer finish/refresh ans + daily_task/main_task tables",
+  "seed": {
+    "why": "GameEventsLayer.refreshDailyQuest only reads DER/main_quest; stock server seeds on login",
+    "daily": "game_event_roots → event_counters[period_type][reset_period].d.current[root]={ } if empty and no last",
+    "main": "game_event_roots → main_quest[root].current[root]={ } if empty and no last",
+    "hooks": "startGame save, seedPlayerComponents, getDailyQuestOrderedDict / getMainQuestOrderedDict"
+  },
+  "daily": {
+    "rpc_s_finish_daily_quest": {
+      "request": {"quest_id": "daily_task id"},
+      "client_before": "finishDailyQuest → _clearQuestDataOnFinish deletes current[quest_id] then callServer",
+      "response": "rpc_c_finish_daily_quest_ans({reward, root_quest_id, current})",
+      "reward": "mt_putin → input_event_client chain; gold/wood floor(num*(1+level*putin_factor)) when factor>0",
+      "next": "show_tasks[quest_id] seeded into each next root's own reset_period DER.d.current",
+      "tasknum": "any daily finish bumps mt_tasknum ids (3811/3817/4011/4111) in their current entries"
+    },
+    "rpc_s_refresh_daily_quest": {
+      "request": {"root_quest_id": "game_event_roots entry"},
+      "when": "refreshDailyQuest sees empty current",
+      "response": "rpc_c_refresh_daily_quest_ans({root_quest_id}); local seeds current[root]={}",
+      "sync": "rpc_c_refresh_daily_event for affected period buckets"
+    },
+    "storage": "DailyEventRecorder.event_counters[period_type][reset_period].d.{current,last}"
+  },
+  "main": {
+    "rpc_s_finish_main_quest": {
+      "request": {"quest_id": "main_task id"},
+      "client_before": "finishMainQuest clears main_quest[root].current[quest_id]",
+      "response": "rpc_c_finish_main_quest_ans({reward, root_quest_id, current})",
+      "next": "cfg.mt_next into main_quest[root].current (stock show_tasks empty)"
+    },
+    "storage": "player.main_quest[root_id].{current,last}"
+  },
+  "check": "node analysis/check_native_quest_contract.cjs"
+}

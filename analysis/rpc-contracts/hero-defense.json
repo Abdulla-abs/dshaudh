@@ -1,0 +1,17 @@
+{
+  "rpc": "rpc_s_set_hero_defense",
+  "source": "stock HeroAttributeController.setDefenseID → Unit.callServer(uid=sid)",
+  "params": {
+    "uid": "hero sid from Unit.callServer",
+    "defense_id": "bunker sid when assigning; empty string when clearing"
+  },
+  "persistence": {
+    "did": "stock HeroAttributeController.dump field used by home createHero/init",
+    "defense_id": "same value; local invasion/raid envelopes filter on this field"
+  },
+  "related": {
+    "rpc_s_set_hero_state": "HERO_STATE_DEFENSE=2 when assigning; IDLE=0 when clearing; already handled separately",
+    "clientFlow": "HeroIdleBunkerController.changeState → setDefenseID(bunkerSid) then HERO_STATE_DEFENSE"
+  },
+  "bug": "local adapter previously ignored rpc_s_set_hero_defense; state alone survived battle rebuild but garrison placement requires did"
+}

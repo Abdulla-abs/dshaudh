@@ -1,0 +1,18 @@
+{
+  "status": "offline-passed-installed-device-retest-pending",
+  "requests": {
+    "rpc_s_put_on_equipment": ["sid", "slot", "pkgid", "oid"],
+    "rpc_s_take_off_equipment": ["sid", "slot"],
+    "rpc_s_replace_equipment": ["sid", "slot", "pkgid", "oid"]
+  },
+  "stockEvidence": {
+    "source": ".local/hero-equip-slot/HeroComponents.js",
+    "functions": ["HeroEquipment.putOnEquipment", "HeroEquipment.takeOffEquipment", "HeroEquipment.replaceEquipment", "HeroEquipment.init", "HeroEquipment.dump"],
+    "ordering": "Client moves the item and changes eqp before calling the server; no extra debit or acknowledgement is needed.",
+    "fields": ["level.heros[].eqp", "level.player.package"]
+  },
+  "adapter": "persistHeroEquipment synchronously invokes tryDumpAndSave; snapshotHeroEquipment copies initialized home heroes and preserves unavailable heroes. Package and slots share one saveLevel commit. Battle snapshots remain blocked.",
+  "failure": "Previous disk save remains intact on rejected writes; runtime state remains available for the next home snapshot retry.",
+  "checks": ["node analysis/check_native_rune_persistence.cjs", "python analysis/check_native_rune_device.py --label <unique-label>"],
+  "limits": "Historical lost rune identities and attributes cannot be inferred from current/previous empty slots. No historical item compensation was applied. Real device wear/relogin remains pending."
+}

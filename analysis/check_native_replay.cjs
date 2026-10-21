@@ -26,9 +26,9 @@ vm.runInNewContext(`
     if (LocalNative.ensureStarterHeros(existing) || existing.heros.length !== 1)
         throw Error('Existing roster replaced');
     const init = LocalNative.makeHomeInitDict(oldSave);
-    if (init.units.length !== 2 || init.units[1] !== hero || oldSave.units.length !== 1)
+    if (Object.keys(init.units).length !== 2 || init.units[hero.sid] !== hero || init.units[5].sid !== 5 || oldSave.units.length !== 1)
         throw Error('Stock units initialization did not receive hero');
-    if (LocalNative.makeHomeInitDict(init).units.length !== 2)
+    if (Object.keys(LocalNative.makeHomeInitDict(init).units).length !== 2)
         throw Error('Repeated initialization duplicated hero');
 `, starterContext);
 let queued = [];

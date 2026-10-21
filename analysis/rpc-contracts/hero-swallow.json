@@ -1,0 +1,13 @@
+{
+  "request": "rpc_s_swallow_heros",
+  "params": {"swallower": "接收成长的角色 SID", "swallow_list": "被吞噬角色 SID 数组"},
+  "stockOrder": ["useRes 扣日光", "HeroManager.removeHero 和 UnitManager.deleteUnit 删除材料", "ExpBar.addGrowthXp", "同类 HeroGift.addExp", "ClientPlayer.swallowHeros 发送请求"],
+  "save": ["仅主城接受请求", "材料 SID 必须存在于存档且已从运行时删除；查询结果只有 SID 与材料一致才算仍存活，不能把 units.undefined 的玩家回退当成材料", "沿用 ExpBar.dump 的 lv/xp 和 HeroGift.dump 的 gift", "保留目标其他字段及未参与角色", "从 heros 删除材料，和预扣钱包一次 writeRaw", "local_hero_swallow_receipt 标记最近事务，重复请求不再写入"],
+  "giftNativeEvidence": {"sameHeroBaseExp": 100, "before": {"lv": 0, "exp": 0}, "after": {"lv": 1, "exp": 0}, "nextLevelExp": 100, "source": "analysis/evidence/hero-swallow-runtime.json"},
+  "reply": {"method": "rpc_c_swallow_hero_ans", "params": {"rewards": null}},
+  "unknown": "额外服务器奖励及天赋重新抽取规则未恢复；本修复只保存原客户端已产生的吞噬结果，不生成额外奖励。",
+  "failure": "写盘失败不回成功回执，保留原存档并记录 hero-swallow-ERR。原版界面先执行动画，失败后的自动恢复尚未实现。",
+  "evidence": "analysis/evidence/hero-swallow-stock.js",
+  "checks": "node analysis/check_native_hero_swallow.cjs",
+  "status": "首版用户复测失败，设备日志确认误判玩家回退；第二版已修 SID 校验，原版 UnitManager 和实际 PVE 回城处理器回归通过。原生天赋副本探针通过，已保留存档覆盖安装实例 1；完整游戏吞噬回城仍待复测"
+}

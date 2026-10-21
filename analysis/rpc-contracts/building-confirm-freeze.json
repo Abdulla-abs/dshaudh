@@ -1,0 +1,12 @@
+{
+  "request": "rpc_s_build",
+  "handler": "LocalNative.allocateSid, purchase dispatch",
+  "stock_lookup": "UnitManager.getUnitBySID(sid) returns getUnit(sidToCid.local[sid]); getUnit(cid) returns units[cid]",
+  "observed_trigger": {"cid": 123, "typeid": 20300, "x": 24, "y": 24, "nextSid": 179, "localSidMapping179": null, "unitsUndefined": {"sid": 1}},
+  "failure": "Missing SID maps to undefined CID; units.undefined holds player. Truthy-only collision check loops forever for every missing SID on GL thread.",
+  "rule": "A live lookup reserves candidate only if live.sid is present and String(live.sid) equals String(candidate). Continue checking saved numeric/string SIDs and pending builds. Reject exhausted safe integer range.",
+  "runtime_probe": ".local/shop-treasure/build-freeze-probe3/databases/jsb.sqlite; sound enter/exit complete, SID allocation probe last",
+  "offline_validation": ["node analysis/check_native_building_sid.cjs", "node analysis/check_native_building_offline.cjs", "node analysis/check_native_building_contract.cjs", "node analysis/check_native_sound.cjs", "node --check analysis/native_boot.js"],
+  "device_validation": "Instance 1 stock shop purchase of 20300 received SID 179, buildTime 60; 86 records saved; process restart retained construction with same timestamp. Final completion recorded in evidence/building-confirm-freeze.md.",
+  "apk_sha256": "61e87e1633b0b10ec9c24e4748f8957dcd5b8b48380f6a963d2823a817250d09"
+}

@@ -1,0 +1,8 @@
+{
+  "schema": "dino-layout-map/v1",
+  "source": "map/world1.tmx:GameLogicLayer:Building=1",
+  "terrainSize": 60,
+  "playableMin": 11,
+  "playableMax": 48,
+  "dataSize": 64
+}

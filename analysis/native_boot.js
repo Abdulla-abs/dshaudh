@@ -65,24 +65,42 @@
             } catch (eLcEn) {}
         };
         forceLegalAgreed();
-        // Offline FMOD/sound can throw on button click and abort login before our hook.
-        var quietSound = function() {
-            try {
-                var quiet = function() { return 0; };
-                if (typeof G_SoundManager !== 'undefined' && G_SoundManager) {
-                    G_SoundManager.playSound = quiet;
-                    G_SoundManager.doPlay = quiet;
-                    G_SoundManager.playMusic = quiet;
-                    G_SoundManager.stop = quiet;
-                    G_SoundManager.start = quiet;
-                }
-                if (typeof SoundManager !== 'undefined' && SoundManager && SoundManager.prototype) {
-                    SoundManager.prototype.playSound = quiet;
-                    SoundManager.prototype.doPlay = quiet;
-                }
-            } catch (eSound) {}
+        // Keep stock audio and mute preferences; contain FMOD exceptions locally so
+        // a missing/broken event cannot abort a login button or resource collection.
+        var protectSound = function() {
+            var guard = function(target, key) {
+                var original = target && target[key];
+                if (typeof original !== 'function' || original.__localNativeSoundGuard) return;
+                var wrapped = function() {
+                    try { return original.apply(this, arguments); }
+                    catch (eSound) {
+                        // Delayed SoundTimer.doPlay runs outside the manager's call.
+                        if (key === 'doPlay' && this.master) {
+                            this.handle = null;
+                            try { if (this.autoDestroy) this.destroy(); } catch (eCleanup) {}
+                        }
+                        if (!wrapped.__reported) {
+                            wrapped.__reported = true;
+                            try { cc.log('DinoLocal sound-error ' + key + ': ' + eSound); } catch (eLog) {}
+                        }
+                        return 0;
+                    }
+                };
+                wrapped.__localNativeSoundGuard = true;
+                target[key] = wrapped;
+            };
+            if (typeof DA !== 'undefined') {
+                var manager = DA.SoundManager && DA.SoundManager.prototype;
+                ['playSound', 'playAndHoldSound', 'stop', 'start', 'release'].forEach(function(key) { guard(manager, key); });
+                guard(DA.SoundTimer && DA.SoundTimer.prototype, 'doPlay');
+            }
+            if (typeof G_SoundManager !== 'undefined' && G_SoundManager) {
+                ['playSound', 'playAndHoldSound', 'playMusic', 'doPlay', 'stop', 'start', 'release'].forEach(function(key) {
+                    guard(G_SoundManager, key);
+                });
+            }
         };
-        quietSound();
+        protectSound();
         try {
             if (typeof Platform !== 'undefined' && Platform) {
                 Platform.isPlatformLogin = function() { return true; };
@@ -112,11 +130,14 @@
             settleTrace: [],
             // Inferred new-account seed from Rookie preconditions (NOT the eight test buildings).
             // Tile x/y are placeholders inside MAP_SIZE_BUILD until a real start_game dump exists.
-            // Starter without train yard (207): Rookie train step expects player to build/unlock 驯龙场 later.
-            inferredSource: 'inferred-rookie-minimal-201-206-212-202-204'
+            // User-authorized fallback: stock train tutorial requires a finished 207 at login.
+            inferredSource: 'local-starter-fallback-201-206-212-202-204-207'
         };
 
         // Natural enemy-attack settlement text trail (status + dedicated key).
+        try {
+            LocalNative.legacyPromotionLog = JSON.parse(sys.localStorage.getItem('dino.local.native.status') || '{}').log || [];
+        } catch (eLegacyPromote) { LocalNative.legacyPromotionLog = []; }
         LocalNative.pushSettleTrace = function(entry) {
             try {
                 if (!entry || typeof entry !== 'object') return;
@@ -165,7 +186,17 @@
         };
 
         LocalNative.writeRaw = function(obj) {
+            if (typeof LocalNative.validateStore === 'function' && !LocalNative.validateStore(obj))
+                throw new Error('Refusing invalid native store; previous save preserved');
             var text = JSON.stringify(obj);
+            var previous = sys.localStorage.getItem(STORE_KEY);
+            if (previous && previous !== text) {
+                // Preserve a valid previous revision before replacing the primary.
+                try {
+                    if (LocalNative.validateStore(JSON.parse(previous)))
+                        sys.localStorage.setItem(STORE_KEY + '.previous', previous);
+                } catch (ePrevious) {}
+            }
             sys.localStorage.setItem(STORE_KEY, text);
             var back = sys.localStorage.getItem(STORE_KEY);
             if (back !== text) throw new Error('native store verify failed');
@@ -223,6 +254,9 @@
                 online_time: 0,
                 login_time: Math.floor(Date.now() / 1000),
                 access_token: 'local',
+                // Comp.PVESweepManager reads these on init; max_tili from data.pve_sweep[1].
+                pve_sweep_tili: 10,
+                pve_sweep_ltt: Math.floor(Date.now() / 1000),
                 // Comp.NewMessage / LetterManager / BattleRecorder — needed for initByServer.
                 new_message: 0,
                 login_warn_attack_num: 0,
@@ -248,6 +282,16 @@
                 last_send_letter_time: 0,
                 update_info: {},
                 battle_recorders: [],
+                // Stock QuestManager.init replaces its constructor map with these
+                // server fields. A missing map aborts SoldierTrainer.addSoldier.
+                main_quest: {},
+                finish_main_quest_timestamp: 0,
+                // Account storage slots are independent of hero_attack_num.
+                // One slot is the local minimum for the fallback opening Dino.
+                hero_slot_num: 1,
+                hero_slot_buy_num: 0,
+                achieve_raw: {},
+                gained_achieve: {},
                 exp: 0,
                 experience: 0,
                 diamond: 0,
@@ -255,7 +299,9 @@
                 league_points: 0,
                 christmas_points: 0,
                 frozen_d: 0,
-                unfrozen_t: 0
+                unfrozen_t: 0,
+                pve_sweep_tili: 10,
+                pve_sweep_ltt: Math.floor(Date.now() / 1000)
             };
             for (var k in defaults) {
                 if (!Object.prototype.hasOwnProperty.call(defaults, k)) continue;
@@ -263,6 +309,7 @@
                     player[k] = defaults[k];
             }
             LocalNative.ensureAvailableStages(player, 'social-fields');
+            if (typeof LocalNative.ensureWelcomeLetter === 'function') LocalNative.ensureWelcomeLetter(player);
             return player;
         };
 
@@ -301,7 +348,8 @@
         };
 
         // After virtual raid 20001, server unlocks campaign stage 1.
-        // stars=0 means unlocked but not cleared; remainFlag=0 means attackable.
+        // [gold, wood, stars, passTime]; stock QuestManager.get_mt_stage needs
+        // passTime > 0. Older local settlements saved stars but left it at zero.
         LocalNative.ensureAvailableStages = function(player, reason) {
             if (!player || typeof player !== 'object') return false;
             var changed = false;
@@ -309,6 +357,19 @@
             if (stages !== player.availableStages) {
                 player.availableStages = stages;
                 changed = true;
+            }
+            for (var stageKey in stages) {
+                if (!Object.prototype.hasOwnProperty.call(stages, stageKey)) continue;
+                var entry = stages[stageKey];
+                if (Array.isArray(entry) && Number(entry[2]) > 0 &&
+                    !(Number(entry[3]) > 0)) {
+                    // Existing stars prove a clear, but not its historical count/time.
+                    // One is the minimal positive marker accepted by the stock client.
+                    entry[3] = 1;
+                    changed = true;
+                    LocalNative.writeStatus({step: 'pve-pass-marker-repaired',
+                        stage: stageKey, stars: entry[2], reason: reason || null});
+                }
             }
             var virtual = LocalNative.normalizeStageMap(player.finishedVirtualStages, true);
             if (virtual !== player.finishedVirtualStages) {
@@ -366,6 +427,16 @@
                 throw new Error('building[' + source.sid + '].bt is invalid');
             out.bs = out.state = state;
             out.bt = out.beginTime = begin;
+            var family = Math.floor(Number(source.typeid) / 100);
+            if ((family === 201 || family === 203 || family === 205) &&
+                (!out.sto || typeof out.sto !== 'object')) {
+                out.sto = {1: Number(source.woodstorage) || 0, 2: Number(source.goldstorage) || 0};
+            }
+            if (family === 202 || family === 204) {
+                if (out.sto == null) out.sto = Number(source.currentStorage) || 0;
+                if (!isFinite(out.lpt)) out.lpt = isFinite(source.lastCollectTime)
+                    ? source.lastCollectTime * 3600 : Math.floor(Date.now() / 1000);
+            }
             return out;
         };
 
@@ -408,10 +479,13 @@
                 level: 1,
                 mutateid: 0,
                 unit_mutateid: 0,
-                attack_index: 1,
+                aidx: 0,
+                rct: Math.floor(Date.now() / 1000),
+                aht: Math.floor(Date.now() / 1000),
                 defense_id: 0,
                 donate_id: 0,
-                skill_slots: [],
+                skill_id: 1000001,
+                skill_slots: [{sid: 10000, lv: 1, exp: 0}],
                 gift: 0,
                 state: attackState,
                 life: 400,
@@ -421,24 +495,214 @@
         LocalNative.defaultHeros = function() {
             return [LocalNative.defaultStarterHero()];
         };
+        // Stock HeroAttributeController.setDefenseID → rpc_s_set_hero_defense({defense_id}).
+        // Dump/init use did; invasion envelopes also filter defense_id. Persist both.
+        LocalNative.applyHeroDefense = function(params) {
+            params = params || {};
+            var store = LocalNative.readRaw();
+            var roster = store && store.level && store.level.heros || [];
+            var defenseId = params.defense_id;
+            if (defenseId == null) defenseId = '';
+            for (var i = 0; i < roster.length; i++) {
+                if (String(roster[i].sid) !== String(params.uid)) continue;
+                roster[i].did = defenseId;
+                roster[i].defense_id = defenseId;
+                LocalNative.writeRaw(store);
+                LocalNative.writeStatus({
+                    step: 'hero-defense-saved',
+                    sid: roster[i].sid,
+                    did: defenseId === '' ? '' : defenseId
+                });
+                return true;
+            }
+            LocalNative.writeStatus({step: 'hero-defense-missing', uid: params.uid});
+            return false;
+        };
+        LocalNative.normalizeHeroExperience = function(level, hero, added) {
+            var nest = 0;
+            for (var i = 0; i < (level.units || []).length; i++) {
+                var typeid = Number(level.units[i].typeid);
+                if (Math.floor(typeid / 100) === 206) nest = Math.max(nest, typeid % 100);
+            }
+            var limit = data.hero_number && data.hero_number[nest];
+            var cap = limit && Number(limit.hero_lv_max);
+            if (!(cap > 0) || !data.hero_lv_data) throw new Error('Missing hero experience limit');
+            var lv = Number(hero.lv) || Number(hero.level) || 1;
+            var xp = Math.max(0, Number(hero.xp) || 0) + Math.max(0, Number(added) || 0);
+            var oldLv = lv, oldXp = hero.xp;
+            // Stock MatchEnd calls ExpBar.addGrowthXp. Persist the same threshold
+            // transitions separately so its display animation cannot lose levels.
+            while (lv < cap) {
+                var cfg = data.hero_lv_data[lv], need = cfg && Number(cfg.hero_exp);
+                if (!(need > 0)) throw new Error('Missing hero experience threshold ' + lv);
+                if (xp < need) break;
+                xp -= need; lv++;
+            }
+            // Do not downgrade pre-existing gifted heroes above the nest limit.
+            if (lv === cap) {
+                var maxCfg = data.hero_lv_data[lv];
+                if (maxCfg && Number(maxCfg.hero_exp) > 0) xp = Math.min(xp, Number(maxCfg.hero_exp));
+            }
+            hero.lv = hero.level = lv; hero.xp = xp;
+            return lv !== oldLv || xp !== oldXp;
+        };
+        // Stock SkillReplace/SkillUpgrade look up
+        // data.skill_to_hero[sid]['skill_exp_' + calSumExp(lv, exp)]. Missing slot.exp
+        // makes the key skill_exp_undefined and the UI shows "undefined".
+        LocalNative.normalizeHeroSkillSlots = function(hero) {
+            if (!hero) return false;
+            var slots = hero.skill_slots;
+            if (!Array.isArray(slots)) return false;
+            var changed = false;
+            for (var i = 0; i < slots.length; i++) {
+                var slot = slots[i];
+                if (!slot || typeof slot !== 'object') continue;
+                if (!(Number(slot.lv) > 0)) { slot.lv = 1; changed = true; }
+                if (slot.exp == null || !isFinite(Number(slot.exp)) || Number(slot.exp) < 0) {
+                    slot.exp = 0;
+                    changed = true;
+                }
+            }
+            return changed;
+        };
+
+        LocalNative.getMaxSunshineCapacity = function(level) {
+            try {
+                var rm = typeof G_Player !== 'undefined' && G_Player &&
+                    G_Player.getComponent && G_Player.getComponent('ResourceManager');
+                var woodType = typeof RES_TYPE_WOOD !== 'undefined' ? RES_TYPE_WOOD : 1;
+                if (rm && typeof rm.getMaxRes === 'function') {
+                    var maxLive = Number(rm.getMaxRes(woodType));
+                    if (maxLive > 0) return maxLive;
+                }
+                if (rm && rm.maxRes) {
+                    var maxArr = Number(rm.maxRes[woodType]);
+                    if (maxArr > 0) return maxArr;
+                }
+            } catch (eMax) {}
+            level = level || (LocalNative.readRaw() && LocalNative.readRaw().level);
+            var total = 0;
+            var units = (level && level.units) || [];
+            for (var u = 0; u < units.length; u++) {
+                var cfg = LocalNative.lookupUnitMain(units[u].typeid);
+                total += Number(cfg && cfg.wood_storage) || 0;
+            }
+            return total;
+        };
+
+        LocalNative.resolveSkillWoodCost = function(slot, level) {
+            var lv = Math.max(1, Number(slot && slot.lv) || 1);
+            var exp = Math.max(0, Number(slot && slot.exp) || 0);
+            var sumExp = exp;
+            if (typeof UI !== 'undefined' && UI.SkillReplace &&
+                typeof UI.SkillReplace.calSumExp === 'function') {
+                sumExp = UI.SkillReplace.calSumExp(lv, exp);
+            } else if (typeof data !== 'undefined' && data.skill_lv_client) {
+                for (var i = 1; i < lv; i++)
+                    sumExp += Number(data.skill_lv_client[i] && data.skill_lv_client[i].skill_exp) || 0;
+            }
+            var sid = Number(slot && slot.sid);
+            var row = typeof data !== 'undefined' && data.skill_to_hero && data.skill_to_hero[sid];
+            var cost = row && row['skill_exp_' + sumExp];
+            if (cost != null && isFinite(Number(cost)) && Number(cost) >= 0)
+                return {cost: Number(cost), sumExp: sumExp, source: 'skill_to_hero'};
+            var fallback = Math.max(1, Math.floor(LocalNative.getMaxSunshineCapacity(level) / 3));
+            return {cost: fallback, sumExp: sumExp, source: 'max-sunshine-1/3'};
+        };
+
+        LocalNative.installSkillReplaceCostFix = function() {
+            function patch(proto, field, labelNode) {
+                if (!proto || typeof proto.setButton !== 'function' || proto.setButton.__localSkillCost)
+                    return;
+                var original = proto.setButton;
+                proto.setButton = function() {
+                    if (this.oldSlot) {
+                        if (!(Number(this.oldSlot.lv) > 0)) this.oldSlot.lv = 1;
+                        if (this.oldSlot.exp == null || !isFinite(Number(this.oldSlot.exp)) ||
+                            Number(this.oldSlot.exp) < 0) this.oldSlot.exp = 0;
+                    }
+                    var ret = original.apply(this, arguments);
+                    var cur = this[field];
+                    if (cur != null && isFinite(Number(cur))) return ret;
+                    var resolved = LocalNative.resolveSkillWoodCost(this.oldSlot);
+                    this[field] = resolved.cost;
+                    var node = this[labelNode];
+                    if (node && typeof node.setString === 'function')
+                        node.setString(String(resolved.cost));
+                    if (node && typeof UI !== 'undefined' && UI.NumericLable &&
+                        typeof UI.NumericLable.setResourceColor === 'function') {
+                        var woodType = typeof RES_TYPE_WOOD !== 'undefined' ? RES_TYPE_WOOD : 1;
+                        UI.NumericLable.setResourceColor(node, woodType, resolved.cost);
+                    }
+                    LocalNative.writeStatus({
+                        step: 'skill-replace-cost-fix',
+                        field: field,
+                        sid: this.oldSlot && this.oldSlot.sid,
+                        sumExp: resolved.sumExp,
+                        cost: resolved.cost,
+                        source: resolved.source
+                    });
+                    return ret;
+                };
+                proto.setButton.__localSkillCost = true;
+            }
+            if (typeof UI === 'undefined') return;
+            patch(UI.SkillReplace && UI.SkillReplace.prototype, 'replaceResNum', 'reResNum');
+            patch(UI.SkillUpgrade && UI.SkillUpgrade.prototype, 'enforceResNum', 'enResNum');
+        };
+
+        LocalNative.ensureHeroSkill = function(hero, preferred) {
+            var changed = false;
+            var slots = hero.skill_slots || [];
+            var has = false;
+            for (var i = 0; i < slots.length; i++) {
+                if (Number(slots[i].sid) > 0 && Number(slots[i].lv) > 0) { has = true; break; }
+            }
+            if (!has) {
+                var id = Number(preferred || hero.skill_id) || 0;
+                if (!id && hero.sid === 'hero_slot_1' && Number(hero.typeid) === 10401) id = 1000001;
+                if (!id) {
+                    var family = Math.floor(Number(hero.typeid) / 100);
+                    var mapping = data.hero_to_skill && data.hero_to_skill[family];
+                    var candidates = mapping && mapping.skill_id || [], pool = [];
+                    for (var s = 0; s < candidates.length; s++) {
+                        var sid = Number(candidates[s]);
+                        var cfg = data.skill_to_hero && data.skill_to_hero[sid];
+                        // Learnable ordinary skills have stock learning weights; summon,
+                        // mutation and tutorial-only skills have no such weights.
+                        if (cfg && Number(cfg.to_hero_id) === family &&
+                            Number(cfg.skill_weight_1) > 0 && data.skill_data[sid * 100 + 1]) pool.push(sid);
+                    }
+                    if (!pool.length) throw new Error('Missing ordinary hero skills: ' + hero.typeid);
+                    id = pool[Math.floor(Math.random() * pool.length)] * 100 + 1;
+                }
+                hero.skill_id = id;
+                hero.skill_slots = [{sid: Math.floor(id / 100), lv: (id % 100) || 1, exp: 0}];
+                changed = true;
+            }
+            if (LocalNative.normalizeHeroSkillSlots(hero)) changed = true;
+            return changed;
+        };
         // Stock BUILD ILD iterates units, then __buildUnit routes is_hero to
         // HeroManager.createHero. Keep the saved roster separate from buildings.
         LocalNative.makeHomeInitDict = function(level) {
             var out = {}, key;
             for (key in level) if (Object.prototype.hasOwnProperty.call(level, key)) out[key] = level[key];
-            out.units = (level.units || []).map(function(u) {
-                // Heroes use their own state enum; keep their records intact.
-                if (Math.floor(Number(u.typeid) / 100) < 200) return u;
-                return LocalNative.toBuildingRecord(u);
-            });
-            var seen = {};
-            for (var i = 0; i < out.units.length; i++) seen[String(out.units[i].sid)] = true;
+            // Stock __buildUnit assigns setSid(key), not params.sid. Supply a
+            // server-ID map so array indexes cannot collide with player/hero IDs.
+            out.units = {};
+            var units = level.units || [];
+            for (var i in units) {
+                var u = units[i];
+                var sid = u.sid != null ? u.sid : i;
+                out.units[String(sid)] = Math.floor(Number(u.typeid) / 100) < 200
+                    ? u : LocalNative.toBuildingRecord(u);
+            }
             var heros = level.heros || [];
             for (var h = 0; h < heros.length; h++) {
                 var hero = heros[h];
-                if (!hero || seen[String(hero.sid)]) continue;
-                out.units.push(hero);
-                seen[String(hero.sid)] = true;
+                if (!hero || out.units.hasOwnProperty(String(hero.sid))) continue;
+                out.units[String(hero.sid)] = hero;
             }
             if (out.player) LocalNative.ensureAvailableStages(out.player, 'home-init');
             return out;
@@ -446,14 +710,75 @@
         LocalNative.ensureStarterHeros = function(level) {
             if (!level || typeof level !== 'object') return false;
             if (!(level.heros instanceof Array)) level.heros = [];
-            if (level.heros.length > 0) return false;
-            level.heros.push(LocalNative.defaultStarterHero());
-            return true;
+            var changed = false;
+            if (level.heros.length === 0) {
+                level.heros.push(LocalNative.defaultStarterHero());
+                changed = true;
+            }
+            // Correct only our legacy starter record; preserve explicit server aidx
+            // and other heroes' assignment/state. Stock reads aidx, never attack_index.
+            for (var i = 0; i < level.heros.length; i++) {
+                var hero = level.heros[i];
+                if (LocalNative.ensureHeroSkill(hero)) changed = true;
+                if (typeof data !== 'undefined' && data.hero_lv_data && data.hero_number &&
+                    LocalNative.normalizeHeroExperience(level, hero, 0)) changed = true;
+                // Stock dump writes did; some local paths only kept defense_id.
+                if (hero.did != null && hero.did !== '' &&
+                    (hero.defense_id == null || hero.defense_id === '' || hero.defense_id === 0)) {
+                    hero.defense_id = hero.did;
+                    changed = true;
+                } else if (hero.defense_id != null && hero.defense_id !== '' && hero.defense_id !== 0 &&
+                    (hero.did == null || hero.did === '')) {
+                    hero.did = hero.defense_id;
+                    changed = true;
+                }
+                if (hero.sid === 'hero_slot_1' && hero.typeid === LocalNative.STARTER_HERO_TYPEID &&
+                    hero.aidx == null && hero.attack_index === 1) {
+                    hero.aidx = 0;
+                    delete hero.attack_index;
+                    changed = true;
+                }
+                if (hero.sid === 'hero_slot_1' && hero.typeid === LocalNative.STARTER_HERO_TYPEID) {
+                    if (hero.rct == null) { hero.rct = Math.floor(Date.now() / 1000); changed = true; }
+                    if (hero.aht == null) { hero.aht = Math.floor(Date.now() / 1000); changed = true; }
+                }
+            }
+            // Reconcile the missing stock stage-2 first-win hero reward for old
+            // local saves too: pve_stage[2].pve_first_reward=8004 -> hero 9803 ->10501.
+            // Stable receipt prevents a sold/consumed reward from being granted again.
+            var stage2 = level.player && level.player.availableStages && level.player.availableStages[2];
+            if (stage2 && Number(stage2[2]) > 0 && !level.localStage2HeroReward) {
+                var rewardSid = 'pve_first_2_hero';
+                var exists = false;
+                for (var h = 0; h < level.heros.length; h++) {
+                    if (level.heros[h].sid === rewardSid) exists = true;
+                }
+                if (!exists) {
+                    var reward = LocalNative.defaultStarterHero();
+                    reward.sid = rewardSid;
+                    reward.typeid = 10501;
+                    reward.unit_type = 105;
+                    reward.state = typeof HERO_STATE_IDLE !== 'undefined' ? HERO_STATE_IDLE : 0;
+                    reward.aidx = -1;
+                    // Let stock attributes calculate full initial life/health.
+                    delete reward.life;
+                    delete reward.health;
+                    reward.lv = 1;
+                    reward.xp = 0;
+                    reward.skill_slots = [{sid: 151, lv: 1, exp: 0}];
+                    reward.skill_id = 15101;
+                    level.heros.push(reward);
+                }
+                level.player.hero_slot_num = Math.max(Number(level.player.hero_slot_num) || 0, level.heros.length);
+                level.localStage2HeroReward = true;
+                changed = true;
+            }
+            return changed;
         };
 
         LocalNative.defaultLevelDict = function() {
-            // Rookie-inferred starter: home / hero nest / builder / sunlight well / silver mine.
-            // No 207 驯龙场 — tutorial later guides train; upgrading 207 needs home rely_base_lv>=2.
+            // Local fallback; official start_game layout is still unavailable.
+            // Finished 207 is required by stock tutorial 201501; preserve upgrade gating.
             // 301/205/203 are built during tutorial.
             // user_config {} = brand-new Rookie bits so GH_story_1..3 then 201100(301) can start.
             // heros: opening Dino already in attack slot (city lv1 attack_num=1).
@@ -471,7 +796,8 @@
                     LocalNative.unit(2, 20601, 20, 28),
                     LocalNative.unit(3, 21201, 26, 36),
                     LocalNative.unit(4, 20201, 34, 28),
-                    LocalNative.unit(5, 20401, 34, 36)
+                    LocalNative.unit(5, 20401, 34, 36),
+                    LocalNative.unit(6, 20701, 20, 36)
                 ],
                 walls: [],
                 model_info: {},
@@ -481,56 +807,40 @@
             };
         };
 
-        // Old seed had 20701 (驯龙场) and lacked 202/204; that stalls Rookie train prompts.
-        // Migrate in place: drop starter 207, ensure 20201+20401, keep tutorial-built units (301/205/…).
+        // Keep every saved building. Only fill the missing user-authorized train yard.
         LocalNative.normalizeStarterBuildings = function(level) {
             if (!level || !(level.units instanceof Array)) return false;
-            var has207 = false;
-            var has202 = false;
-            var has204 = false;
-            var i;
-            for (i = 0; i < level.units.length; i++) {
-                var fam0 = Math.floor(Number(level.units[i].typeid) / 100);
-                if (fam0 === 207) has207 = true;
-                if (fam0 === 202) has202 = true;
-                if (fam0 === 204) has204 = true;
-            }
-            if (!has207 && has202 && has204) return false;
-            if (!has207) return false;
-
-            var kept = [];
-            var byFam = {};
             var nextSid = 1;
-            for (i = 0; i < level.units.length; i++) {
+            for (var i = 0; i < level.units.length; i++) {
                 var u = level.units[i];
-                var fam = Math.floor(Number(u.typeid) / 100);
-                var sid = Number(u.sid) || 0;
-                if (sid >= nextSid) nextSid = sid + 1;
-                if (fam === 207) continue;
-                if (fam === 201 || fam === 206 || fam === 212 || fam === 202 || fam === 204) {
-                    if (byFam[fam]) continue;
-                    byFam[fam] = u;
+                if (Math.floor(Number(u.typeid) / 100) === 207) return false;
+                nextSid = Math.max(nextSid, (Number(u.sid) || 0) + 1);
+            }
+            // Placeholder coordinates, never an official layout. Avoid saved buildings
+            // using stock footprints; the conservative span works for either tile anchor.
+            function free(x, y) {
+                for (var j = 0; j < level.units.length; j++) {
+                    var saved = level.units[j];
+                    if (Math.floor(Number(saved.typeid) / 100) < 200) continue;
+                    var cfg = typeof data !== 'undefined' && data.unit_main && data.unit_main[saved.typeid];
+                    var sx = Math.max(5, Number(cfg && cfg.tilesize_x) || 6);
+                    var sy = Math.max(5, Number(cfg && cfg.tilesize_y) || 6);
+                    if (Math.abs(x - saved.x) < sx && Math.abs(y - saved.y) < sy) return false;
                 }
-                kept.push(u);
+                return true;
             }
-            function ensure(fam, typeid, x, y, extra) {
-                if (byFam[fam]) return;
-                var nu = LocalNative.unit(nextSid++, typeid, x, y, extra || null);
-                kept.push(nu);
-                byFam[fam] = nu;
+            var x = 20, y = 36;
+            if (!free(x, y)) {
+                var found = false;
+                for (y = 10; y <= 44 && !found; y++) {
+                    for (x = 10; x <= 44; x++) {
+                        if (free(x, y)) { found = true; break; }
+                    }
+                    if (found) break;
+                }
+                if (!found) throw new Error('No free tile for starter train yard');
             }
-            ensure(201, 20101, 28, 28, {
-                currentStorage: 5000,
-                goldstorage: 5000,
-                woodstorage: 5000,
-                gold_storage_cur: 5000,
-                wood_storage_cur: 5000
-            });
-            ensure(206, 20601, 20, 28);
-            ensure(212, 21201, 26, 36);
-            ensure(202, 20201, 34, 28);
-            ensure(204, 20401, 34, 36);
-            level.units = kept;
+            level.units.push(LocalNative.unit(nextSid, 20701, x, y));
             return true;
         };
 
@@ -672,8 +982,10 @@
             if (lv.units.length < 1) return false;
             for (var i = 0; i < lv.units.length; i++) {
                 var u = lv.units[i];
-                if (!u || typeof u.sid !== 'number' || typeof u.typeid !== 'number') return false;
-                if (typeof u.x !== 'number' || typeof u.y !== 'number') return false;
+                if (!u || (typeof u.sid !== 'number' && typeof u.sid !== 'string') ||
+                    String(u.sid).length === 0 || typeof u.typeid !== 'number' || !isFinite(u.typeid)) return false;
+                if (typeof u.x !== 'number' || !isFinite(u.x) ||
+                    typeof u.y !== 'number' || !isFinite(u.y)) return false;
             }
             return true;
         };
@@ -687,7 +999,10 @@
                 if (!LocalNative.validateStore(existing))
                     throw new Error('native store schema mismatch');
                 existing.level.player.login_time = Math.floor(Date.now() / 1000);
+                LocalNative.ensureRookieSign(existing.level);
+                LocalNative.ensureMonthlySign(existing.level);
                 LocalNative.ensurePlayerSocialFields(existing.level.player);
+                LocalNative.repairPromotionCounter(existing.level);
                 if (!existing.level.user_config) existing.level.user_config = {};
                 (existing.level.units || []).forEach(function(u) {
                     if (u.typeid != null) {
@@ -698,7 +1013,7 @@
                 });
                 // Empty-nest local saves: seed opening Dino so Rookie attack-team steps can run.
                 LocalNative.ensureStarterHeros(existing.level);
-                // Drop pre-seeded 驯龙场; ensure 日光井+龙银矿 for train-tutorial path.
+                // Existing saves keep their buildings and receive a missing starter train yard.
                 if (LocalNative.normalizeStarterBuildings(existing.level)) {
                     existing.source = LocalNative.inferredSource;
                     existing.revision = (existing.revision || 0) + 1;
@@ -726,6 +1041,8 @@
                 updatedAt: Math.floor(Date.now() / 1000),
                 level: LocalNative.defaultLevelDict()
             };
+            LocalNative.ensureRookieSign(store.level);
+            LocalNative.ensureMonthlySign(store.level);
             LocalNative.writeRaw(store);
             return { store: store, created: true };
         };
@@ -734,6 +1051,46 @@
             var store = LocalNative.readRaw();
             // Progress is persisted by RPC, not by dumpLevelData's empty/stale config.
             if (store && store.level) {
+                if (store.level.localStage2HeroReward) levelDict.localStage2HeroReward = true;
+                if (store.level.localTutorialEgg) levelDict.localTutorialEgg = store.level.localTutorialEgg;
+                if (store.level.localPveFirstRewards) levelDict.localPveFirstRewards = store.level.localPveFirstRewards;
+                if (store.level.localTrader) levelDict.localTrader = store.level.localTrader;
+                if (store.level.player && store.level.player.arena_state) {
+                    levelDict.player.arena_state = JSON.parse(JSON.stringify(store.level.player.arena_state));
+                    levelDict.player.arena_score = store.level.player.arena_score;
+                    ['localArenaSequence', 'localArenaBattle', 'localArenaPromotionFailure'].forEach(function(key) {
+                        if (Object.prototype.hasOwnProperty.call(store.level, key))
+                            levelDict[key] = JSON.parse(JSON.stringify(store.level[key]));
+                        else delete levelDict[key];
+                    });
+                    // Server-owned attempt counters must not be replaced by a
+                    // stale client dump while saving other home changes.
+                    var period = data.period_control[GlobalDefine.ARENA_ATTACK_PERIOD_ID].period_type;
+                    var savedCounters = store.level.player.event_counters;
+                    if (savedCounters && savedCounters[period] &&
+                        savedCounters[period][GlobalDefine.ARENA_ATTACK_PERIOD_ID]) {
+                        var counters = levelDict.player.event_counters ||
+                            (levelDict.player.event_counters = {});
+                        var bucket = counters[period] || (counters[period] = {});
+                        bucket[GlobalDefine.ARENA_ATTACK_PERIOD_ID] = JSON.parse(JSON.stringify(
+                            savedCounters[period][GlobalDefine.ARENA_ATTACK_PERIOD_ID]));
+                    }
+                }
+                if (store.level.localRookieSign) {
+                    levelDict.localRookieSign = store.level.localRookieSign;
+                    levelDict.player.rookie_days = store.level.player.rookie_days;
+                    ['diamond', 'spirit', 'package'].forEach(function(key) {
+                        if (levelDict.player[key] === undefined)
+                            levelDict.player[key] = store.level.player[key];
+                    });
+                    LocalNative.ensureRookieSign(levelDict);
+                }
+                if (store.level.localMonthlySign) {
+                    levelDict.localMonthlySign = store.level.localMonthlySign;
+                    if (levelDict.player.diamond === undefined)
+                        levelDict.player.diamond = store.level.player.diamond;
+                    LocalNative.ensureMonthlySign(levelDict);
+                }
                 levelDict.user_config = store.level.user_config || levelDict.user_config || {};
                 if (levelDict.player && store.level.player && store.level.player.first_movie_played)
                     levelDict.player.first_movie_played = store.level.player.first_movie_played;
@@ -812,7 +1169,12 @@
             if (units && units.length) {
                 for (var i = 0; i < units.length; i++) {
                     var s = units[i] && units[i].sid;
-                    if (typeof s === 'number' && s > maxSid) maxSid = s;
+                    // Stock setSid/collection keys produce numeric strings on reload.
+                    if (typeof s !== 'number' &&
+                        !(typeof s === 'string' && /^[0-9]+$/.test(s))) continue;
+                    s = Number(s);
+                    if (isFinite(s) && Math.floor(s) === s && s <= 9007199254740991 &&
+                        s > maxSid) maxSid = s;
                 }
             }
             LocalNative.nextSid = maxSid + 1;
@@ -820,8 +1182,26 @@
         };
 
         LocalNative.allocateSid = function() {
-            var sid = LocalNative.nextSid++;
-            return sid;
+            var store = LocalNative.readRaw();
+            if (store && store.level) {
+                LocalNative.syncNextSid(store.level.units);
+                LocalNative.syncNextSid(store.level.heros);
+            }
+            for (;;) {
+                var sid = LocalNative.nextSid;
+                if (!(sid > 0) || sid % 1 || sid > 9007199254740991)
+                    throw new Error('Building SID range exhausted');
+                var occupied = LocalNative.pendingBuilds && LocalNative.pendingBuilds[sid];
+                if (!occupied && typeof G_UnitManager !== 'undefined' && G_UnitManager &&
+                    typeof G_UnitManager.getUnitBySID === 'function') {
+                    var live = G_UnitManager.getUnitBySID(sid);
+                    // Stock getUnitBySID -> getUnit(undefined) can return the player
+                    // registered under units.undefined. Only an exact SID is a collision.
+                    occupied = live && live.sid != null && String(live.sid) === String(sid);
+                }
+                LocalNative.nextSid = sid + 1;
+                if (!occupied) return sid;
+            }
         };
 
         LocalNative.findPendingBuildUnit = function() {
@@ -857,8 +1237,10 @@
 
         LocalNative.resolveBuildTime = function(typeid, unit) {
             try {
-                var bb = LocalNative.activeBuilder || LocalNative.getBuildingBuilder(unit);
-                if (bb && bb.buildTime != null && bb.buildTime > 0) return Number(bb.buildTime);
+                var bb = LocalNative.getBuildingBuilder(unit);
+                if (!bb && !unit) bb = LocalNative.activeBuilder;
+                if (bb && bb.buildTime != null && isFinite(Number(bb.buildTime)) &&
+                    Number(bb.buildTime) >= 0) return Number(bb.buildTime);
             } catch (e1) {}
             try {
                 if (typeof data !== 'undefined' && data.unit_main && typeid != null) {
@@ -1118,6 +1500,8 @@
         LocalNative.seedStarterResources = function() {
             LocalNative.writeStatus({step: 'seed-starter-res-enter'});
             try {
+                var grantedStore = LocalNative.readRaw();
+                if (grantedStore && grantedStore.starterResGranted) return false;
                 var pack = LocalNative.NEW_ACCOUNT_STARTER;
                 var rm = LocalNative.getResourceManager();
                 if (!rm) {
@@ -1131,6 +1515,10 @@
                 var haveGold0 = LocalNative.readResAmount(rm, goldType);
                 var haveWood0 = LocalNative.readResAmount(rm, woodType);
                 if (haveGold0 >= pack.gold && haveWood0 >= pack.wood) {
+                    if (grantedStore) {
+                        grantedStore.starterResGranted = true;
+                        LocalNative.writeRaw(grantedStore);
+                    }
                     LocalNative.writeStatus({
                         step: 'seed-starter-res-skip',
                         reason: 'already-full',
@@ -1163,11 +1551,11 @@
                         var curG = LocalNative.readResAmount(rm, goldType);
                         var curW = LocalNative.readResAmount(rm, woodType);
                         if (curG < pack.gold) {
-                            rm.addRes(goldType, pack.gold - curG);
+                            rm.addRes(pack.gold - curG, goldType);
                             added.gold = pack.gold - curG;
                         }
                         if (curW < pack.wood) {
-                            rm.addRes(woodType, pack.wood - curW);
+                            rm.addRes(pack.wood - curW, woodType);
                             added.wood = pack.wood - curW;
                         }
                     }
@@ -1204,8 +1592,8 @@
                             rm.Res[woodType] = pack.wood;
                         }
                         if (typeof rm.addRes === 'function') {
-                            if (afterG < pack.gold) rm.addRes(goldType, pack.gold - afterG);
-                            if (afterW < pack.wood) rm.addRes(woodType, pack.wood - afterW);
+                            if (afterG < pack.gold) rm.addRes(pack.gold - afterG, goldType);
+                            if (afterW < pack.wood) rm.addRes(pack.wood - afterW, woodType);
                         }
                         added.forcedRes = true;
                         added.afterG = afterG;
@@ -1249,21 +1637,25 @@
             }
         };
 
+        LocalNative.collectHomeBuildings = function(gc) {
+            var list = [], buildings = gc && gc.buildings || {};
+            // Stock GameControllerBuild stores cid -> typeid, not Unit objects.
+            for (var cid in buildings) {
+                if (!Object.prototype.hasOwnProperty.call(buildings, cid)) continue;
+                var entry = buildings[cid];
+                var unit = entry && typeof entry === 'object' ? entry :
+                    G_UnitManager.getUnit(cid);
+                if (unit && LocalNative.getBuildingBuilder(unit)) list.push(unit);
+            }
+            return list;
+        };
+
         // After force-kill mid-build: finish elapsed jobs; re-schedule remaining timers.
         LocalNative.resumeConstructions = function(player) {
             try {
                 var gc = LocalNative.getBuildController();
                 if (!gc) return 0;
-                var list = [];
-                var b = gc.buildings;
-                if (b) {
-                    if (typeof b.length === 'number') {
-                        for (var i = 0; i < b.length; i++) if (b[i]) list.push(b[i]);
-                    } else {
-                        var keys = Object.keys(b);
-                        for (var j = 0; j < keys.length; j++) if (b[keys[j]]) list.push(b[keys[j]]);
-                    }
-                }
+                var list = LocalNative.collectHomeBuildings(gc);
                 var now = Math.floor(Date.now() / 1000);
                 var n = 0;
                 for (var k = 0; k < list.length; k++) {
@@ -1285,11 +1677,12 @@
                     if (remain <= 0) {
                         LocalNative.ackBuildComplete(player, sid, 'resume-immediate');
                     } else {
-                        (function(p, s, r) {
+                        (function(p, s, r, ticket) {
                             LocalNative.scheduleOnRoot(function() {
+                                if (LocalNative.pendingBuilds[s] !== ticket) return;
                                 LocalNative.ackBuildComplete(p, s, 'resume-timer');
                             }, r);
-                        })(player, sid, remain);
+                        })(player, sid, remain, LocalNative.pendingBuilds[sid]);
                     }
                     LocalNative.writeStatus({
                         step: 'resume-build',
@@ -1309,22 +1702,26 @@
 
         LocalNative.resolveBuildTarget = function(params) {
             params = params || {};
-            // Live gem-finish uses {uid: sid}; ans/complete use sid/unit.
+            // Stock Unit.callServer sends uid=this.sid; ans/complete use sid/unit.
             var sid = params.sid != null ? params.sid :
                 (params.uid != null ? params.uid :
                     (params.unit != null && typeof params.unit === 'number' ? params.unit : null));
             var cid = params.cid != null ? params.cid : null;
             var unit = null;
+            // An explicit client ID identifies the clicked building even when an
+            // old array-based city has a conflicting server-ID registration.
             try {
-                if (sid != null && typeof G_UnitManager !== 'undefined' && G_UnitManager &&
-                    typeof G_UnitManager.getUnitBySID === 'function')
-                    unit = G_UnitManager.getUnitBySID(sid);
-            } catch (e1) {}
-            try {
-                if (!unit && cid != null && typeof G_UnitManager !== 'undefined' && G_UnitManager &&
+                if (cid != null && typeof G_UnitManager !== 'undefined' && G_UnitManager &&
                     typeof G_UnitManager.getUnit === 'function')
                     unit = G_UnitManager.getUnit(cid);
-            } catch (e2) {}
+                if (unit && !LocalNative.getBuildingBuilder(unit)) unit = null;
+            } catch (e1) { unit = null; }
+            try {
+                if (!unit && sid != null && typeof G_UnitManager !== 'undefined' && G_UnitManager &&
+                    typeof G_UnitManager.getUnitBySID === 'function')
+                    unit = G_UnitManager.getUnitBySID(sid);
+                if (unit && !LocalNative.getBuildingBuilder(unit)) unit = null;
+            } catch (e2) { unit = null; }
             if (!unit) {
                 try { unit = LocalNative.findPendingBuildUnit(); } catch (e3) {}
             }
@@ -1364,6 +1761,7 @@
                     if (typeof G_UnitManager !== 'undefined' && G_UnitManager &&
                         typeof G_UnitManager.getUnitBySID === 'function')
                         unit = G_UnitManager.getUnitBySID(sid);
+                    if (unit && !LocalNative.getBuildingBuilder(unit)) unit = null;
                 } catch (e6) {}
             }
             return {sid: sid, cid: cid, unit: unit};
@@ -1443,10 +1841,10 @@
 
         // Stock Unit.onBuilderFinishBuilding(params) needs old_config / new_config / coord.
         // Calling it with no args throws and can leave the unit visually destroyed.
-        LocalNative.buildFinishSwapParams = function(unit) {
+        LocalNative.buildFinishSwapParams = function(unit, targetType) {
             if (!unit) return null;
             var oldType = unit.typeid != null ? unit.typeid : null;
-            var realType = LocalNative.resolveRealTypeID(unit);
+            var realType = targetType != null ? targetType : LocalNative.resolveRealTypeID(unit);
             var oldConfig = null;
             try { oldConfig = unit.config || unit.cfg || null; } catch (eC) {}
             if (!oldConfig) oldConfig = LocalNative.lookupUnitMain(oldType);
@@ -1480,16 +1878,27 @@
                 });
                 return null;
             }
-            return {
+            var finish = {
                 old_config: oldConfig || newConfig,
                 new_config: newConfig,
                 coord: coord || {x: 24, y: 24},
                 typeid: realType,
+                x: (coord || {x: 24}).x,
+                y: (coord || {y: 24}).y,
+                bs: BUILD_STATE_FINISH,
+                bt: 0,
                 unit_type: newConfig.unit_type != null ? newConfig.unit_type :
                     (typeof realType === 'number' ? Math.floor(realType / 100) : null),
                 unit_level: newConfig.lv != null ? newConfig.lv :
                     (typeof realType === 'number' ? realType % 100 : 1)
             };
+            // Refresh destroys all components; carry their current server fields
+            // before that happens, including zero-valued storage and train queues.
+            var preserved = LocalNative.snapshotBuildingRecord(unit);
+            for (var pk in preserved) {
+                if (finish[pk] === undefined) finish[pk] = preserved[pk];
+            }
+            return finish;
         };
 
         LocalNative.unitStillOnMap = function(unit) {
@@ -1541,14 +1950,20 @@
                 if (qm.main_quest == null) qm.main_quest = {};
                 if (qm.clientMainQuest == null) qm.clientMainQuest = {};
                 if (qm.finish_main_quest_timestamp == null) qm.finish_main_quest_timestamp = 0;
+                try { LocalNative.ensureLiveQuestSeed(); } catch (eSeed) {}
+                LocalNative.installDailyQuestProgress(qm);
                 ['updateCurrent', 'refreshOrHideQuestTipInfo', '_setCurrentQuestUI',
-                 'finishMainQuest', '_clearQuestDataOnFinish', '_getMainQuestData'].forEach(function(fn) {
+                 'finishMainQuest', '_clearQuestDataOnFinish', '_getMainQuestData',
+                 'getDailyQuestOrderedDict', 'getMainQuestOrderedDict'].forEach(function(fn) {
                     if (typeof qm[fn] !== 'function' || qm[fn].__localNativePatched) return;
                     var orig = qm[fn];
                     qm[fn] = function() {
                         try {
                             if (this.main_quest == null) this.main_quest = {};
                             if (this.clientMainQuest == null) this.clientMainQuest = {};
+                            if (fn === 'getDailyQuestOrderedDict' ||
+                                fn === 'getMainQuestOrderedDict')
+                                LocalNative.ensureLiveQuestSeed();
                             return orig.apply(this, arguments);
                         } catch (eQ) {
                             LocalNative.writeStatus({
@@ -1686,18 +2101,74 @@
             return false;
         };
 
+        LocalNative.snapshotBuildingRecord = function(unit) {
+            var out = {}, key;
+            var store = LocalNative.readRaw();
+            var records = store && store.level && store.level.units || [];
+            for (var i = 0; i < records.length; i++) {
+                if (String(records[i].sid) === String(unit.sid)) {
+                    for (key in records[i]) out[key] = records[i][key];
+                    break;
+                }
+            }
+            function cp(name) {
+                if (unit.componentList && unit.componentList[name]) return unit.componentList[name];
+                return unit.getComponent ? unit.getComponent(name) : null;
+            }
+            var bb = cp('BuildingBuilder');
+            var tile = cp('TileHolder');
+            var coord = tile && tile.getTileCoord ? tile.getTileCoord() : null;
+            out.sid = unit.sid;
+            out.typeid = unit.typeid;
+            out.unit_type = Math.floor(Number(unit.typeid) / 100);
+            out.unit_level = Number(unit.typeid) % 100;
+            out.unit_mutateid = unit.mutateid || 0;
+            if (coord) { out.x = coord.x; out.y = coord.y; }
+            if (bb) { out.bs = out.state = bb.state; out.bt = out.beginTime = bb.beginTime || 0; }
+            var holder = cp('ResourceStorage') || cp('ResourceHolder');
+            if (holder && holder.currentStorage && typeof holder.currentStorage === 'object') {
+                out.sto = JSON.parse(JSON.stringify(holder.currentStorage));
+                out.goldstorage = Number(holder.currentStorage[2]) || 0;
+                out.woodstorage = Number(holder.currentStorage[1]) || 0;
+            }
+            var productor = cp('ResourceProductor');
+            if (productor) {
+                out.sto = Number(productor.currentStorage) || 0;
+                out.lastCollectTime = productor.lastCollectTime;
+                out.lpt = isFinite(productor.lastCollectTime) ? productor.lastCollectTime * 3600
+                    : Math.floor(Date.now() / 1000);
+            }
+            var trainer = cp('SoldierTrainer');
+            if (trainer) {
+                out.tbuf = trainer.trainBuffer.slice();
+                out.sds = JSON.parse(JSON.stringify(trainer.soldiers));
+                out.ep = JSON.parse(JSON.stringify(trainer.elitePost));
+                out.ltt = trainer.lastTrainBeginTime;
+                out.bn = trainer.boostTrainNum;
+                out.autoCastTraining = trainer._autoCastTraining;
+            }
+            var tech = cp('TechController');
+            if (tech) {
+                out.training_tech = tech.training_tech || 0;
+                out.last_train_tech_time = tech.last_train_tech_time || 0;
+                out.trained_time = tech.trained_time || 0;
+            }
+            return out;
+        };
+
         LocalNative.persistFinishedUnit = function(unit) {
             if (!unit || unit.sid == null) return false;
             try {
-                var dumped = null;
+                var dumped = LocalNative.snapshotBuildingRecord(unit);
                 if (typeof unit.dumpData === 'function') {
                     try { dumped = unit.dumpData(); } catch (eD) {}
                 }
                 if (!dumped || typeof dumped !== 'object') {
                     var x = null, y = null;
                     try {
-                        var th = unit.getComponent && (unit.getComponent(
-                            (typeof Comp !== 'undefined' && Comp.TileHolder) ? Comp.TileHolder : 'TileHolder'));
+                        var th = unit.getComponent && unit.getComponent('TileHolder');
+                        if (!th && unit.getComponent && typeof Comp !== 'undefined' && Comp.TileHolder)
+                            th = unit.getComponent(Comp.TileHolder);
                         var c = th && th.getTileCoord ? th.getTileCoord() : null;
                         if (c) { x = c.x; y = c.y; }
                     } catch (eC) {}
@@ -1724,7 +2195,7 @@
                 var units = store.level.units;
                 var found = false;
                 for (var i = 0; i < units.length; i++) {
-                    if (units[i] && units[i].sid === unit.sid) {
+                    if (units[i] && String(units[i].sid) === String(unit.sid)) {
                         units[i] = dumped;
                         found = true;
                         break;
@@ -1780,7 +2251,16 @@
             var beforeState = bb.state;
             var didUpgradeFinish = false;
             var didModelSwap = false;
-            var swapParams = null;
+            var pendingFinish = LocalNative.pendingBuilds && LocalNative.pendingBuilds[unit.sid];
+            var targetType = pendingFinish && pendingFinish.targetType;
+            if (targetType == null) {
+                targetType = LocalNative.resolveRealTypeID(unit);
+                // Existing non-placeholder buildings in BUILDING state are upgrades.
+                if (beforeState === BUILD_STATE_BUILDING && beforeType % 100 !== 0)
+                    targetType = Number(beforeType) + 1;
+            }
+            var swapParams = LocalNative.buildFinishSwapParams(unit, targetType);
+            if (!swapParams) return false;
             var visibleBefore = LocalNative.unitHasVisibleRoot(unit);
             try {
                 if (typeof bb.upgradeFinish === 'function') {
@@ -1800,40 +2280,12 @@
                     didUpgradeFinish = true;
                 }
 
-                swapParams = LocalNative.buildFinishSwapParams(unit);
-                // Default offline path: do NOT call stock onBuilderFinishBuilding.
-                // Live runs: it destroys the CCBI then throws on QuestManager.main_quest,
-                // leaving an invisible unit. Soft-stamp typeid and repair if needed.
-                if (swapParams) {
-                    try {
-                        var tid0 = unit.typeid;
-                        var real0 = swapParams.typeid;
-                        unit.typeid = real0;
-                        if (swapParams.new_config) {
-                            unit.config = swapParams.new_config;
-                            unit.cfg = swapParams.new_config;
-                        }
-                        if (typeof unit.unit_level !== 'undefined')
-                            unit.unit_level = swapParams.unit_level != null ? swapParams.unit_level :
-                                (typeof real0 === 'number' ? real0 % 100 : unit.unit_level);
-                        try {
-                            if (bb.typeid != null) bb.typeid = real0;
-                            bb.state = BUILD_STATE_FINISH;
-                        } catch (eBt0) {}
-                        didModelSwap = true;
-                        LocalNative.writeStatus({
-                            step: 'finishViaBuilder-soft-typeid',
-                            from: tid0,
-                            to: real0,
-                            visible: LocalNative.unitHasVisibleRoot(unit)
-                        });
-                    } catch (eSoft) {
-                        LocalNative.writeStatus({
-                            step: 'finishViaBuilder-soft-ERR',
-                            error: String(eSoft)
-                        });
-                    }
-                }
+                // Stock refresh consumes the server's new unit_level/typeid, updates
+                // unit.level and recreates every component and the upgraded model.
+                // Quest initialization fields now prevent the prior main_quest crash.
+                unit.onBuilderFinishBuilding(swapParams);
+                if (typeof unit.updateBuildingActionBar === 'function') unit.updateBuildingActionBar();
+                didModelSwap = unit.typeid === targetType && unit.level === swapParams.unit_level;
 
                 // If upgradeFinish somehow cleared the model, rebuild finished art.
                 if (!LocalNative.unitHasVisibleRoot(unit) && swapParams) {
@@ -1869,8 +2321,10 @@
             var placeholderLeft = typeof afterType === 'number' && afterType % 100 === 0;
             var visible = LocalNative.unitHasVisibleRoot(unit);
             var onMap = LocalNative.unitStillOnMap(unit);
-            // Success = logical finish (xx01) AND still visible (or at least on map with soft stamp).
-            var ok = !placeholderLeft && (visible || onMap);
+            var finishedBuilder = LocalNative.getBuildingBuilder(unit);
+            var ok = !placeholderLeft && afterType === targetType &&
+                unit.level === swapParams.unit_level && finishedBuilder &&
+                finishedBuilder.state === BUILD_STATE_FINISH && (visible || onMap);
             LocalNative.writeStatus({
                 step: ok ? (visible ? 'finishViaBuilder-ok' : 'finishViaBuilder-ok-soft') :
                     (placeholderLeft ? 'finishViaBuilder-partial' : 'finishViaBuilder-offmap'),
@@ -1878,6 +2332,8 @@
                 sid: unit.sid != null ? unit.sid : null,
                 beforeType: beforeType,
                 afterType: afterType,
+                targetType: targetType,
+                level: unit.level,
                 beforeState: beforeState,
                 afterState: bb.state,
                 didUpgradeFinish: didUpgradeFinish,
@@ -2023,35 +2479,174 @@
             return false;
         };
 
+        LocalNative.copyAccountProgress = function(target, player) {
+            if (!target || !player || typeof player.exp !== 'number' ||
+                !isFinite(player.exp) || player.exp < 0 ||
+                typeof player.level !== 'number' || !isFinite(player.level) ||
+                player.level < 1 || Math.floor(player.level) !== player.level) return false;
+            // Stock addExp consumes experience when leveling up: save the pair.
+            target.exp = player.exp;
+            target.level = player.level;
+            return true;
+        };
+
+        LocalNative.installAccountProgressPersistence = function(proto) {
+            ['addExp', 'rpc_c_refresh_player_info'].forEach(function(name) {
+                var original = proto[name];
+                if (typeof original !== 'function' || original.__localAccountProgress) return;
+                proto[name] = function() {
+                    try { return original.apply(this, arguments); }
+                    finally {
+                        // An opponent/preview player must never overwrite this account.
+                        if (typeof G_Player !== 'undefined' && this === G_Player) {
+                            try {
+                                var saved = LocalNative.readRaw();
+                                if (saved && saved.level &&
+                                    LocalNative.copyAccountProgress(saved.level.player, this))
+                                    LocalNative.writeRaw(saved);
+                            } catch (eProgress) {
+                                LocalNative.writeStatus({step: 'save-account-progress-ERR', error: String(eProgress)});
+                            }
+                        }
+                    }
+                };
+                proto[name].__localAccountProgress = true;
+            });
+        };
+
+        LocalNative.handleUpgradeWalls = function(player, params) {
+            // WallRow has already paid and put eligible segments into BUILDING.
+            // Its server contract is one SID-keyed completion map, not single ACKs.
+            try {
+                var uids = params && params.uids;
+                if (!(uids instanceof Array)) throw new Error('Missing wall SID list');
+                var reply = {}, targets = [], seen = {};
+                for (var i = 0; i < uids.length; i++) {
+                    var sid = String(uids[i]);
+                    if (seen[sid]) continue;
+                    seen[sid] = true;
+                    var wall = G_UnitManager.getUnitBySID(sid);
+                    var bb = LocalNative.getBuildingBuilder(wall);
+                    if (!wall || Math.floor(Number(wall.typeid) / 100) !== 211 || !bb)
+                        throw new Error('Invalid wall ' + sid);
+                    // Retransmission after completion must not grant another level.
+                    if (bb.state === BUILD_STATE_FINISH) continue;
+                    if (bb.state !== BUILD_STATE_BUILDING)
+                        throw new Error('Wall not upgrading ' + sid);
+                    var finish = LocalNative.buildFinishSwapParams(wall, Number(wall.typeid) + 1);
+                    if (!finish) throw new Error('Missing wall upgrade configuration ' + sid);
+                    reply[sid] = finish;
+                    targets.push(wall);
+                }
+                if (!targets.length) return true;
+                if (typeof player.rpc_c_wallrow_build_complete !== 'function')
+                    throw new Error('Missing wall row completion callback');
+                LocalNative.ensureQuestManagerSafe();
+                // Save paid wallet and unfinished walls together before model refresh.
+                if (!LocalNative.tryDumpAndSave()) throw new Error('Cannot save paid wall row');
+                try {
+                    player.rpc_c_wallrow_build_complete(reply);
+                } finally {
+                    // Preserve even a partially completed row for construction resume.
+                    if (!LocalNative.tryDumpAndSave()) throw new Error('Cannot save completed wall row');
+                }
+                for (var j = 0; j < targets.length; j++) {
+                    var done = targets[j], expected = reply[String(done.sid)];
+                    var doneBuilder = LocalNative.getBuildingBuilder(done);
+                    if (done.typeid !== expected.typeid || done.level !== expected.unit_level ||
+                        !doneBuilder || doneBuilder.state !== BUILD_STATE_FINISH)
+                        throw new Error('Wall completion did not refresh ' + done.sid);
+                    LocalNative.completedSids[done.sid] = true;
+                    delete LocalNative.pendingBuilds[done.sid];
+                    if (typeof done.updateBuildingActionBar === 'function') done.updateBuildingActionBar();
+                }
+                LocalNative.writeStatus({step: 'wallrow-upgrade-complete', count: targets.length});
+                return true;
+            } catch (eWall) {
+                LocalNative.lastError = String(eWall);
+                LocalNative.writeStatus({step: 'wallrow-upgrade-ERR', error: String(eWall)});
+                return false;
+            }
+        };
+
+        LocalNative.snapshotHeroEquipment = function(level) {
+            var roster = level.heros || [];
+            for (var i = 0; i < roster.length; i++) {
+                var unit = G_UnitManager.getUnitBySID(roster[i].sid);
+                // A missing/uninitialized runtime hero must not erase saved slots.
+                if (!unit || !unit.getComponent || String(unit.sid) !== String(roster[i].sid)) continue;
+                var equipment = unit.getComponent('HeroEquipment');
+                if (equipment && equipment.eqp != null)
+                    roster[i].eqp = JSON.parse(JSON.stringify(equipment.eqp));
+            }
+        };
+
+        LocalNative.persistHeroEquipment = function(params) {
+            // Stock putOn/takeOff/replace already move the item and update stats.
+            // Commit the resulting hero slots and package in the same home save.
+            var sid = params && (params.sid != null ? params.sid : params.uid);
+            var store = LocalNative.readRaw();
+            var roster = store && store.level && store.level.heros || [];
+            var found = false;
+            for (var i = 0; i < roster.length; i++)
+                if (String(roster[i].sid) === String(sid)) found = true;
+            var unit = sid != null && G_UnitManager.getUnitBySID(sid);
+            var equipment = unit && unit.getComponent && unit.getComponent('HeroEquipment');
+            var ok = !!(found && unit && String(unit.sid) === String(sid) && equipment &&
+                equipment.eqp != null && LocalNative.tryDumpAndSave());
+            LocalNative.writeStatus({step: ok ? 'hero-equipment-saved' : 'hero-equipment-save-ERR', sid: sid});
+            return ok;
+        };
+
         LocalNative.tryDumpAndSave = function() {
             // Battle dumps must never replace the home city or its guide progress.
             if (typeof GS_CURRENT_STAGE !== 'undefined' && typeof GS_STAGE_BUILD !== 'undefined' &&
                 GS_CURRENT_STAGE !== GS_STAGE_BUILD) return false;
             try {
-                var gc = typeof DA.getGameController === 'function' ? DA.getGameController() : null;
-                if (!gc || typeof gc.dumpLevelData !== 'function') return false;
-                var dumped = gc.dumpLevelData();
-                if (!dumped || typeof dumped !== 'object') return false;
-                if (!dumped.player && G_Player) {
-                    dumped.player = LocalNative.readRaw().level.player;
+                // Saving component state needs no stock debug-dump controller.
+                var gc = LocalNative.getBuildController();
+                var saved = LocalNative.readRaw();
+                if (!saved || !saved.level) return false;
+                var level = JSON.parse(JSON.stringify(saved.level));
+                LocalNative.copyAccountProgress(level.player, G_Player);
+                for (var i = 0; i < level.units.length; i++) {
+                    var unit = G_UnitManager.getUnitBySID(level.units[i].sid);
+                    if (unit && unit.typeid != null && unit.getComponent &&
+                        unit.getComponent('BuildingBuilder'))
+                        level.units[i] = LocalNative.snapshotBuildingRecord(unit);
                 }
-                if (!dumped.user_config) {
-                    var cur = LocalNative.readRaw();
-                    dumped.user_config = cur && cur.level ? cur.level.user_config : {};
+                // A purchased building must survive exit before its first completion.
+                // The old loop only updated existing records; new purchases vanished.
+                var knownSids = {};
+                for (var j = 0; j < level.units.length; j++)
+                    knownSids[String(level.units[j].sid)] = true;
+                var buildings = LocalNative.collectHomeBuildings(gc);
+                for (var k = 0; k < buildings.length; k++) {
+                    var added = buildings[k], builder = LocalNative.getBuildingBuilder(added);
+                    if (added.sid == null || knownSids[String(added.sid)] ||
+                        builder.state === BUILD_STATE_BEFORE_BUILD) continue;
+                    level.units.push(LocalNative.snapshotBuildingRecord(added));
+                    knownSids[String(added.sid)] = true;
                 }
-                if (!dumped.walls) dumped.walls = [];
-                if (!dumped.model_info) dumped.model_info = {};
-                if (!dumped.hero_donate_list) dumped.hero_donate_list = [];
-                if (!(dumped.heros instanceof Array)) {
-                    var curLv = LocalNative.readRaw();
-                    dumped.heros = (curLv && curLv.level && curLv.level.heros instanceof Array)
-                        ? curLv.level.heros : LocalNative.defaultHeros();
+                var rm = LocalNative.getResourceManager();
+                if (rm && rm.Res) {
+                    level.player.diamond = Number(rm.Res[3]) || 0;
+                    level.player.spirit = Number(rm.Res[4]) || 0;
                 }
-                LocalNative.ensureStarterHeros(dumped);
-                LocalNative.saveLevel(dumped);
+                var packageManager = G_Player.getComponent && G_Player.getComponent('PackageManager');
+                if (packageManager && packageManager['package'])
+                    level.player['package'] = JSON.parse(JSON.stringify(packageManager['package']));
+                LocalNative.snapshotHeroEquipment(level);
+                var techManager = G_Player.getComponent && G_Player.getComponent('TechManager');
+                if (techManager && techManager.gained_techs)
+                    level.player.gained_techs = JSON.parse(JSON.stringify(techManager.gained_techs));
+                // Keep the server-side progress/reward receipts, never save the
+                // stock debug dump {buildings,player:{}} as a login payload.
+                LocalNative.saveLevel(level);
                 return true;
             } catch (e) {
                 LocalNative.lastError = String(e);
+                LocalNative.writeStatus({step: 'save-home-snapshot-ERR', error: String(e)});
                 return false;
             }
         };
@@ -2297,6 +2892,7 @@
             // Stock battle controller stores unit IDs here, not in BUILD.buildings.
             if (gc && gc.defenders && gc.defenders.length) n += gc.defenders.length;
             if (gc && gc.attackers && gc.attackers.length) n += gc.attackers.length;
+            if (gc && gc.sceneObj && gc.sceneObj.length) n += gc.sceneObj.length;
             if (n > 0) return n;
             try {
                 if (gc && gc.buildings) {
@@ -2416,6 +3012,7 @@
             };
             // Battle-local lists only. Home leftovers in UnitManager must be ignored.
             walkList(gc.defenders, 'defenders');
+            walkList(gc.sceneObj, 'sceneObj');
             walkList(gc.buildings, 'buildings');
         };
 
@@ -2534,14 +3131,15 @@
             return client;
         };
 
-        LocalNative.ensureBattleClients = function() {
+        LocalNative.ensureBattleClients = function(gc) {
             var defF = typeof BATTLE_FACTION_DEFENDER !== 'undefined' ? BATTLE_FACTION_DEFENDER : 2;
             var atkF = typeof BATTLE_FACTION_ATTACKER !== 'undefined' ? BATTLE_FACTION_ATTACKER : 1;
             var byDef = LocalNative.resolveBattleClient(defF);
             var byAtk = LocalNative.resolveBattleClient(atkF);
             // Stock ILD has assigned LocalRookie to faction 1 and Enemy to faction 2 while
             // buildings still carry home faction=2 — towers then sit on the Enemy client.
-            // Force: defender=self/LocalRookie, attacker=Enemy.
+            // Resolve self/opponent using the legacy raid layout first, then assign
+            // roles for the active battle before publishing either client.
             var defender = null;
             var attacker = null;
             try {
@@ -2576,12 +3174,22 @@
                     if (!attacker) attacker = oppo;
                 } catch (eAtk) {}
             }
+            if (!gc && typeof DA !== 'undefined' && typeof DA.GETCGC === 'function') gc = DA.GETCGC();
+            var level = gc && gc.level_data || {};
+            var liveAttack = gc && !gc.inReplayMode && !gc.isEnterEnemyAttackReplay &&
+                !level.isEnterEnemyAttackReplay && !level.localNativeRaid;
+            if (liveAttack) {
+                var opponent = attacker;
+                attacker = defender;
+                defender = opponent;
+            }
             LocalNative.bindBattleClientFaction(defender, defF);
             LocalNative.bindBattleClientFaction(attacker, atkF);
             LocalNative.writeStatus({
                 step: 'ensureBattleClients',
                 defF: defF,
                 atkF: atkF,
+                liveAttack: !!liveAttack,
                 defNick: defender ? (defender.nickname || null) : null,
                 atkNick: attacker ? (attacker.nickname || null) : null,
                 swappedFix: !!(byDef && /enemy/i.test(String(byDef.nickname || '')))
@@ -3175,6 +3783,88 @@
         // Campaign PVE village layout is server-owned. Without captures, use a
         // labeled compatible stub (tutorial-known building families only).
         // SIDs start at 91001 so they never collide with home starter 1..5 / 301.
+        // BEGIN USER AUTHORED PVE LAYOUTS
+        LocalNative.editorPveLayouts = {"16":{"stage":16,"name":"\u7b2c 16 \u5173","source":"user-authored-layout","units":[{"sid":116001,"typeid":20103,"x":35,"y":35,"localNativeStableSid":true},{"sid":116002,"typeid":20401,"x":35,"y":30,"localNativeStableSid":true},{"sid":116003,"typeid":20503,"x":38,"y":30,"localNativeStableSid":true},{"sid":116004,"typeid":30202,"x":30,"y":38,"localNativeStableSid":true},{"sid":116005,"typeid":20303,"x":30,"y":35,"localNativeStableSid":true},{"sid":116006,"typeid":20201,"x":30,"y":32,"localNativeStableSid":true},{"sid":116007,"typeid":20901,"x":27,"y":32,"localNativeStableSid":true},{"sid":116008,"typeid":30103,"x":30,"y":28,"localNativeStableSid":true},{"sid":116009,"typeid":20702,"x":41,"y":36,"localNativeStableSid":true},{"sid":116010,"typeid":21002,"x":38,"y":39,"localNativeStableSid":true},{"sid":116011,"typeid":30403,"x":33,"y":39,"localNativeStableSid":true},{"sid":116012,"typeid":50601,"x":44,"y":34,"localNativeStableSid":true},{"sid":116013,"typeid":50701,"x":29,"y":41,"localNativeStableSid":true},{"sid":116014,"id":116014,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":5,"xp":0,"state":2,"did":"116008","defense_id":"116008","rct":0,"aht":0,"aidx":-1,"skills":[10501,14801],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,32,36,0],[3,33,36,0],[3,34,36,0],[3,35,36,0],[3,36,35,0],[3,36,34,0],[3,36,33,0],[3,36,32,0],[3,31,31,0],[3,33,31,0],[3,34,31,0],[3,35,31,0],[3,31,35,0],[3,31,34,0],[3,31,33,0],[2,31,32,0],[2,31,36,0],[2,32,31,0],[2,36,36,0],[2,36,31,0],[1,32,30,0],[1,31,30,0],[1,31,29,0],[1,31,28,0],[3,31,27,0],[1,31,26,0],[3,31,25,0],[1,30,25,0],[1,29,25,0],[1,28,25,0],[3,27,25,0],[1,27,26,0],[1,27,27,0],[1,27,28,0],[2,27,29,0],[1,26,29,0],[1,25,29,0],[3,24,29,0],[1,24,30,0],[1,24,31,0],[1,24,32,0],[3,24,33,0],[1,26,33,0],[1,25,33,0],[2,27,33,0],[2,27,34,0],[2,27,35,0],[2,27,36,0],[2,27,37,0],[2,27,38,0],[3,27,39,0],[3,28,39,0],[3,29,39,0],[1,34,37,0],[1,34,38,0],[3,34,39,0],[3,34,40,0],[1,37,31,0],[1,38,31,0],[3,39,31,0],[1,39,30,0],[1,39,29,0],[1,39,28,0],[3,39,27,0],[2,32,27,0],[2,33,27,0],[2,34,27,0],[2,35,27,0],[2,36,27,0],[2,37,27,0],[2,38,27,0]]},"7":{"stage":7,"name":"\u7b2c 7 \u5173","source":"user-authored-layout","units":[{"sid":107001,"typeid":20101,"x":27,"y":27,"localNativeStableSid":true},{"sid":107002,"typeid":20401,"x":32,"y":24,"localNativeStableSid":true},{"sid":107003,"typeid":30101,"x":36,"y":30,"localNativeStableSid":true},{"sid":107004,"typeid":20301,"x":33,"y":33,"localNativeStableSid":true},{"sid":107005,"typeid":30301,"x":28,"y":36,"localNativeStableSid":true},{"sid":107006,"typeid":20501,"x":26,"y":32,"localNativeStableSid":true},{"sid":107007,"typeid":30201,"x":30,"y":28,"localNativeStableSid":true},{"sid":107008,"typeid":50701,"x":29,"y":32,"localNativeStableSid":true},{"sid":107009,"typeid":20301,"x":33,"y":29,"localNativeStableSid":true},{"sid":107010,"id":107010,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":1,"xp":0,"state":2,"did":"107003","defense_id":"107003","rct":0,"aht":0,"aidx":-1,"skills":[10501],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[2,23,27,0],[2,23,28,0],[2,23,26,0],[2,23,25,0],[2,23,24,0],[2,23,23,0],[2,23,22,0],[2,24,22,0],[2,25,22,0],[2,26,22,0],[2,27,22,0],[2,28,22,0],[2,29,22,0],[2,29,23,0],[2,29,21,0],[2,30,21,0],[2,31,21,0],[2,32,21,0],[2,33,21,0],[2,33,22,0],[2,33,23,0],[2,33,24,0],[2,33,25,0],[2,33,26,0],[2,34,26,0],[2,34,27,0],[2,35,27,0],[2,36,27,0],[2,37,27,0],[2,37,28,0],[2,37,29,0],[2,37,30,0],[2,37,31,0],[2,36,31,0],[2,35,31,0],[2,34,31,0],[2,34,32,0],[2,34,33,0],[2,34,34,0],[2,33,34,0],[2,32,34,0],[2,31,34,0],[2,30,34,0],[3,30,33,0],[3,30,32,0],[3,30,31,0],[2,29,34,0],[2,29,35,0],[2,29,36,0],[2,29,37,0],[2,28,37,0],[2,27,37,0],[2,26,37,0],[2,25,37,0],[2,25,36,0],[2,25,35,0],[2,25,34,0],[2,23,29,0],[2,23,30,0],[2,23,31,0],[2,23,32,0],[2,23,33,0],[2,24,33,0],[2,25,33,0]]},"39":{"stage":39,"name":"\u4ece\u5357\u5230\u5317","source":"user-authored-layout","units":[{"sid":139001,"typeid":20101,"x":27,"y":27,"localNativeStableSid":true},{"sid":139002,"typeid":30106,"x":26,"y":31,"localNativeStableSid":true},{"sid":139003,"typeid":30806,"x":23,"y":31,"localNativeStableSid":true},{"sid":139004,"typeid":20406,"x":20,"y":33,"localNativeStableSid":true},{"sid":139005,"typeid":30205,"x":20,"y":28,"localNativeStableSid":true},{"sid":139006,"typeid":30106,"x":20,"y":25,"localNativeStableSid":true},{"sid":139007,"typeid":30306,"x":27,"y":22,"localNativeStableSid":true},{"sid":139008,"typeid":20206,"x":27,"y":18,"localNativeStableSid":true},{"sid":139009,"typeid":20705,"x":33,"y":24,"localNativeStableSid":true},{"sid":139010,"typeid":50601,"x":24,"y":22,"localNativeStableSid":true},{"sid":139011,"typeid":30806,"x":23,"y":20,"localNativeStableSid":true},{"sid":139012,"typeid":30106,"x":20,"y":20,"localNativeStableSid":true},{"sid":139013,"id":139013,"typeid":10709,"unit_type":107,"unit_level":9,"unit_mutateid":0,"lv":20,"xp":0,"state":2,"did":"139002","defense_id":"139002","rct":0,"aht":0,"aidx":-1,"skills":[10701,703304],"localNativeStableSid":true,"localNativeGuard":true},{"sid":139014,"id":139014,"typeid":10507,"unit_type":105,"unit_level":7,"unit_mutateid":0,"lv":20,"xp":0,"state":2,"did":"139006","defense_id":"139006","rct":0,"aht":0,"aidx":-1,"skills":[10501,15204],"localNativeStableSid":true,"localNativeGuard":true},{"sid":139015,"id":139015,"typeid":10401,"unit_type":104,"unit_level":1,"unit_mutateid":0,"lv":20,"xp":0,"state":2,"did":"139012","defense_id":"139012","rct":0,"aht":0,"aidx":-1,"skills":[10401,13301],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,23,27,0],[3,23,28,0],[3,24,28,0],[3,25,28,0],[3,26,28,0],[3,27,28,0],[3,28,28,0],[3,28,27,0],[3,28,26,0],[3,28,25,0],[3,28,24,0],[3,28,23,0],[3,27,23,0],[3,26,23,0],[3,25,23,0],[3,24,23,0],[3,23,23,0],[3,23,24,0],[3,23,25,0],[3,23,26,0],[2,17,33,0],[2,17,32,0],[2,17,31,0],[2,17,30,0],[2,17,29,0],[2,17,28,0],[2,17,27,0],[2,17,26,0],[2,17,25,0],[2,17,24,0],[2,17,23,0],[2,17,22,0],[2,17,34,0],[2,18,34,0],[2,19,34,0],[2,20,34,0],[2,21,34,0],[2,22,34,0],[2,23,34,0],[2,24,34,0],[2,26,34,0],[2,25,34,0],[2,27,34,0],[2,28,22,0],[2,28,21,0],[2,28,20,0],[2,28,19,0],[2,28,18,0],[2,28,17,0],[2,28,16,0],[2,28,15,0],[2,17,15,0],[2,18,15,0],[2,19,15,0],[2,20,15,0],[2,21,15,0],[2,22,15,0],[2,23,15,0],[2,24,15,0],[2,25,15,0],[2,26,15,0],[2,27,15,0],[3,18,22,0],[3,19,22,0],[3,20,22,0],[3,21,22,0],[3,22,22,0]]}};
+        // END USER AUTHORED PVE LAYOUTS
+
+        LocalNative.buildEditorPveVillage = function(stageId, gold, wood, layout) {
+            var stored = layout || LocalNative.editorPveLayouts[String(stageId)];
+            if (!stored) return null;
+            var units = [], raw = JSON.parse(JSON.stringify(stored.units));
+            for (var i = 0; i < raw.length; i++) {
+                var record = raw[i];
+                if (record.localNativeGuard) {
+                    record.faction = typeof BATTLE_FACTION_DEFENDER !== 'undefined' ? BATTLE_FACTION_DEFENDER : 2;
+                    units.push(record);
+                } else {
+                    units.push(LocalNative.unit(record.sid, record.typeid, record.x, record.y, record));
+                    var family = Math.floor(record.typeid / 100);
+                    if (family >= 505 && family <= 507 && data.unit_main[record.typeid] &&
+                        data.unit_main[record.typeid].volume == null) data.unit_main[record.typeid].volume = 1;
+                }
+            }
+            function putLoot(family, type, amount) {
+                var chosen = null, home = null;
+                for (var j = 0; j < units.length; j++) {
+                    var unitFamily = Math.floor(units[j].typeid / 100);
+                    if (unitFamily === family && !chosen) chosen = units[j];
+                    if (unitFamily === 201 && !home) home = units[j];
+                }
+                chosen = chosen || home;
+                if (!chosen) return;
+                if (!chosen.sto || typeof chosen.sto !== 'object') chosen.sto = {};
+                chosen.sto[type] = amount;
+                chosen[type === 2 ? 'goldstorage' : 'woodstorage'] = amount;
+                chosen[type === 2 ? 'gold_storage_cur' : 'wood_storage_cur'] = amount;
+                chosen.currentStorage = (Number(chosen.currentStorage) || 0) + amount;
+            }
+            putLoot(205, 2, gold); putLoot(203, 1, wood);
+            return {units: units, walls: JSON.parse(JSON.stringify(stored.walls)),
+                source: stored.source};
+        };
+
+        // User reference screenshot, not recovered server coordinates. Stage 7 only.
+        LocalNative.buildStageSevenVillage = function(gold, wood) {
+            var specs = [[20101,26,27],[30101,30,27],[20301,33,23],
+                [30201,24,33],[20201,34,28],[20501,34,33],
+                [20401,39,30],[30301,29,33],[50701,19,34]];
+            var units = [];
+            for (var i = 0; i < specs.length; i++) {
+                var spec = specs[i];
+                units.push(LocalNative.unit(91001 + i, spec[0], spec[1], spec[2], {
+                    localNativeStableSid: true
+                }));
+            }
+            // Keep original stage loot totals, rather than the reference account's loot.
+            units[5].sto = {2: gold}; units[5].goldstorage = gold;
+            units[4].sto = {1: wood}; units[4].woodstorage = wood;
+            units.push({sid: 91010, id: 91010, typeid: 10501, unit_type: 105,
+                unit_level: 1, unit_mutateid: 0, lv: 1, xp: 0,
+                state: 2, faction: 2, x: 18, y: 33, did: '91009',
+                defense_id: '91009', rct: 0, aht: 0, aidx: -1,
+                skills: [10501], localNativeStableSid: true});
+            // The original flag lacks the anchor radius read by setAtDefensePos.
+            if (typeof data !== 'undefined' && data.unit_main && data.unit_main[50701] &&
+                data.unit_main[50701].volume == null) data.unit_main[50701].volume = 1;
+            var walls = [], seen = {};
+            function line(x1, y1, x2, y2) {
+                var dx = x2 === x1 ? 0 : (x2 > x1 ? 1 : -1);
+                var dy = y2 === y1 ? 0 : (y2 > y1 ? 1 : -1);
+                for (;;) {
+                    var key = x1 + ':' + y1;
+                    if (!seen[key]) { walls.push([1, x1, y1, 0]); seen[key] = true; }
+                    if (x1 === x2 && y1 === y2) break;
+                    x1 += dx; y1 += dy;
+                }
+            }
+            var outline = [[20,20],[27,20],[27,19],[35,19],[35,26],[40,26],
+                [40,32],[37,32],[37,35],[30,35],[30,39],[24,39],[24,35],[20,35],[20,20]];
+            for (var p = 1; p < outline.length; p++)
+                line(outline[p-1][0], outline[p-1][1], outline[p][0], outline[p][1]);
+            line(27,20,27,29); line(20,29,35,29); line(30,29,30,35);
+            return {units: units, walls: walls, source: 'user-reference-stage7-2026-10-15'};
+        };
+
         LocalNative.inferredPveVillageUnits = function(stageId, gold, wood) {
             gold = gold || 0;
             wood = wood || 0;
@@ -3190,6 +3880,246 @@
                 LocalNative.unit(3, 20501, 36, 28),
                 LocalNative.unit(4, 30101, 28, 36)
             ]), 91000);
+        };
+
+        LocalNative.installBattleLifeBarColors = function() {
+            if (typeof Comp === 'undefined' || !Comp.BaseBattleController ||
+                typeof UI === 'undefined' || !UI.LifeBarSimple) return;
+            var proto = Comp.BaseBattleController.prototype;
+            var originalInit = proto._initLifeBar;
+            if (!originalInit || originalInit.__localFactionColors) return;
+            // Keep stock pooling, geometry, visibility, hero level and icons.
+            proto._initLifeBar = function() {
+                var ret = originalInit.apply(this, arguments);
+                var gc = DA.GETCGC();
+                var bar = this.lifeBar;
+                if (!bar) return ret;
+                if (typeof GS_CURRENT_STAGE === 'undefined' ||
+                    GS_CURRENT_STAGE !== GS_STAGE_BATTLE || !gc) return ret;
+                var level = gc.level_data || {};
+                var raid = gc.isEnterEnemyAttackReplay || level.isEnterEnemyAttackReplay ||
+                    level.localNativeRaid;
+                var friendlyFaction = raid ? BATTLE_FACTION_DEFENDER :
+                    (gc.inReplayMode ? null : BATTLE_FACTION_ATTACKER);
+                if (friendlyFaction == null) return ret;
+                // G_Player.faction can be rebound by ensureBattleClients during live PVE.
+                // Display ownership follows battle roles without changing combat factions.
+                var faction = this.master.faction;
+                if (faction !== BATTLE_FACTION_ATTACKER && faction !== BATTLE_FACTION_DEFENDER)
+                    return ret;
+                bar.isPlayerSide = faction === friendlyFaction;
+                if (this.master.isHero === 1) {
+                    // Hero init also selects the faction-dependent kind icon.
+                    bar.init(bar.isPlayerSide, this.master.getComponent('ExpBar').getLevel(),
+                        data.unit_main[this.master.typeid].hero_kind);
+                } else {
+                    bar.init(bar.isPlayerSide);
+                }
+                return ret;
+            };
+            proto._initLifeBar.__localFactionColors = true;
+            LocalNative.writeStatus({step: 'battle-life-colors-installed'});
+        };
+
+        LocalNative.installManualHeroSkillGuard = function() {
+            if (typeof Comp === 'undefined' || !Comp.HeroBattleController) return;
+            var proto = Comp.HeroBattleController.prototype;
+            if (proto.__localManualSkillGuard) return;
+            var originalCast = proto.doCastActiveSkill, originalAuto = proto.tryOnceAutoAttack;
+            var originalDelayed = proto._delayedInit;
+            function liveOwnHero(bc) {
+                var gc = DA.GETCGC();
+                if (GS_CURRENT_STAGE !== GS_STAGE_BATTLE || !gc || gc.inReplayMode || !bc.master) return null;
+                var choices = gc.UnitChoiceList || [];
+                for (var i = 0; i < choices.length; i++)
+                    if (choices[i].hero === bc.master && choices[i].isSelfHero !== false) return gc;
+                if (typeof G_Player !== 'undefined' && bc.master.faction === G_Player.faction) return gc;
+                return null;
+            }
+            proto.doCastActiveSkill = function(skillID, targetID, auto) {
+                var gc = liveOwnHero(this);
+                if (!gc) return originalCast.apply(this, arguments);
+                var automatic = typeof gc.isAutoAttack === 'function' && gc.isAutoAttack() === true;
+                if (!automatic && !this.operatePanel) {
+                    var panel = null;
+                    try {
+                        panel = new UI.HeroOpratePanel(this);
+                        panel.init();
+                        this.operatePanel = panel;
+                    } catch (ePanel) {
+                        try { if (panel) panel.destroy(); } catch (eDestroy) {}
+                        LocalNative.writeStatus({step: 'manual-skill-panel-ERR', sid: this.master.sid, error: String(ePanel)});
+                        return;
+                    }
+                }
+                LocalNative.writeStatus({step: 'hero-skill-dispatch', sid: this.master.sid,
+                    skill: skillID, auto: automatic, panel: !!this.operatePanel});
+                return originalCast.call(this, skillID, targetID, automatic);
+            };
+            proto.tryOnceAutoAttack = function() {
+                var gc = liveOwnHero(this);
+                if (gc && !(typeof gc.isAutoAttack === 'function' && gc.isAutoAttack() === true)) return;
+                return originalAuto.apply(this, arguments);
+            };
+            proto._delayedInit = function() {
+                if (liveOwnHero(this) && this.operatePanel) return;
+                return originalDelayed.apply(this, arguments);
+            };
+            proto.__localManualSkillGuard = true;
+        };
+
+        // Friend-target actives (破釜沉舟 etc.) and post-kill seek: sync cast target and
+        // keep ThreatSystem from throwing when getUnit returns null.
+        LocalNative.syncBattleSkillTarget = function(bc, targetID, purpose) {
+            if (!bc || targetID == null || targetID === undefined) return;
+            if (typeof bc.setTargetID === 'function') {
+                try {
+                    if (purpose === undefined) bc.setTargetID(targetID);
+                    else bc.setTargetID(targetID, purpose);
+                    return;
+                } catch (eSet) {}
+            }
+            bc.targetID = targetID;
+        };
+
+        LocalNative.installActiveSkillSeekFix = function() {
+            if (typeof Comp !== 'undefined' && Comp.ThreatSystem) {
+                var tproto = Comp.ThreatSystem.prototype;
+                // applyCost calls changeLife(cost_life) without an attacker. That
+                // must not enter onHit: an exception there aborts skill completion.
+                if (!tproto.__localThreatHitGuard && typeof tproto.onHit === 'function') {
+                    var originalThreatHit = tproto.onHit;
+                    tproto.onHit = function(cid, value) {
+                        var obj = cid != null ? G_UnitManager.getUnit(cid) : null;
+                        if (!obj || typeof obj.canBeFound !== 'function' ||
+                            typeof obj.getComponent !== 'function') {
+                            if (!this.__localInvalidHitLogged) {
+                                this.__localInvalidHitLogged = true;
+                                LocalNative.writeStatus({step: 'threat-hit-invalid-source',
+                                    cid: cid == null ? null : cid, value: value,
+                                    sourceType: obj ? typeof obj : 'missing'});
+                            }
+                            return;
+                        }
+                        return originalThreatHit.apply(this, arguments);
+                    };
+                    tproto.__localThreatHitGuard = true;
+                }
+                if (!tproto.__localThreatNullGuard) {
+                    ['getNearestHighestThreatAttackableTarget', 'getNearestHighestThreatTarget',
+                        'getNearestTarget', 'getTargetConsideringLeaderMode'].forEach(function(name) {
+                        var orig = tproto[name];
+                        if (typeof orig !== 'function') return;
+                        tproto[name] = function() {
+                            try {
+                                return orig.apply(this, arguments);
+                            } catch (eThreat) {
+                                try { if (typeof this.unLock === 'function') this.unLock(); } catch (eUnlock) {}
+                                try { this.curTarget = null; } catch (eCur) {}
+                                try {
+                                    LocalNative.writeStatus({
+                                        step: 'threat-seek-ERR', fn: name, error: String(eThreat)
+                                    });
+                                } catch (eLog) {}
+                                return null;
+                            }
+                        };
+                    });
+                    tproto.__localThreatNullGuard = true;
+                }
+            }
+
+            if (typeof Comp !== 'undefined' && Comp.StaticBattleController) {
+                var sproto = Comp.StaticBattleController.prototype;
+                if (!sproto.__localActiveSkillTargetSync) {
+                    var origUserTarget = sproto.onUserCastSkillToTarget;
+                    var origRealCast = sproto._realDoCastSkill;
+                    if (typeof origUserTarget === 'function') {
+                        sproto.onUserCastSkillToTarget = function(targetID, skillID) {
+                            var self = this;
+                            var prevSet = this.__setNextSkill;
+                            if (typeof prevSet === 'function') {
+                                this.__setNextSkill = function(sid, tid) {
+                                    LocalNative.syncBattleSkillTarget(self, targetID);
+                                    return prevSet.call(self, sid, tid !== undefined ? tid : targetID);
+                                };
+                            }
+                            try {
+                                return origUserTarget.call(this, targetID, skillID);
+                            } finally {
+                                if (typeof prevSet === 'function') this.__setNextSkill = prevSet;
+                            }
+                        };
+                    }
+                    if (typeof origRealCast === 'function') {
+                        sproto._realDoCastSkill = function(skillID, targetID) {
+                            LocalNative.syncBattleSkillTarget(this, targetID);
+                            return origRealCast.apply(this, arguments);
+                        };
+                    }
+                    sproto.__localActiveSkillTargetSync = true;
+                }
+            }
+
+            if (typeof Comp !== 'undefined' && Comp.HeroBattleController) {
+                var hproto = Comp.HeroBattleController.prototype;
+                if (!hproto.__localHeroSkillTargetSync) {
+                    var origHeroTarget = hproto.onUserCastSkillToTarget;
+                    var origChangeAttack = hproto.onEventUserChangeToAttack;
+                    if (typeof origHeroTarget === 'function') {
+                        hproto.onUserCastSkillToTarget = function(targetID, skillID) {
+                            var requested = targetID;
+                            var ret = origHeroTarget.apply(this, arguments);
+                            try {
+                                var script = this.director && typeof this.director.poll === 'function' &&
+                                    this.director.poll();
+                                if (script && script.type === BATTLE_SCRIPT_TYPE_ATTACK) {
+                                    var tid = script.targetID != null ? script.targetID : requested;
+                                    LocalNative.syncBattleSkillTarget(this, tid, script.purpose);
+                                } else if (requested != null &&
+                                    (this.targetID == null || this.targetID === undefined)) {
+                                    LocalNative.syncBattleSkillTarget(this, requested);
+                                }
+                            } catch (eHero) {}
+                            return ret;
+                        };
+                    }
+                    if (typeof origChangeAttack === 'function') {
+                        hproto.onEventUserChangeToAttack = function() {
+                            try {
+                                var script = this.director && typeof this.director.poll === 'function' &&
+                                    this.director.poll();
+                                if (script && script.targetID != null)
+                                    LocalNative.syncBattleSkillTarget(this, script.targetID, script.purpose);
+                            } catch (eChange) {}
+                            return origChangeAttack.apply(this, arguments);
+                        };
+                    }
+                    hproto.__localHeroSkillTargetSync = true;
+                }
+            }
+
+            LocalNative.writeStatus({step: 'active-skill-seek-fix-installed'});
+        };
+
+        LocalNative.prepareHeroBattleSkills = function(hero) {
+            var cfg = data.unit_battle && data.unit_battle[hero.typeid];
+            var mutate = Number(hero.unit_mutateid == null ? hero.mutateid : hero.unit_mutateid) || 0;
+            var base = cfg && cfg.skill_nums && cfg.skill_nums[mutate];
+            if (!base || !base.length) throw new Error('Missing hero basic attack ' + hero.typeid);
+            var skills = [], seen = {};
+            function add(id) {
+                id = Number(id);
+                if (!(id > 0) || !data.skill_data[id]) throw new Error('Invalid hero battle skill ' + id);
+                if (!seen[id]) { seen[id] = true; skills.push(id); }
+            }
+            for (var b = 0; b < base.length; b++) add(base[b]);
+            var slots = hero.skill_slots || [];
+            for (var s = 0; s < slots.length; s++) {
+                if (Number(slots[s].lv) > 0) add(Number(slots[s].sid) * 100 + Number(slots[s].lv));
+            }
+            hero.skills = skills;
+            return hero;
         };
 
         LocalNative.collectAttackHerosForPve = function(level, selfPlayer) {
@@ -3214,7 +4144,7 @@
                 if (h.aidx == null && h.attack_index != null) h.aidx = h.attack_index;
                 if (h.unit_mutateid == null) h.unit_mutateid = h.mutateid || 0;
                 if (Number(h.state) === attackState || h.attack_index)
-                    out.push(h);
+                    out.push(LocalNative.prepareHeroBattleSkills(h));
             }
             if (!out.length && raw.length) {
                 var first = {};
@@ -3224,27 +4154,381 @@
                 }
                 first.state = attackState;
                 if (first.life == null || Number(first.life) <= 0) first.life = 400;
-                out.push(first);
+                out.push(LocalNative.prepareHeroBattleSkills(first));
             }
             return out;
         };
 
         // rpc_s_enter_pve_battle → rpc_c_enter_battle. Live attack (no replay).
-        LocalNative.buildPveBattleDict = function(stageId) {
+        // Stock trainer sds and battle choices both use unit TYPE (114), not typeid (11401).
+        LocalNative.collectBattleSoldiers = function(level) {
+            var out = {}, units = level.units || [], storage = (level.player || {}).soldier_storage || {};
+            for (var i = 0; i < units.length; i++) {
+                var soldiers = units[i].sds || {};
+                for (var key in soldiers) {
+                    if (!Object.prototype.hasOwnProperty.call(soldiers, key)) continue;
+                    var type = Number(key), num = Number(soldiers[key]);
+                    if (!(type > 0) || type !== Math.floor(type) || !isFinite(num) || num < 1) continue;
+                    // Resource workers belong to the city, never the deploy tray.
+                    if (Object.prototype.hasOwnProperty.call(storage, key)) continue;
+                    out[type] = (out[type] || 0) + Math.floor(num);
+                }
+            }
+            return out;
+        };
+
+        LocalNative.handleDispatchSoldier = function(params) {
+            var gc = LocalNative.getBattleController();
+            var stock = LocalNative.battleSoldierStock;
+            var typeid = Number(params && params.soldier_type), type = Math.floor(typeid / 100);
+            if (typeof GS_CURRENT_STAGE === 'undefined' || GS_CURRENT_STAGE !== GS_STAGE_BATTLE ||
+                !gc || gc.inReplayMode || gc.battleFinished || !stock ||
+                !isFinite(typeid) || typeid !== type * 100 + 1 || !(stock[type] > 0)) return false;
+            try {
+                // Each stock UnitProxy RPC represents ONE successful placement. Persist now,
+                // so quitting, defeat and process death cannot refund a dispatched soldier.
+                var store = LocalNative.readRaw(), units = store.level.units || [];
+                for (var i = 0; i < units.length; i++) {
+                    var camp = units[i];
+                    if (!camp.sds || !(Number(camp.sds[type]) >= 1)) continue;
+                    camp.sds[type] = Number(camp.sds[type]) - 1;
+                    var post = camp.ep && camp.ep[type];
+                    var elite = SOLDIER_LEVEL_ELITE, veteran = SOLDIER_LEVEL_VETERAN;
+                    if (post && Number(post[elite]) > 0) post[elite] = Number(post[elite]) - 1;
+                    else if (post && Number(post[veteran]) > 0) post[veteran] = Number(post[veteran]) - 1;
+                    LocalNative.writeRaw(store);
+                    stock[type]--;
+                    LocalNative.writeStatus({step: 'dispatch-soldier-saved', typeid: typeid,
+                        camp: camp.sid, remaining: stock[type]});
+                    return true;
+                }
+            } catch (e) {
+                LocalNative.writeStatus({step: 'dispatch-soldier-ERR', error: String(e)});
+            }
+            return false;
+        };
+
+        // Arena server replacement. Stock UI and ArenaBattleSystem own combat.
+        LocalNative.arenaNow = function() {
+            return Math.floor(typeof DA !== 'undefined' && DA.getSystemCurrentTimeSec ?
+                DA.getSystemCurrentTimeSec() : Date.now() / 1000);
+        };
+        LocalNative.ensureArenaState = function(level) {
+            var now = LocalNative.arenaNow(), begin = GlobalDefine.ARENA_BEGAN_TIMESTAMP;
+            var week = GlobalDefine.ARENA_ROUND_PERIOD, rounds = GlobalDefine.ARENA_ROUNDS_PER_SEASON;
+            var elapsed = Math.max(0, now - begin);
+            var season = Math.floor(elapsed / (week * rounds)) + 1;
+            var round = Math.floor(elapsed % (week * rounds) / week) + 1;
+            var state = level.player.arena_state;
+            function fresh() {
+                return {season_num: season, round_num: round, group: 1, score: 0,
+                    qualifying_atk_cnt: 0, qualifying_win_cnt: 0,
+                    phase: GlobalDefine.ARENA_PHASE_REGULAR_ROUND};
+            }
+            if (!state || !state.season || !Array.isArray(state.rewards))
+                state = level.player.arena_state = {season: fresh(), rewards: []};
+            var old = state.season;
+            if (season > old.season_num || (season === old.season_num && round > old.round_num)) {
+                // No historical rank claims or fabricated missed-week rewards.
+                if (old.group > 1 || old.score > 0) {
+                    state.rewards.push(data.arena_weekly_reward[old.group].group_reward);
+                    if (season > old.season_num)
+                        state.rewards.push(data.arena_monthly_reward[old.group].group_reward);
+                }
+                if (season > old.season_num) {
+                    state.season = fresh();
+                    delete level.localArenaPromotionFailure;
+                } else old.round_num = round;
+            }
+            return state;
+        };
+        LocalNative.arenaAttackCounter = function(level) {
+            var id = GlobalDefine.ARENA_ATTACK_PERIOD_ID, cfg = data.period_control[id];
+            if (!cfg) throw new Error('Missing arena attack period');
+            var all = level.player.event_counters || (level.player.event_counters = {});
+            var group = all[cfg.period_type] || (all[cfg.period_type] = {});
+            var counter = group[id] || (group[id] = {c: 0, t: 0});
+            var now = LocalNative.arenaNow(), max = GlobalDefine.ARENA_ATTACK_MAX_COUNT;
+            var period = GlobalDefine.ARENA_ATTACK_RECOVER_PERIOD;
+            var d = counter.d || (counter.d = {attack_count: max, ltt: now});
+            if (d.attack_count == null) d.attack_count = max;
+            if (d.ltt == null) d.ltt = now;
+            var recovered = Math.max(0, Math.floor((now - d.ltt) / period));
+            d.attack_count = Math.min(max, Number(d.attack_count) + recovered);
+            if (d.attack_count >= max) d.ltt = now;
+            else if (recovered) d.ltt += recovered * period;
+            return counter;
+        };
+        LocalNative.syncArenaState = function(player, level) {
+            LocalNative.syncQuestEventRecorder(player, level);
+            var state = JSON.parse(JSON.stringify(level.player.arena_state));
+            if (player.rpc_c_sync_arena_state) player.rpc_c_sync_arena_state({state: state});
+            else {
+                var arena = player.getComponent && player.getComponent('Arena');
+                if (arena && arena._setState) arena._setState(state);
+            }
+            player.arena_score = Number(level.player.arena_score) || 0;
+        };
+        LocalNative.buildArenaBattleDict = function(level) {
+            var heroes = [], raw = level.heros || [];
+            var attackState = typeof HERO_STATE_ATTACK !== 'undefined' ? HERO_STATE_ATTACK : 1;
+            for (var i = 0; i < raw.length; i++) {
+                if (Number(raw[i].state) !== attackState) continue;
+                var hero = JSON.parse(JSON.stringify(raw[i]));
+                if (hero.typeid != null) {
+                    hero.unit_type = Math.floor(Number(hero.typeid) / 100);
+                    hero.unit_level = Number(hero.typeid) % 100;
+                }
+                if (!hero.unit_type || !hero.unit_level) throw new Error('Invalid arena hero type');
+                heroes.push(LocalNative.prepareHeroBattleSkills(hero));
+            }
+            heroes.sort(function(a, b) {
+                return (Number(a.aidx != null ? a.aidx : a.attack_index) || 0) -
+                    (Number(b.aidx != null ? b.aidx : b.attack_index) || 0);
+            });
+            if (!heroes.length) throw new Error('Arena requires an attack hero');
+            var own = {}, mirror = {}, positions = {attacker: {}, defender: {}};
+            for (var j = 0; j < heroes.length; j++) {
+                var h = heroes[j], index = j + 1;
+                // Hero data is deeply copied before stock init mutates faction/cid/id.
+                own[index] = JSON.parse(JSON.stringify(h));
+                mirror[index] = JSON.parse(JSON.stringify(h));
+                own[index].sid = 'local-arena-self-' + index;
+                mirror[index].sid = 'local-arena-oppo-' + index;
+                // Home garrison references are placement metadata, not combat
+                // attributes. No city building exists inside the arena.
+                own[index].did = own[index].defense_id = 0;
+                mirror[index].did = mirror[index].defense_id = 0;
+                delete own[index].cid; delete mirror[index].cid;
+                delete own[index].id; delete mirror[index].id;
+                // Server-provided deployment slots on the existing stock map.
+                // idx++ leaves the old index on the operand stack: slot 0
+                // is required by the native dispatcher.
+                positions.attacker[j] = [24, 26 + j];
+                positions.defender[j] = [36, 26 + j];
+            }
+            var selfPlayer = JSON.parse(JSON.stringify(level.player));
+            var oppoPlayer = JSON.parse(JSON.stringify(level.player));
+            selfPlayer.stage = selfPlayer.pveStage = 0;
+            // usePVEUI gates the arena's five-second auto-start on a truthy
+            // stage. Reuse an empty stock stage row, with no village or quests.
+            oppoPlayer.stage = oppoPlayer.pveStage = 3000000;
+            oppoPlayer.pve_mode = PVE_BATTLE_MODE_ARENA;
+            oppoPlayer.nickname = selfPlayer.nickname + '\uFF08\u955C\u50CF\uFF09';
+            oppoPlayer.account = oppoPlayer.account_id = oppoPlayer.accountID = 'local-arena-opponent';
+            oppoPlayer.heros = []; oppoPlayer.soldiers = [];
+            var rm = LocalNative.getResourceManager();
+            var self = LocalNative.makeBattleSide(selfPlayer, {heros: [], soldiers: [],
+                units: [], walls: [], league_tech: [], hero_donate_list: [],
+                gold: rm.Res[2], wood: rm.Res[1], max_gold: rm.maxRes[2], max_wood: rm.maxRes[1],
+                user_config: level.user_config || {}, first_time_stage: 0});
+            var oppo = LocalNative.makeBattleSide(oppoPlayer, {heros: [], soldiers: [],
+                units: [], walls: [], hero_donate_list: [], model_info: {}});
+            return {self: self, oppo: oppo, units: [], walls: [], model_info: {},
+                hero_donate_list: [], choices: [], replay: null, isEnterEnemyAttackReplay: false,
+                pve_mode: PVE_BATTLE_MODE_ARENA, localNativeArena: true,
+                arena: {self: {heros: own}, oppo: {heros: mirror}, hero_positions: positions},
+                source: 'stock-arena-player-mirror'};
+        };
+        LocalNative.traceArenaBattleStart = function(gc) {
+            var session = LocalNative.arenaSession;
+            if (!session || session.closed || session.started || !gc.battleStarted ||
+                gc.__localArenaSession !== session) return;
+            var system = gc.battleSystem;
+            if (!system) throw new Error('Missing stock ArenaBattleSystem');
+            var store = JSON.parse(JSON.stringify(LocalNative.readRaw()));
+            if (!store.level.localArenaBattle || store.level.localArenaBattle.id !== session.id)
+                throw new Error('Arena entry receipt mismatch');
+            store.level.localArenaBattle.started = true;
+            LocalNative.writeRaw(store);
+            session.started = true;
+            function team(params) {
+                return params.map(function(p) {
+                    var unit = G_UnitManager.getUnit(p.cid);
+                    var eq = unit && unit.getComponent('HeroEquipment');
+                    return {cid: p.cid, typeid: p.typeid, lv: p.lv, skills: p.skills,
+                        eqp: eq && eq.eqp, gift: p.gift, mutate: p.unit_mutateid,
+                        faction: unit && unit.faction};
+                });
+            }
+            LocalNative.writeStatus({step: 'arena-native-start', id: session.id,
+                mode: gc.getPVEMode(), arenaMenu: gc.menu === gc.menuArena,
+                attackers: team(system.attackerHeroParams), defenders: team(system.defenderHeroParams)});
+            sys.localStorage.setItem('dino.local.arena.probe.start', JSON.stringify({
+                id: session.id, mode: gc.getPVEMode(), arenaMenu: gc.menu === gc.menuArena,
+                attackers: team(system.attackerHeroParams), defenders: team(system.defenderHeroParams)}));
+        };
+        LocalNative.traceArenaInit = function(gc) {
+            var session = LocalNative.arenaSession;
+            if (!session || gc.__localArenaSession !== session) return;
+            var stage = gc.getStageClient(), system = gc.battleSystem;
+            sys.localStorage.setItem('dino.local.arena.probe.init', JSON.stringify({
+                id: session.id, mode: gc.getPVEMode(), stage: stage && stage.pveStage,
+                usePVEUI: stage && stage.usePVEUI(), arenaMenu: gc.menu === gc.menuArena,
+                hasSystem: !!system, defenders: system && system.defenderHeroParams.map(function(p) {
+                    var u = G_UnitManager.getUnit(p.cid);
+                    return {cid: p.cid, typeid: p.typeid, did: p.did,
+                        actualDefenseID: u && u.getDefenseID(), faction: u && u.faction};
+                })}));
+        };
+        LocalNative.handleArenaRpc = function(player, method) {
+            var committed = false;
+            try {
+                if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) throw new Error('Arena requires home stage');
+                if (method === 'rpc_s_enter_arena_battle' && LocalNative.arenaSession &&
+                    !LocalNative.arenaSession.closed) return false;
+                LocalNative.tryDumpAndSave();
+                var store = JSON.parse(JSON.stringify(LocalNative.readRaw())), level = store.level;
+                var state = LocalNative.ensureArenaState(level);
+                if (method === 'rpc_s_gain_arena_rewards') {
+                    var rewards = state.rewards.slice(), input = [];
+                    for (var i = 0; i < rewards.length; i++)
+                        input = input.concat(LocalNative.collectQuestPutinRewards(
+                            level, rewards[i], Number(level.player.level) || 1));
+                    state.rewards = [];
+                    LocalNative.writeRaw(store);
+                    committed = true;
+                    LocalNative.syncQuestPackageAndWallet(player, level);
+                    LocalNative.syncArenaState(player, level);
+                    player.rpc_c_gain_arena_rewards_ans({state: JSON.parse(JSON.stringify(state)), input_data: input});
+                    return true;
+                }
+                if (method !== 'rpc_s_enter_arena_battle') throw new Error('Unsupported arena request');
+                if (LocalNative.readScoutHeadquartersLevel(level) < GlobalDefine.ARENA_MIN_HOME_BASE_LEVEL)
+                    throw new Error('Arena requires home base level 5');
+                if (level.localArenaPromotionFailure)
+                    throw new Error('\u664B\u7EA7\u5931\u8D25\u7684\u539F\u7248\u6263\u5206\u6570\u503C\u5C1A\u5F85\u6838\u5BF9\uFF0C\u5F53\u524D\u79EF\u5206\u5DF2\u4FDD\u7559');
+                var now = LocalNative.arenaNow(), s = state.season;
+                var roundBegin = GlobalDefine.ARENA_BEGAN_TIMESTAMP +
+                    ((s.season_num - 1) * GlobalDefine.ARENA_ROUNDS_PER_SEASON + s.round_num - 1) *
+                    GlobalDefine.ARENA_ROUND_PERIOD;
+                if (now <= roundBegin + 600) throw new Error('arena_block');
+                var counter = LocalNative.arenaAttackCounter(level);
+                if (counter.d.attack_count < 1) throw new Error('arena_no_times');
+                var dict = LocalNative.buildArenaBattleDict(level);
+                counter.d.attack_count--;
+                var id = (Number(level.localArenaSequence) || 0) + 1;
+                level.localArenaSequence = id;
+                level.localArenaBattle = {id: id, season: s.season_num, round: s.round_num,
+                    group: s.group, phase: s.phase, completed: false};
+                LocalNative.writeRaw(store);
+                committed = true;
+                LocalNative.syncArenaState(player, level);
+                player.rpc_c_enter_arena_battle_ans({state: JSON.parse(JSON.stringify(state))});
+                LocalNative.pveSession = null; LocalNative.pvpSession = null;
+                LocalNative.battleSoldierStock = null;
+                LocalNative.arenaSession = {id: id, player: player, closed: false,
+                    completed: false, returning: false};
+                player.rpc_c_enter_battle(dict);
+                LocalNative.writeStatus({step: 'arena-enter', id: id,
+                    heroes: Object.keys(dict.arena.self.heros).length, attacks: counter.d.attack_count,
+                    source: dict.source});
+                return true;
+            } catch (e) {
+                try {
+                    var saved = LocalNative.readRaw().level;
+                    LocalNative.ensureArenaState(saved);
+                    player.rpc_c_enter_arena_battle_ans({state: saved.player.arena_state});
+                } catch (ignore) {}
+                LocalNative.writeStatus({step: 'arena-request-ERR', method: method,
+                    committed: committed, error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e.message || e));
+                return false;
+            }
+        };
+        LocalNative.completeArenaBattle = function(player, early) {
+            var session = LocalNative.arenaSession, gc = LocalNative.getBattleController();
+            if (!session || session.closed || session.completed || !gc ||
+                gc.__localArenaSession !== session) return false;
+            var store = JSON.parse(JSON.stringify(LocalNative.readRaw())), level = store.level;
+            var receipt = level.localArenaBattle;
+            if (!receipt || receipt.id !== session.id || receipt.completed) return false;
+            if (!early && !gc.battleFinished) return false;
+            var win = !early && !!(gc.battleResult && gc.battleResult.isWinner);
+            var state = LocalNative.ensureArenaState(level), s = state.season;
+            // Never carry a stale battle into a different season or round.
+            var sameRound = receipt.season === s.season_num && receipt.round === s.round_num;
+            var score = 0;
+            if (sameRound && receipt.phase === GlobalDefine.ARENA_PHASE_REGULAR_ROUND) {
+                score = win ? 10 : 5;
+                s.score += score;
+                if (s.group < GlobalDefine.ARENA_TOP_GROUP && s.score >= 100) {
+                    s.score = 100; s.phase = GlobalDefine.ARENA_PHASE_QUALIFYING_ROUND;
+                    s.qualifying_atk_cnt = 0; s.qualifying_win_cnt = 0;
+                }
+            } else if (sameRound) {
+                s.qualifying_atk_cnt++;
+                if (win) s.qualifying_win_cnt++;
+                if (s.qualifying_win_cnt >= 3) {
+                    s.group = Math.min(GlobalDefine.ARENA_TOP_GROUP, s.group + 1);
+                    s.score = 0; s.phase = GlobalDefine.ARENA_PHASE_REGULAR_ROUND;
+                    s.qualifying_atk_cnt = 0; s.qualifying_win_cnt = 0;
+                } else if (s.qualifying_atk_cnt >= GlobalDefine.ARENA_QUALIFYING_MAX_ATTACK_COUNT) {
+                    // Original help gives no numeric deduction. Preserve the
+                    // earned score and stop this branch instead of inventing it.
+                    level.localArenaPromotionFailure = {id: session.id, group: s.group,
+                        score: s.score, wins: s.qualifying_win_cnt, attacks: s.qualifying_atk_cnt};
+                }
+            }
+            level.player.arena_score = s.group * GlobalDefine.ARENA_RANK_SCORE_GROUP_MULTIPLIER + s.score;
+            var result = {star_num: win ? 3 : 0, starNum: win ? 3 : 0, isWinner: win,
+                win_gold: 0, win_wood: 0, flower: 0, score: score, input_gains: [],
+                exp_add: {}, enemy_id: 'local-arena-opponent',
+                arena_state: JSON.parse(JSON.stringify(state))};
+            receipt.completed = true; receipt.result = result;
+            LocalNative.writeRaw(store);
+            session.completed = true;
+            LocalNative.syncArenaState(player, level);
+            if (!early) player.rpc_c_battle_result(result);
+            LocalNative.writeStatus({step: 'arena-result', id: session.id, win: win,
+                early: !!early, score: score, group: s.group, total: s.score});
+            return true;
+        };
+        LocalNative.arenaBattleToHome = function(player, early) {
+            var session = LocalNative.arenaSession;
+            if (!session || session.closed || session.returning) return false;
+            if (!session.completed) LocalNative.completeArenaBattle(player, true);
+            session.returning = true;
+            try {
+                var store = JSON.parse(JSON.stringify(LocalNative.readRaw()));
+                LocalNative.ensureArenaState(store.level);
+                LocalNative.writeRaw(store);
+                player.rpc_c_battle_to_home(store.level);
+                session.closed = true;
+                LocalNative.writeStatus({step: 'arena-home', id: session.id, early: !!early});
+                return true;
+            } catch (e) {
+                session.returning = false;
+                LocalNative.writeStatus({step: 'arena-home-ERR', error: String(e)});
+                return false;
+            }
+        };
+
+        LocalNative.buildPveBattleDict = function(stageId, scoutLayout) {
             stageId = parseInt(stageId, 10);
             if (!(stageId > 0)) stageId = 1;
+            LocalNative.tryDumpAndSave();
             var store = LocalNative.readRaw();
             var level = store && store.level ? store.level : LocalNative.defaultLevelDict();
             var selfPlayer = level.player || LocalNative.defaultPlayer();
-            LocalNative.ensureAvailableStages(selfPlayer, 'pve-enter');
+            if (scoutLayout) selfPlayer = JSON.parse(JSON.stringify(selfPlayer));
+            if (!scoutLayout) LocalNative.ensureAvailableStages(selfPlayer, 'pve-enter');
             var stageEntry = selfPlayer.availableStages &&
                 (selfPlayer.availableStages[stageId] || selfPlayer.availableStages[String(stageId)]);
-            var loot = (stageEntry && stageEntry.length >= 2) ? stageEntry :
-                LocalNative.readPveStageLoot(stageId);
+            var loot = scoutLayout ? [0, 0] : ((stageEntry && stageEntry.length >= 2) ? stageEntry :
+                LocalNative.readPveStageLoot(stageId));
             var gold = loot[0] || 0;
             var wood = loot[1] || 0;
-            var units = LocalNative.inferredPveVillageUnits(stageId, gold, wood);
+            var referenceVillage = typeof LocalNative.buildEditorPveVillage === 'function'
+                ? LocalNative.buildEditorPveVillage(stageId, gold, wood, scoutLayout) : null;
+            if (!referenceVillage && stageId === 7)
+                referenceVillage = LocalNative.buildStageSevenVillage(gold, wood);
+            var units = referenceVillage ? referenceVillage.units :
+                LocalNative.inferredPveVillageUnits(stageId, gold, wood);
+            var villageWalls = referenceVillage ? referenceVillage.walls : [];
             var attackHeros = LocalNative.collectAttackHerosForPve(level, selfPlayer);
+            var attackSoldiers = LocalNative.collectBattleSoldiers(level);
+            LocalNative.battleSoldierStock = JSON.parse(JSON.stringify(attackSoldiers));
             var oppoPlayer = {
                 nickname: 'PVE-' + stageId,
                 level: 1,
@@ -3260,7 +4544,7 @@
                 soldiers: [],
                 heros: [],
                 buffs: [],
-                walls: [],
+                walls: villageWalls,
                 hero_donate_list: [],
                 model_info: {},
                 league_id: 0,
@@ -3269,12 +4553,12 @@
                 arena_score: 0
             };
             var selfSide = LocalNative.makeBattleSide(selfPlayer, {
-                gold: gold,
-                wood: wood,
-                max_gold: gold,
-                max_wood: wood,
+                gold: LocalNative.getResourceManager().Res[2],
+                wood: LocalNative.getResourceManager().Res[1],
+                max_gold: LocalNative.getResourceManager().maxRes[2],
+                max_wood: LocalNative.getResourceManager().maxRes[1],
                 heros: attackHeros,
-                soldiers: {},
+                soldiers: attackSoldiers,
                 league_tech: [],
                 buffs: selfPlayer.buffs || [],
                 hero_donate_list: level.hero_donate_list || [],
@@ -3283,7 +4567,7 @@
             });
             var oppoSide = LocalNative.makeBattleSide(oppoPlayer, {
                 units: units,
-                walls: [],
+                walls: villageWalls,
                 hero_donate_list: [],
                 model_info: {},
                 soldiers: [],
@@ -3292,7 +4576,7 @@
             if (oppoSide.player) {
                 oppoSide.player.stage = stageId;
                 oppoSide.player.pve_mode = 0;
-                oppoSide.player.walls = [];
+                oppoSide.player.walls = villageWalls;
                 oppoSide.player.hero_donate_list = [];
                 oppoSide.player.model_info = {};
             }
@@ -3300,7 +4584,7 @@
                 self: selfSide,
                 oppo: oppoSide,
                 units: units,
-                walls: [],
+                walls: villageWalls,
                 hero_donate_list: [],
                 model_info: {},
                 choices: [],
@@ -3311,8 +4595,183 @@
                 pve_mode: 0,
                 isPVE: true,
                 replay: null,
-                source: 'local-inferred-compatible-pve'
+                source: referenceVillage ? referenceVillage.source : 'local-inferred-compatible-pve'
             };
+        };
+
+        // BEGIN SCOUT LEVEL POOL
+        LocalNative.scoutLevelPool = {"policy":{"mode":"all","headquartersDelta":1},"levels":[{"id":"scout-7","headquartersLevel":1,"layout":{"stage":7,"name":"\u7b2c 7 \u5173","source":"user-authored-layout","units":[{"sid":107001,"typeid":20101,"x":27,"y":27,"localNativeStableSid":true},{"sid":107002,"typeid":20401,"x":32,"y":24,"localNativeStableSid":true},{"sid":107003,"typeid":30101,"x":36,"y":30,"localNativeStableSid":true},{"sid":107004,"typeid":20301,"x":33,"y":33,"localNativeStableSid":true},{"sid":107005,"typeid":30301,"x":28,"y":36,"localNativeStableSid":true},{"sid":107006,"typeid":20501,"x":26,"y":32,"localNativeStableSid":true},{"sid":107007,"typeid":30201,"x":30,"y":28,"localNativeStableSid":true},{"sid":107008,"typeid":50701,"x":29,"y":32,"localNativeStableSid":true},{"sid":107009,"typeid":20301,"x":33,"y":29,"localNativeStableSid":true},{"sid":107010,"id":107010,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":1,"xp":0,"state":2,"did":"107003","defense_id":"107003","rct":0,"aht":0,"aidx":-1,"skills":[10501],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[2,23,27,0],[2,23,28,0],[2,23,26,0],[2,23,25,0],[2,23,24,0],[2,23,23,0],[2,23,22,0],[2,24,22,0],[2,25,22,0],[2,26,22,0],[2,27,22,0],[2,28,22,0],[2,29,22,0],[2,29,23,0],[2,29,21,0],[2,30,21,0],[2,31,21,0],[2,32,21,0],[2,33,21,0],[2,33,22,0],[2,33,23,0],[2,33,24,0],[2,33,25,0],[2,33,26,0],[2,34,26,0],[2,34,27,0],[2,35,27,0],[2,36,27,0],[2,37,27,0],[2,37,28,0],[2,37,29,0],[2,37,30,0],[2,37,31,0],[2,36,31,0],[2,35,31,0],[2,34,31,0],[2,34,32,0],[2,34,33,0],[2,34,34,0],[2,33,34,0],[2,32,34,0],[2,31,34,0],[2,30,34,0],[3,30,33,0],[3,30,32,0],[3,30,31,0],[2,29,34,0],[2,29,35,0],[2,29,36,0],[2,29,37,0],[2,28,37,0],[2,27,37,0],[2,26,37,0],[2,25,37,0],[2,25,36,0],[2,25,35,0],[2,25,34,0],[2,23,29,0],[2,23,30,0],[2,23,31,0],[2,23,32,0],[2,23,33,0],[2,24,33,0],[2,25,33,0]]}},{"id":"scout-16","headquartersLevel":3,"layout":{"stage":16,"name":"\u7b2c 16 \u5173","source":"user-authored-layout","units":[{"sid":116001,"typeid":20103,"x":35,"y":35,"localNativeStableSid":true},{"sid":116002,"typeid":20401,"x":35,"y":30,"localNativeStableSid":true},{"sid":116003,"typeid":20503,"x":38,"y":30,"localNativeStableSid":true},{"sid":116004,"typeid":30202,"x":30,"y":38,"localNativeStableSid":true},{"sid":116005,"typeid":20303,"x":30,"y":35,"localNativeStableSid":true},{"sid":116006,"typeid":20201,"x":30,"y":32,"localNativeStableSid":true},{"sid":116007,"typeid":20901,"x":27,"y":32,"localNativeStableSid":true},{"sid":116008,"typeid":30103,"x":30,"y":28,"localNativeStableSid":true},{"sid":116009,"typeid":20702,"x":41,"y":36,"localNativeStableSid":true},{"sid":116010,"typeid":21002,"x":38,"y":39,"localNativeStableSid":true},{"sid":116011,"typeid":30403,"x":33,"y":39,"localNativeStableSid":true},{"sid":116012,"typeid":50601,"x":44,"y":34,"localNativeStableSid":true},{"sid":116013,"typeid":50701,"x":29,"y":41,"localNativeStableSid":true},{"sid":116014,"id":116014,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":5,"xp":0,"state":2,"did":"116008","defense_id":"116008","rct":0,"aht":0,"aidx":-1,"skills":[10501,14801],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,32,36,0],[3,33,36,0],[3,34,36,0],[3,35,36,0],[3,36,35,0],[3,36,34,0],[3,36,33,0],[3,36,32,0],[3,31,31,0],[3,33,31,0],[3,34,31,0],[3,35,31,0],[3,31,35,0],[3,31,34,0],[3,31,33,0],[2,31,32,0],[2,31,36,0],[2,32,31,0],[2,36,36,0],[2,36,31,0],[1,32,30,0],[1,31,30,0],[1,31,29,0],[1,31,28,0],[3,31,27,0],[1,31,26,0],[3,31,25,0],[1,30,25,0],[1,29,25,0],[1,28,25,0],[3,27,25,0],[1,27,26,0],[1,27,27,0],[1,27,28,0],[2,27,29,0],[1,26,29,0],[1,25,29,0],[3,24,29,0],[1,24,30,0],[1,24,31,0],[1,24,32,0],[3,24,33,0],[1,26,33,0],[1,25,33,0],[2,27,33,0],[2,27,34,0],[2,27,35,0],[2,27,36,0],[2,27,37,0],[2,27,38,0],[3,27,39,0],[3,28,39,0],[3,29,39,0],[1,34,37,0],[1,34,38,0],[3,34,39,0],[3,34,40,0],[1,37,31,0],[1,38,31,0],[3,39,31,0],[1,39,30,0],[1,39,29,0],[1,39,28,0],[3,39,27,0],[2,32,27,0],[2,33,27,0],[2,34,27,0],[2,35,27,0],[2,36,27,0],[2,37,27,0],[2,38,27,0]]}},{"id":"scout-39","headquartersLevel":1,"layout":{"stage":39,"name":"\u4ece\u5357\u5230\u5317","source":"user-authored-layout","units":[{"sid":139001,"typeid":20101,"x":27,"y":27,"localNativeStableSid":true},{"sid":139002,"typeid":30106,"x":26,"y":31,"localNativeStableSid":true},{"sid":139003,"typeid":30806,"x":23,"y":31,"localNativeStableSid":true},{"sid":139004,"typeid":20406,"x":20,"y":33,"localNativeStableSid":true},{"sid":139005,"typeid":30205,"x":20,"y":28,"localNativeStableSid":true},{"sid":139006,"typeid":30106,"x":20,"y":25,"localNativeStableSid":true},{"sid":139007,"typeid":30306,"x":27,"y":22,"localNativeStableSid":true},{"sid":139008,"typeid":20206,"x":27,"y":18,"localNativeStableSid":true},{"sid":139009,"typeid":20705,"x":33,"y":24,"localNativeStableSid":true},{"sid":139010,"typeid":50601,"x":24,"y":22,"localNativeStableSid":true},{"sid":139011,"typeid":30806,"x":23,"y":20,"localNativeStableSid":true},{"sid":139012,"typeid":30106,"x":20,"y":20,"localNativeStableSid":true},{"sid":139013,"id":139013,"typeid":10709,"unit_type":107,"unit_level":9,"unit_mutateid":0,"lv":20,"xp":0,"state":2,"did":"139002","defense_id":"139002","rct":0,"aht":0,"aidx":-1,"skills":[10701,703304],"localNativeStableSid":true,"localNativeGuard":true},{"sid":139014,"id":139014,"typeid":10507,"unit_type":105,"unit_level":7,"unit_mutateid":0,"lv":20,"xp":0,"state":2,"did":"139006","defense_id":"139006","rct":0,"aht":0,"aidx":-1,"skills":[10501,15204],"localNativeStableSid":true,"localNativeGuard":true},{"sid":139015,"id":139015,"typeid":10401,"unit_type":104,"unit_level":1,"unit_mutateid":0,"lv":20,"xp":0,"state":2,"did":"139012","defense_id":"139012","rct":0,"aht":0,"aidx":-1,"skills":[10401,13301],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,23,27,0],[3,23,28,0],[3,24,28,0],[3,25,28,0],[3,26,28,0],[3,27,28,0],[3,28,28,0],[3,28,27,0],[3,28,26,0],[3,28,25,0],[3,28,24,0],[3,28,23,0],[3,27,23,0],[3,26,23,0],[3,25,23,0],[3,24,23,0],[3,23,23,0],[3,23,24,0],[3,23,25,0],[3,23,26,0],[2,17,33,0],[2,17,32,0],[2,17,31,0],[2,17,30,0],[2,17,29,0],[2,17,28,0],[2,17,27,0],[2,17,26,0],[2,17,25,0],[2,17,24,0],[2,17,23,0],[2,17,22,0],[2,17,34,0],[2,18,34,0],[2,19,34,0],[2,20,34,0],[2,21,34,0],[2,22,34,0],[2,23,34,0],[2,24,34,0],[2,26,34,0],[2,25,34,0],[2,27,34,0],[2,28,22,0],[2,28,21,0],[2,28,20,0],[2,28,19,0],[2,28,18,0],[2,28,17,0],[2,28,16,0],[2,28,15,0],[2,17,15,0],[2,18,15,0],[2,19,15,0],[2,20,15,0],[2,21,15,0],[2,22,15,0],[2,23,15,0],[2,24,15,0],[2,25,15,0],[2,26,15,0],[2,27,15,0],[3,18,22,0],[3,19,22,0],[3,20,22,0],[3,21,22,0],[3,22,22,0]]}},{"id":"alley-cat","headquartersLevel":5,"layout":{"stage":7,"name":"\u5df7\u5b50\u91cc\u7684\u732b","source":"user-authored-layout","units":[{"sid":107001,"typeid":20105,"x":27,"y":27,"localNativeStableSid":true},{"sid":107002,"typeid":20702,"x":20,"y":31,"localNativeStableSid":true},{"sid":107003,"typeid":20702,"x":20,"y":20,"localNativeStableSid":true},{"sid":107004,"typeid":20701,"x":31,"y":20,"localNativeStableSid":true},{"sid":107005,"typeid":20605,"x":35,"y":35,"localNativeStableSid":true},{"sid":107006,"typeid":20801,"x":23,"y":35,"localNativeStableSid":true},{"sid":107007,"typeid":20901,"x":35,"y":23,"localNativeStableSid":true},{"sid":107008,"typeid":21001,"x":25,"y":19,"localNativeStableSid":true},{"sid":107009,"typeid":21201,"x":31,"y":33,"localNativeStableSid":true},{"sid":107010,"typeid":21201,"x":33,"y":31,"localNativeStableSid":true},{"sid":107011,"typeid":21201,"x":37,"y":33,"localNativeStableSid":true},{"sid":107012,"typeid":21201,"x":33,"y":37,"localNativeStableSid":true},{"sid":107013,"typeid":30106,"x":23,"y":31,"localNativeStableSid":true},{"sid":107014,"typeid":30102,"x":31,"y":23,"localNativeStableSid":true},{"sid":107015,"typeid":30104,"x":19,"y":25,"localNativeStableSid":true},{"sid":107016,"typeid":30304,"x":27,"y":30,"localNativeStableSid":true},{"sid":107017,"typeid":30304,"x":30,"y":27,"localNativeStableSid":true},{"sid":107018,"typeid":30306,"x":27,"y":23,"localNativeStableSid":true},{"sid":107019,"typeid":30203,"x":23,"y":27,"localNativeStableSid":true},{"sid":107020,"typeid":30402,"x":23,"y":23,"localNativeStableSid":true},{"sid":107021,"typeid":30801,"x":28,"y":34,"localNativeStableSid":true},{"sid":107022,"typeid":30804,"x":34,"y":28,"localNativeStableSid":true},{"sid":107023,"typeid":30501,"x":30,"y":30,"localNativeStableSid":true},{"sid":107024,"typeid":50701,"x":37,"y":37,"localNativeStableSid":true},{"sid":107025,"typeid":50601,"x":14,"y":33,"localNativeStableSid":true},{"sid":107026,"typeid":50601,"x":33,"y":14,"localNativeStableSid":true},{"sid":107027,"typeid":50601,"x":14,"y":14,"localNativeStableSid":true}],"walls":[[3,21,28,0],[3,22,28,0],[3,23,28,0],[3,24,28,0],[2,24,29,0],[2,24,30,0],[2,24,31,0],[2,25,31,0],[2,26,31,0],[2,27,31,0],[2,28,31,0],[2,29,31,0],[2,29,32,0],[2,30,31,0],[2,31,31,0],[2,31,30,0],[2,31,29,0],[2,31,28,0],[2,31,27,0],[2,31,26,0],[2,32,25,0],[2,31,25,0],[2,31,24,0],[2,30,24,0],[2,29,24,0],[2,28,24,0],[2,28,23,0],[2,28,22,0],[2,28,21,0],[3,20,26,0],[3,20,25,0],[3,20,24,0],[2,20,23,0],[2,20,22,0],[2,20,21,0],[3,21,24,0],[3,22,24,0],[3,23,24,0],[2,24,23,0],[2,24,22,0],[2,24,21,0],[2,24,20,0],[2,23,20,0],[2,22,20,0],[2,21,20,0],[2,25,20,0],[2,26,20,0],[2,32,29,0],[2,33,29,0],[2,34,29,0],[2,33,25,0],[2,34,25,0],[2,25,32,0],[2,25,33,0],[2,25,34,0],[2,29,33,0],[2,29,34,0],[2,19,26,0],[2,18,26,0],[2,17,26,0],[2,16,26,0],[2,16,25,0],[2,16,24,0],[2,16,23,0],[2,16,22,0],[2,17,22,0],[2,18,22,0],[2,19,22,0],[2,22,19,0],[2,22,18,0],[2,22,17,0],[2,22,16,0],[2,23,16,0],[2,24,16,0],[2,25,16,0],[2,26,16,0],[2,26,17,0],[2,26,18,0],[2,26,19,0],[2,26,35,0],[2,28,35,0],[2,35,26,0],[2,35,28,0],[2,21,32,0],[2,22,32,0],[2,23,32,0],[2,32,21,0],[2,32,22,0],[2,32,23,0],[2,36,26,0],[2,37,26,0],[2,37,27,0],[2,37,28,0],[2,37,29,0],[2,26,36,0],[2,26,37,0],[2,27,37,0],[2,28,37,0],[2,29,37,0]]}},{"id":"alley-cat-8","headquartersLevel":5,"layout":{"stage":8,"name":"\u5df7\u5b50\u91cc\u7684\u732b","source":"user-authored-layout","units":[{"sid":108001,"typeid":20105,"x":39,"y":39,"localNativeStableSid":true},{"sid":108002,"typeid":30106,"x":33,"y":38,"localNativeStableSid":true},{"sid":108003,"typeid":30106,"x":38,"y":30,"localNativeStableSid":true},{"sid":108004,"typeid":30106,"x":22,"y":35,"localNativeStableSid":true},{"sid":108005,"typeid":30303,"x":38,"y":27,"localNativeStableSid":true},{"sid":108006,"typeid":30302,"x":32,"y":29,"localNativeStableSid":true},{"sid":108007,"typeid":30306,"x":30,"y":35,"localNativeStableSid":true},{"sid":108008,"typeid":30203,"x":32,"y":32,"localNativeStableSid":true},{"sid":108009,"typeid":30402,"x":35,"y":35,"localNativeStableSid":true},{"sid":108010,"typeid":30501,"x":42,"y":42,"localNativeStableSid":true},{"sid":108011,"typeid":30802,"x":26,"y":35,"localNativeStableSid":true},{"sid":108012,"typeid":30804,"x":38,"y":33,"localNativeStableSid":true},{"sid":108013,"typeid":50501,"x":26,"y":40,"localNativeStableSid":true},{"sid":108014,"typeid":20507,"x":33,"y":42,"localNativeStableSid":true},{"sid":108015,"typeid":20507,"x":30,"y":42,"localNativeStableSid":true},{"sid":108016,"typeid":20307,"x":41,"y":33,"localNativeStableSid":true},{"sid":108017,"typeid":20307,"x":41,"y":30,"localNativeStableSid":true},{"sid":108018,"typeid":21001,"x":41,"y":27,"localNativeStableSid":true},{"sid":108019,"typeid":20901,"x":29,"y":39,"localNativeStableSid":true},{"sid":108020,"typeid":20801,"x":35,"y":29,"localNativeStableSid":true},{"sid":108021,"typeid":20703,"x":24,"y":31,"localNativeStableSid":true},{"sid":108022,"typeid":20701,"x":32,"y":26,"localNativeStableSid":true},{"sid":108023,"typeid":20701,"x":24,"y":41,"localNativeStableSid":true},{"sid":108024,"typeid":21201,"x":41,"y":21,"localNativeStableSid":true},{"sid":108025,"typeid":21201,"x":26,"y":38,"localNativeStableSid":true},{"sid":108026,"typeid":21201,"x":34,"y":23,"localNativeStableSid":true},{"sid":108027,"typeid":20201,"x":19,"y":42,"localNativeStableSid":true},{"sid":108028,"typeid":20208,"x":19,"y":39,"localNativeStableSid":true},{"sid":108029,"typeid":20208,"x":19,"y":36,"localNativeStableSid":true},{"sid":108030,"typeid":20208,"x":19,"y":33,"localNativeStableSid":true},{"sid":108031,"typeid":20201,"x":19,"y":30,"localNativeStableSid":true},{"sid":108032,"typeid":20404,"x":30,"y":21,"localNativeStableSid":true},{"sid":108033,"typeid":20401,"x":33,"y":21,"localNativeStableSid":true},{"sid":108034,"typeid":20408,"x":36,"y":21,"localNativeStableSid":true},{"sid":108035,"typeid":20401,"x":39,"y":21,"localNativeStableSid":true},{"sid":108036,"typeid":20408,"x":41,"y":24,"localNativeStableSid":true},{"sid":108037,"typeid":21201,"x":35,"y":31,"localNativeStableSid":true},{"sid":108038,"typeid":21201,"x":34,"y":25,"localNativeStableSid":true},{"sid":108039,"typeid":21201,"x":36,"y":23,"localNativeStableSid":true},{"sid":108040,"typeid":20605,"x":28,"y":31,"localNativeStableSid":true},{"sid":108041,"id":108041,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":10,"xp":0,"state":2,"did":"108002","defense_id":"108002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14601],"localNativeStableSid":true,"localNativeGuard":true},{"sid":108042,"id":108042,"typeid":10601,"unit_type":106,"unit_level":1,"unit_mutateid":0,"lv":10,"xp":0,"state":2,"did":"108003","defense_id":"108003","rct":0,"aht":0,"aidx":-1,"skills":[10601,17301],"localNativeStableSid":true,"localNativeGuard":true},{"sid":108043,"id":108043,"typeid":10901,"unit_type":109,"unit_level":1,"unit_mutateid":0,"lv":15,"xp":0,"state":2,"did":"108004","defense_id":"108004","rct":0,"aht":0,"aidx":-1,"skills":[10901,21101],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,43,43,0],[3,42,43,0],[3,41,43,0],[3,39,43,0],[3,40,43,0],[3,43,42,0],[3,43,41,0],[3,43,40,0],[3,43,39,0],[3,42,39,0],[3,41,39,0],[3,40,39,0],[3,40,38,0],[3,40,37,0],[3,40,36,0],[3,40,35,0],[3,39,40,0],[3,39,41,0],[3,39,42,0],[3,38,40,0],[3,37,40,0],[3,36,40,0],[3,35,40,0],[3,35,39,0],[3,35,38,0],[3,35,37,0],[3,35,36,0],[3,39,35,0],[3,38,35,0],[3,37,35,0],[3,36,35,0],[3,38,34,0],[3,37,34,0],[3,36,34,0],[3,34,39,0],[3,34,38,0],[3,34,37,0],[3,34,36,0],[3,33,39,0],[3,32,39,0],[3,31,39,0],[3,30,39,0],[3,30,38,0],[3,30,37,0],[3,30,36,0],[3,29,36,0],[3,33,30,0],[3,33,31,0],[3,33,32,0],[3,34,32,0],[3,35,32,0],[3,32,33,0],[3,32,34,0],[3,32,35,0],[3,31,35,0],[3,31,33,0],[3,20,36,0],[3,21,36,0],[3,22,36,0],[3,23,36,0],[3,24,36,0],[3,25,36,0],[3,26,36,0],[3,27,36,0],[3,28,36,0],[3,20,32,0],[3,21,32,0],[3,22,32,0],[3,23,32,0],[3,26,32,0],[3,27,32,0],[3,24,32,0],[3,25,32,0],[3,38,24,0],[3,37,24,0],[3,36,24,0],[3,35,24,0],[3,35,25,0],[3,35,26,0],[3,41,34,0],[3,42,34,0],[3,42,33,0],[3,42,32,0],[3,27,18,0],[3,27,19,0],[3,27,20,0],[3,27,21,0],[3,27,22,0],[3,27,23,0],[3,27,24,0],[3,28,18,0],[3,29,32,0],[3,29,31,0],[3,29,30,0],[3,29,29,0],[3,29,28,0],[3,29,27,0],[3,27,33,0],[3,27,34,0],[3,27,35,0]]}},{"id":"scout-custom-9","headquartersLevel":5,"layout":{"stage":9,"name":"\u94c1\u58c1\u56f4\u57ce","source":"user-authored-layout","units":[{"sid":109001,"typeid":20105,"x":31,"y":31,"localNativeStableSid":true},{"sid":109002,"typeid":30105,"x":35,"y":35,"localNativeStableSid":true},{"sid":109003,"typeid":30105,"x":27,"y":35,"localNativeStableSid":true},{"sid":109004,"typeid":30105,"x":27,"y":27,"localNativeStableSid":true},{"sid":109005,"typeid":30305,"x":35,"y":31,"localNativeStableSid":true},{"sid":109006,"typeid":30305,"x":27,"y":31,"localNativeStableSid":true},{"sid":109007,"typeid":30305,"x":31,"y":35,"localNativeStableSid":true},{"sid":109008,"typeid":30804,"x":35,"y":27,"localNativeStableSid":true},{"sid":109009,"typeid":30804,"x":31,"y":27,"localNativeStableSid":true},{"sid":109010,"typeid":30203,"x":40,"y":31,"localNativeStableSid":true},{"sid":109011,"typeid":30403,"x":22,"y":31,"localNativeStableSid":true},{"sid":109012,"typeid":30501,"x":31,"y":41,"localNativeStableSid":true},{"sid":109013,"typeid":20604,"x":42,"y":42,"localNativeStableSid":true},{"sid":109014,"typeid":20506,"x":15,"y":15,"localNativeStableSid":true},{"sid":109015,"typeid":20306,"x":15,"y":19,"localNativeStableSid":true},{"sid":109016,"typeid":20406,"x":19,"y":15,"localNativeStableSid":true},{"sid":109017,"typeid":20206,"x":19,"y":19,"localNativeStableSid":true},{"sid":109018,"typeid":20801,"x":15,"y":42,"localNativeStableSid":true},{"sid":109019,"typeid":20901,"x":19,"y":42,"localNativeStableSid":true},{"sid":109020,"typeid":21001,"x":42,"y":15,"localNativeStableSid":true},{"sid":109021,"typeid":20702,"x":42,"y":38,"localNativeStableSid":true},{"sid":109022,"typeid":20702,"x":15,"y":31,"localNativeStableSid":true},{"sid":109023,"typeid":20702,"x":31,"y":15,"localNativeStableSid":true},{"sid":109024,"typeid":21201,"x":14,"y":39,"localNativeStableSid":true},{"sid":109025,"typeid":21201,"x":14,"y":35,"localNativeStableSid":true},{"sid":109026,"typeid":21201,"x":39,"y":14,"localNativeStableSid":true},{"sid":109027,"typeid":21201,"x":35,"y":14,"localNativeStableSid":true},{"sid":109028,"id":109028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":26,"xp":0,"state":2,"did":"109002","defense_id":"109002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14903,15204],"localNativeStableSid":true,"localNativeGuard":true},{"sid":109029,"id":109029,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":33,"xp":0,"state":2,"did":"109003","defense_id":"109003","rct":0,"aht":0,"aidx":-1,"skills":[11201,24002,24903],"localNativeStableSid":true,"localNativeGuard":true},{"sid":109030,"id":109030,"typeid":11101,"unit_type":111,"unit_level":1,"unit_mutateid":0,"lv":22,"xp":0,"state":2,"did":"109004","defense_id":"109004","rct":0,"aht":0,"aidx":-1,"skills":[11101,22802,23703],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,23,23,0],[3,23,37,0],[3,24,23,0],[3,24,37,0],[3,25,23,0],[3,25,37,0],[3,26,23,0],[3,26,37,0],[3,27,23,0],[3,27,37,0],[3,28,23,0],[3,28,37,0],[3,29,23,0],[3,29,37,0],[3,30,23,0],[3,30,37,0],[3,31,23,0],[3,31,37,0],[3,32,23,0],[3,32,37,0],[3,33,23,0],[3,33,37,0],[3,34,23,0],[3,34,37,0],[3,35,23,0],[3,35,37,0],[3,36,23,0],[3,36,37,0],[3,37,23,0],[3,37,37,0],[3,23,24,0],[3,37,24,0],[3,23,25,0],[3,37,25,0],[3,23,26,0],[3,37,26,0],[3,23,27,0],[3,37,27,0],[3,23,28,0],[3,37,28,0],[3,23,29,0],[3,37,29,0],[3,23,30,0],[3,37,30,0],[3,23,31,0],[3,37,31,0],[3,23,32,0],[3,37,32,0],[3,23,33,0],[3,37,33,0],[3,23,34,0],[3,37,34,0],[3,23,35,0],[3,37,35,0],[3,23,36,0],[3,37,36,0],[2,13,21,0],[2,14,21,0],[2,15,21,0],[2,16,13,0],[2,16,21,0],[2,17,21,0],[2,18,21,0],[2,19,21,0],[2,20,13,0],[2,20,21,0],[2,21,13,0],[2,21,21,0],[2,21,14,0],[2,21,15,0],[2,13,16,0],[2,21,16,0],[2,21,17,0],[2,21,18,0],[2,21,19,0],[2,13,20,0],[2,21,20,0],[2,13,44,0],[2,14,44,0],[2,15,44,0],[2,16,44,0],[2,17,44,0],[2,18,44,0],[2,19,44,0],[2,20,44,0],[2,21,44,0],[2,22,13,0],[2,22,44,0],[2,23,13,0],[2,23,44,0],[2,24,13,0],[2,24,44,0],[2,25,13,0],[2,25,44,0],[2,26,13,0],[2,26,44,0],[2,27,44,0],[2,28,44,0],[2,29,44,0],[2,30,44,0],[2,31,44,0],[2,32,13,0],[2,32,44,0],[2,33,13,0],[2,33,44,0],[2,34,44,0],[2,35,44,0],[2,36,13,0],[2,36,44,0],[2,37,13,0],[2,37,44,0],[2,38,44,0],[2,39,44,0],[2,40,44,0],[2,41,44,0],[2,42,44,0],[2,43,13,0],[2,43,44,0],[2,44,13,0],[2,44,44,0],[2,44,14,0],[2,44,15,0],[2,44,16,0],[2,44,17,0],[2,44,18,0],[2,44,19,0],[2,44,20,0],[2,44,21,0],[2,13,22,0],[2,44,22,0],[2,13,23,0],[2,44,23,0],[2,13,24,0],[2,44,24,0],[2,13,25,0],[2,44,25,0],[2,13,26,0],[2,44,26,0],[2,44,27,0],[2,44,28,0],[2,44,29,0],[2,44,30,0],[2,44,31,0],[2,13,32,0],[2,44,32,0],[2,13,33,0],[2,44,33,0],[2,44,34,0],[2,44,35,0],[2,13,36,0],[2,44,36,0],[2,13,37,0],[2,44,37,0],[2,44,38,0],[2,44,39,0],[2,44,40,0],[2,44,41,0],[2,44,42,0],[2,13,43,0],[2,44,43,0]]}},{"id":"scout-custom-10","headquartersLevel":7,"layout":{"stage":10,"name":"\u8840\u6218\u9f99\u5ead","source":"user-authored-layout","units":[{"sid":110001,"typeid":20107,"x":31,"y":31,"localNativeStableSid":true},{"sid":110002,"typeid":30107,"x":34,"y":34,"localNativeStableSid":true},{"sid":110003,"typeid":30107,"x":25,"y":34,"localNativeStableSid":true},{"sid":110004,"typeid":30107,"x":25,"y":25,"localNativeStableSid":true},{"sid":110005,"typeid":30307,"x":34,"y":25,"localNativeStableSid":true},{"sid":110006,"typeid":30307,"x":34,"y":31,"localNativeStableSid":true},{"sid":110007,"typeid":30307,"x":25,"y":31,"localNativeStableSid":true},{"sid":110008,"typeid":30806,"x":34,"y":37,"localNativeStableSid":true},{"sid":110009,"typeid":30806,"x":22,"y":34,"localNativeStableSid":true},{"sid":110010,"typeid":30205,"x":38,"y":24,"localNativeStableSid":true},{"sid":110011,"typeid":30503,"x":24,"y":38,"localNativeStableSid":true},{"sid":110012,"typeid":30405,"x":38,"y":38,"localNativeStableSid":true},{"sid":110013,"typeid":20606,"x":21,"y":38,"localNativeStableSid":true},{"sid":110014,"typeid":20508,"x":20,"y":13,"localNativeStableSid":true},{"sid":110015,"typeid":20308,"x":24,"y":13,"localNativeStableSid":true},{"sid":110016,"typeid":20408,"x":13,"y":20,"localNativeStableSid":true},{"sid":110017,"typeid":20208,"x":13,"y":24,"localNativeStableSid":true},{"sid":110018,"typeid":20803,"x":42,"y":18,"localNativeStableSid":true},{"sid":110019,"typeid":20903,"x":18,"y":42,"localNativeStableSid":true},{"sid":110020,"typeid":21003,"x":42,"y":42,"localNativeStableSid":true},{"sid":110021,"typeid":20704,"x":16,"y":39,"localNativeStableSid":true},{"sid":110022,"typeid":20704,"x":40,"y":15,"localNativeStableSid":true},{"sid":110023,"typeid":20704,"x":43,"y":31,"localNativeStableSid":true},{"sid":110024,"typeid":21201,"x":42,"y":26,"localNativeStableSid":true},{"sid":110025,"typeid":21201,"x":45,"y":29,"localNativeStableSid":true},{"sid":110026,"typeid":21201,"x":26,"y":42,"localNativeStableSid":true},{"sid":110027,"typeid":21201,"x":29,"y":42,"localNativeStableSid":true},{"sid":110028,"id":110028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":34,"xp":0,"state":2,"did":"110002","defense_id":"110002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14907,15207],"localNativeStableSid":true,"localNativeGuard":true},{"sid":110029,"id":110029,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":40,"xp":0,"state":2,"did":"110003","defense_id":"110003","rct":0,"aht":0,"aidx":-1,"skills":[11201,24007,24907],"localNativeStableSid":true,"localNativeGuard":true},{"sid":110030,"id":110030,"typeid":11101,"unit_type":111,"unit_level":1,"unit_mutateid":0,"lv":32,"xp":0,"state":2,"did":"110004","defense_id":"110004","rct":0,"aht":0,"aidx":-1,"skills":[11101,22807,23707],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,26,26,0],[3,26,36,0],[3,27,26,0],[3,27,36,0],[3,28,26,0],[3,28,36,0],[3,29,26,0],[3,29,36,0],[3,30,26,0],[3,30,36,0],[3,31,26,0],[3,31,36,0],[3,32,26,0],[3,33,26,0],[3,34,26,0],[3,35,26,0],[3,35,36,0],[3,36,26,0],[3,26,27,0],[3,36,27,0],[3,26,28,0],[3,36,28,0],[3,26,29,0],[3,36,29,0],[3,26,30,0],[3,36,30,0],[3,26,31,0],[3,36,31,0],[3,26,32,0],[3,36,32,0],[3,26,33,0],[3,36,33,0],[3,26,34,0],[3,36,34,0],[3,26,35,0],[3,36,35,0],[3,21,21,0],[3,21,41,0],[3,22,21,0],[3,22,41,0],[3,23,21,0],[3,23,41,0],[3,24,21,0],[3,24,41,0],[3,25,21,0],[3,26,21,0],[3,27,21,0],[3,27,41,0],[3,28,21,0],[3,29,21,0],[3,30,21,0],[3,30,41,0],[3,31,21,0],[3,31,41,0],[3,32,21,0],[3,32,41,0],[3,33,21,0],[3,33,41,0],[3,34,21,0],[3,34,41,0],[3,35,21,0],[3,35,41,0],[3,36,21,0],[3,36,41,0],[3,37,21,0],[3,37,41,0],[3,38,21,0],[3,38,41,0],[3,39,21,0],[3,39,41,0],[3,40,21,0],[3,41,21,0],[3,21,22,0],[3,41,22,0],[3,21,23,0],[3,41,23,0],[3,21,24,0],[3,41,24,0],[3,21,25,0],[3,21,26,0],[3,21,27,0],[3,21,28,0],[3,21,29,0],[3,21,30,0],[3,21,31,0],[3,41,32,0],[3,41,33,0],[3,41,34,0],[3,41,35,0],[3,41,36,0],[3,41,37,0],[3,41,38,0],[3,21,39,0],[3,41,39,0],[3,21,40,0],[2,14,14,0],[2,14,44,0],[2,15,14,0],[2,15,44,0],[2,16,14,0],[2,16,44,0],[2,17,14,0],[2,17,44,0],[2,18,14,0],[2,18,44,0],[2,19,14,0],[2,19,44,0],[2,20,14,0],[2,20,44,0],[2,21,14,0],[2,21,44,0],[2,22,14,0],[2,22,44,0],[2,23,14,0],[2,23,44,0],[2,24,14,0],[2,24,44,0],[2,25,14,0],[2,25,44,0],[2,26,14,0],[2,26,44,0],[2,27,14,0],[2,27,44,0],[2,28,14,0],[2,28,44,0],[2,29,14,0],[2,29,44,0],[2,30,14,0],[2,30,44,0],[2,31,14,0],[2,31,44,0],[2,32,14,0],[2,32,44,0],[2,33,14,0],[2,33,44,0],[2,34,14,0],[2,34,44,0],[2,35,14,0],[2,35,44,0],[2,36,44,0],[2,37,44,0],[2,38,44,0],[2,39,44,0],[2,40,44,0],[2,41,14,0],[2,41,44,0],[2,42,14,0],[2,42,44,0],[2,43,14,0],[2,43,44,0],[2,44,14,0],[2,44,44,0],[2,14,15,0],[2,44,15,0],[2,14,16,0],[2,44,16,0],[2,14,17,0],[2,44,17,0],[2,14,18,0],[2,44,18,0],[2,14,19,0],[2,44,19,0],[2,14,20,0],[2,44,20,0],[2,14,21,0],[2,44,21,0],[2,14,22,0],[2,44,22,0],[2,14,23,0],[2,44,23,0],[2,14,24,0],[2,44,24,0],[2,14,25,0],[2,44,25,0],[2,14,26,0],[2,44,26,0],[2,14,27,0],[2,44,27,0],[2,14,28,0],[2,14,29,0],[2,14,30,0],[2,44,30,0],[2,14,31,0],[2,44,31,0],[2,14,32,0],[2,44,32,0],[2,14,33,0],[2,44,33,0],[2,14,34,0],[2,44,34,0],[2,44,35,0],[2,44,36,0],[2,44,37,0],[2,44,38,0],[2,44,39,0],[2,14,40,0],[2,44,40,0],[2,14,41,0],[2,44,41,0],[2,14,42,0],[2,44,42,0],[2,14,43,0],[2,44,43,0]]}},{"id":"scout-custom-11","headquartersLevel":5,"layout":{"stage":11,"name":"\u53cc\u5cf0\u54e8\u536b","source":"user-authored-layout","units":[{"sid":111001,"typeid":20105,"x":31,"y":31,"localNativeStableSid":true},{"sid":111002,"typeid":30105,"x":36,"y":36,"localNativeStableSid":true},{"sid":111003,"typeid":30105,"x":26,"y":36,"localNativeStableSid":true},{"sid":111004,"typeid":30105,"x":26,"y":26,"localNativeStableSid":true},{"sid":111005,"typeid":30305,"x":36,"y":26,"localNativeStableSid":true},{"sid":111006,"typeid":30304,"x":36,"y":31,"localNativeStableSid":true},{"sid":111007,"typeid":30304,"x":26,"y":31,"localNativeStableSid":true},{"sid":111008,"typeid":30803,"x":36,"y":41,"localNativeStableSid":true},{"sid":111009,"typeid":30803,"x":26,"y":21,"localNativeStableSid":true},{"sid":111010,"typeid":30203,"x":41,"y":31,"localNativeStableSid":true},{"sid":111011,"typeid":30402,"x":21,"y":31,"localNativeStableSid":true},{"sid":111012,"typeid":30501,"x":31,"y":41,"localNativeStableSid":true},{"sid":111013,"typeid":20605,"x":31,"y":21,"localNativeStableSid":true},{"sid":111014,"typeid":20703,"x":15,"y":15,"localNativeStableSid":true},{"sid":111015,"typeid":20702,"x":43,"y":15,"localNativeStableSid":true},{"sid":111016,"typeid":20702,"x":15,"y":43,"localNativeStableSid":true},{"sid":111017,"typeid":20801,"x":43,"y":43,"localNativeStableSid":true},{"sid":111018,"typeid":20901,"x":20,"y":42,"localNativeStableSid":true},{"sid":111019,"typeid":21001,"x":42,"y":20,"localNativeStableSid":true},{"sid":111020,"typeid":21201,"x":14,"y":21,"localNativeStableSid":true},{"sid":111021,"typeid":21201,"x":14,"y":24,"localNativeStableSid":true},{"sid":111022,"typeid":21201,"x":21,"y":14,"localNativeStableSid":true},{"sid":111023,"typeid":21201,"x":24,"y":14,"localNativeStableSid":true},{"sid":111024,"typeid":20506,"x":14,"y":32,"localNativeStableSid":true},{"sid":111025,"typeid":20306,"x":14,"y":36,"localNativeStableSid":true},{"sid":111026,"typeid":20406,"x":45,"y":32,"localNativeStableSid":true},{"sid":111027,"typeid":20206,"x":45,"y":36,"localNativeStableSid":true},{"sid":111028,"id":111028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":22,"xp":0,"state":2,"did":"111002","defense_id":"111002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14603,14902],"localNativeStableSid":true,"localNativeGuard":true},{"sid":111029,"id":111029,"typeid":10701,"unit_type":107,"unit_level":1,"unit_mutateid":0,"lv":27,"xp":0,"state":2,"did":"111003","defense_id":"111003","rct":0,"aht":0,"aidx":-1,"skills":[10701,17502,18103],"localNativeStableSid":true,"localNativeGuard":true},{"sid":111030,"id":111030,"typeid":10901,"unit_type":109,"unit_level":1,"unit_mutateid":0,"lv":24,"xp":0,"state":2,"did":"111004","defense_id":"111004","rct":0,"aht":0,"aidx":-1,"skills":[10901,20202,20603],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,24,38,0],[3,25,38,0],[3,26,38,0],[3,27,24,0],[3,27,38,0],[3,28,24,0],[3,28,38,0],[3,29,24,0],[3,29,38,0],[3,30,24,0],[3,30,38,0],[3,31,24,0],[3,31,38,0],[3,32,24,0],[3,32,38,0],[3,33,24,0],[3,33,38,0],[3,34,38,0],[3,35,38,0],[3,36,38,0],[3,37,24,0],[3,37,38,0],[3,38,24,0],[3,38,38,0],[3,38,25,0],[3,38,26,0],[3,24,27,0],[3,38,27,0],[3,24,28,0],[3,38,28,0],[3,38,29,0],[3,38,30,0],[3,38,31,0],[3,24,32,0],[3,38,32,0],[3,24,33,0],[3,38,33,0],[3,38,34,0],[3,38,35,0],[3,38,36,0],[3,24,37,0],[3,38,37,0],[2,19,19,0],[2,19,33,0],[2,20,19,0],[2,20,33,0],[2,21,19,0],[2,21,33,0],[2,22,19,0],[2,22,33,0],[2,23,19,0],[2,23,33,0],[2,25,33,0],[2,26,33,0],[2,27,19,0],[2,27,33,0],[2,28,33,0],[2,29,33,0],[2,30,33,0],[2,31,33,0],[2,32,19,0],[2,32,33,0],[2,33,19,0],[2,33,33,0],[2,19,20,0],[2,33,20,0],[2,19,21,0],[2,33,21,0],[2,19,22,0],[2,33,22,0],[2,19,23,0],[2,33,23,0],[2,19,24,0],[2,19,25,0],[2,33,25,0],[2,19,26,0],[2,33,26,0],[2,19,27,0],[2,33,27,0],[2,19,28,0],[2,33,28,0],[2,33,29,0],[2,33,30,0],[2,33,31,0],[2,19,32,0],[2,33,32,0],[2,13,45,0],[2,14,45,0],[2,15,45,0],[2,16,13,0],[2,16,45,0],[2,17,13,0],[2,17,45,0],[2,18,13,0],[2,18,45,0],[2,19,13,0],[2,19,45,0],[2,20,45,0],[2,21,45,0],[2,22,13,0],[2,22,45,0],[2,23,45,0],[2,24,45,0],[2,25,13,0],[2,25,45,0],[2,26,13,0],[2,26,45,0],[2,27,13,0],[2,27,45,0],[2,28,13,0],[2,28,45,0],[2,29,13,0],[2,29,45,0],[2,30,13,0],[2,30,45,0],[2,31,13,0],[2,31,45,0],[2,32,13,0],[2,32,45,0],[2,33,13,0],[2,33,45,0],[2,34,13,0],[2,34,45,0],[2,35,13,0],[2,35,45,0],[2,36,13,0],[2,36,45,0],[2,37,13,0],[2,37,45,0],[2,38,13,0],[2,38,45,0],[2,39,45,0],[2,40,45,0],[2,41,45,0],[2,42,45,0],[2,43,45,0],[2,44,13,0],[2,44,45,0],[2,45,13,0],[2,45,45,0],[2,45,14,0],[2,45,15,0],[2,13,16,0],[2,45,16,0],[2,13,17,0],[2,45,17,0],[2,13,18,0],[2,45,18,0],[2,13,19,0],[2,45,19,0],[2,45,20,0],[2,45,21,0],[2,13,22,0],[2,45,22,0],[2,45,23,0],[2,45,24,0],[2,13,25,0],[2,45,25,0],[2,13,26,0],[2,45,26,0],[2,13,27,0],[2,45,27,0],[2,13,28,0],[2,45,28,0],[2,13,29,0],[2,45,29,0],[2,13,33,0],[2,45,33,0],[2,13,37,0],[2,45,37,0],[2,13,38,0],[2,45,38,0],[2,45,39,0],[2,45,40,0],[2,45,41,0],[2,45,42,0],[2,45,43,0],[2,13,44,0],[2,45,44,0],[2,24,22,0],[2,24,23,0],[2,38,19,0],[2,38,20,0],[2,38,21,0],[2,38,22,0],[2,38,23,0],[2,24,39,0],[2,24,40,0],[2,24,41,0],[2,24,42,0],[2,24,43,0],[2,24,44,0],[2,38,39,0],[2,38,40,0],[2,38,41,0],[2,38,42,0],[2,38,43,0],[2,38,44,0]]}},{"id":"scout-custom-12","headquartersLevel":5,"layout":{"stage":12,"name":"\u56db\u95e8\u94c1\u95f8","source":"user-authored-layout","units":[{"sid":112001,"typeid":20105,"x":31,"y":31,"localNativeStableSid":true},{"sid":112002,"typeid":30105,"x":35,"y":35,"localNativeStableSid":true},{"sid":112003,"typeid":30104,"x":27,"y":35,"localNativeStableSid":true},{"sid":112004,"typeid":30104,"x":27,"y":27,"localNativeStableSid":true},{"sid":112005,"typeid":30305,"x":35,"y":27,"localNativeStableSid":true},{"sid":112006,"typeid":30304,"x":35,"y":31,"localNativeStableSid":true},{"sid":112007,"typeid":30304,"x":27,"y":31,"localNativeStableSid":true},{"sid":112008,"typeid":30803,"x":39,"y":39,"localNativeStableSid":true},{"sid":112009,"typeid":30803,"x":23,"y":23,"localNativeStableSid":true},{"sid":112010,"typeid":30202,"x":39,"y":31,"localNativeStableSid":true},{"sid":112011,"typeid":30402,"x":23,"y":31,"localNativeStableSid":true},{"sid":112012,"typeid":30501,"x":31,"y":39,"localNativeStableSid":true},{"sid":112013,"typeid":20604,"x":31,"y":23,"localNativeStableSid":true},{"sid":112014,"typeid":20702,"x":16,"y":16,"localNativeStableSid":true},{"sid":112015,"typeid":20703,"x":44,"y":16,"localNativeStableSid":true},{"sid":112016,"typeid":20702,"x":16,"y":44,"localNativeStableSid":true},{"sid":112017,"typeid":20801,"x":44,"y":44,"localNativeStableSid":true},{"sid":112018,"typeid":20901,"x":22,"y":44,"localNativeStableSid":true},{"sid":112019,"typeid":21001,"x":44,"y":22,"localNativeStableSid":true},{"sid":112020,"typeid":21201,"x":14,"y":30,"localNativeStableSid":true},{"sid":112021,"typeid":21201,"x":14,"y":34,"localNativeStableSid":true},{"sid":112022,"typeid":21201,"x":30,"y":14,"localNativeStableSid":true},{"sid":112023,"typeid":21201,"x":34,"y":14,"localNativeStableSid":true},{"sid":112024,"typeid":20507,"x":28,"y":14,"localNativeStableSid":true},{"sid":112025,"typeid":20307,"x":37,"y":14,"localNativeStableSid":true},{"sid":112026,"typeid":20407,"x":31,"y":45,"localNativeStableSid":true},{"sid":112027,"typeid":20207,"x":36,"y":45,"localNativeStableSid":true},{"sid":112028,"id":112028,"typeid":10601,"unit_type":106,"unit_level":1,"unit_mutateid":0,"lv":25,"xp":0,"state":2,"did":"112002","defense_id":"112002","rct":0,"aht":0,"aidx":-1,"skills":[10601,16702,17303],"localNativeStableSid":true,"localNativeGuard":true},{"sid":112029,"id":112029,"typeid":11001,"unit_type":110,"unit_level":1,"unit_mutateid":0,"lv":29,"xp":0,"state":2,"did":"112003","defense_id":"112003","rct":0,"aht":0,"aidx":-1,"skills":[11001,22003,22504],"localNativeStableSid":true,"localNativeGuard":true},{"sid":112030,"id":112030,"typeid":10801,"unit_type":108,"unit_level":1,"unit_mutateid":0,"lv":23,"xp":0,"state":2,"did":"112004","defense_id":"112004","rct":0,"aht":0,"aidx":-1,"skills":[10801,19102,19903],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,25,37,0],[3,26,37,0],[3,27,37,0],[3,28,25,0],[3,28,37,0],[3,29,25,0],[3,30,25,0],[3,32,25,0],[3,32,37,0],[3,33,37,0],[3,34,37,0],[3,35,37,0],[3,36,25,0],[3,36,37,0],[3,37,25,0],[3,37,26,0],[3,37,27,0],[3,25,28,0],[3,37,28,0],[3,25,32,0],[3,37,32,0],[3,37,33,0],[3,37,34,0],[3,37,35,0],[3,25,36,0],[3,37,36,0],[2,19,19,0],[2,19,43,0],[2,20,19,0],[2,21,19,0],[2,22,19,0],[2,23,19,0],[2,23,43,0],[2,24,19,0],[2,24,43,0],[2,25,19,0],[2,25,43,0],[2,26,19,0],[2,26,43,0],[2,27,19,0],[2,27,43,0],[2,28,19,0],[2,28,43,0],[2,29,19,0],[2,30,19,0],[2,32,19,0],[2,32,43,0],[2,33,19,0],[2,33,43,0],[2,34,19,0],[2,35,19,0],[2,36,19,0],[2,37,19,0],[2,37,43,0],[2,38,19,0],[2,38,43,0],[2,39,19,0],[2,39,43,0],[2,40,19,0],[2,40,43,0],[2,41,19,0],[2,41,43,0],[2,42,19,0],[2,43,19,0],[2,19,20,0],[2,19,21,0],[2,19,22,0],[2,19,23,0],[2,43,23,0],[2,19,24,0],[2,43,24,0],[2,19,25,0],[2,43,25,0],[2,19,26,0],[2,43,26,0],[2,19,27,0],[2,43,27,0],[2,19,28,0],[2,43,28,0],[2,19,29,0],[2,43,29,0],[2,19,30,0],[2,43,30,0],[2,19,32,0],[2,43,32,0],[2,19,33,0],[2,43,33,0],[2,19,34,0],[2,43,34,0],[2,19,35,0],[2,43,35,0],[2,19,36,0],[2,43,36,0],[2,19,37,0],[2,43,37,0],[2,19,38,0],[2,43,38,0],[2,19,39,0],[2,43,39,0],[2,19,40,0],[2,43,40,0],[2,19,41,0],[2,43,41,0],[2,19,42,0]]}},{"id":"scout-custom-13","headquartersLevel":5,"layout":{"stage":13,"name":"\u56de\u5b57\u91cd\u5899","source":"user-authored-layout","units":[{"sid":113001,"typeid":20105,"x":31,"y":31,"localNativeStableSid":true},{"sid":113002,"typeid":30106,"x":34,"y":34,"localNativeStableSid":true},{"sid":113003,"typeid":30105,"x":25,"y":34,"localNativeStableSid":true},{"sid":113004,"typeid":30105,"x":25,"y":25,"localNativeStableSid":true},{"sid":113005,"typeid":30306,"x":34,"y":25,"localNativeStableSid":true},{"sid":113006,"typeid":30305,"x":34,"y":31,"localNativeStableSid":true},{"sid":113007,"typeid":30305,"x":25,"y":31,"localNativeStableSid":true},{"sid":113008,"typeid":30804,"x":38,"y":38,"localNativeStableSid":true},{"sid":113009,"typeid":30804,"x":22,"y":22,"localNativeStableSid":true},{"sid":113010,"typeid":30203,"x":38,"y":31,"localNativeStableSid":true},{"sid":113011,"typeid":30403,"x":22,"y":31,"localNativeStableSid":true},{"sid":113012,"typeid":30501,"x":31,"y":38,"localNativeStableSid":true},{"sid":113013,"typeid":20605,"x":31,"y":26,"localNativeStableSid":true},{"sid":113014,"typeid":20703,"x":18,"y":18,"localNativeStableSid":true},{"sid":113015,"typeid":20703,"x":42,"y":18,"localNativeStableSid":true},{"sid":113016,"typeid":20702,"x":18,"y":42,"localNativeStableSid":true},{"sid":113017,"typeid":20801,"x":42,"y":42,"localNativeStableSid":true},{"sid":113018,"typeid":20901,"x":24,"y":44,"localNativeStableSid":true},{"sid":113019,"typeid":21001,"x":44,"y":24,"localNativeStableSid":true},{"sid":113020,"typeid":21201,"x":14,"y":27,"localNativeStableSid":true},{"sid":113021,"typeid":21201,"x":14,"y":30,"localNativeStableSid":true},{"sid":113022,"typeid":21201,"x":27,"y":14,"localNativeStableSid":true},{"sid":113023,"typeid":21201,"x":30,"y":14,"localNativeStableSid":true},{"sid":113024,"typeid":20508,"x":15,"y":36,"localNativeStableSid":true},{"sid":113025,"typeid":20308,"x":18,"y":37,"localNativeStableSid":true},{"sid":113026,"typeid":20408,"x":13,"y":40,"localNativeStableSid":true},{"sid":113027,"typeid":20208,"x":21,"y":42,"localNativeStableSid":true},{"sid":113028,"id":113028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":30,"xp":0,"state":2,"did":"113002","defense_id":"113002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14604,14904,15204],"localNativeStableSid":true,"localNativeGuard":true},{"sid":113029,"id":113029,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":35,"xp":0,"state":2,"did":"113003","defense_id":"113003","rct":0,"aht":0,"aidx":-1,"skills":[11201,24003,24704,24904],"localNativeStableSid":true,"localNativeGuard":true},{"sid":113030,"id":113030,"typeid":11101,"unit_type":111,"unit_level":1,"unit_mutateid":0,"lv":28,"xp":0,"state":2,"did":"113004","defense_id":"113004","rct":0,"aht":0,"aidx":-1,"skills":[11101,22804,23404,23704],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,26,26,0],[3,26,36,0],[3,27,26,0],[3,27,36,0],[3,28,36,0],[3,32,26,0],[3,32,36,0],[3,33,26,0],[3,33,36,0],[3,34,26,0],[3,34,36,0],[3,35,26,0],[3,35,36,0],[3,36,26,0],[3,26,27,0],[3,36,27,0],[3,26,28,0],[3,36,28,0],[3,26,29,0],[3,26,30,0],[3,26,31,0],[3,26,32,0],[3,36,32,0],[3,26,33,0],[3,36,33,0],[3,26,34,0],[3,36,34,0],[3,26,35,0],[3,36,35,0],[3,22,41,0],[3,23,21,0],[3,23,41,0],[3,24,21,0],[3,24,41,0],[3,25,21,0],[3,25,41,0],[3,26,21,0],[3,26,41,0],[3,27,21,0],[3,27,41,0],[3,28,21,0],[3,28,41,0],[3,29,21,0],[3,29,41,0],[3,30,21,0],[3,30,41,0],[3,31,21,0],[3,31,41,0],[3,32,21,0],[3,32,41,0],[3,33,21,0],[3,33,41,0],[3,34,21,0],[3,34,41,0],[3,35,21,0],[3,35,41,0],[3,36,21,0],[3,36,41,0],[3,37,21,0],[3,37,41,0],[3,38,21,0],[3,38,41,0],[3,39,21,0],[3,39,41,0],[3,40,21,0],[3,41,21,0],[3,41,22,0],[3,21,23,0],[3,41,23,0],[3,21,24,0],[3,41,24,0],[3,21,25,0],[3,41,25,0],[3,21,26,0],[3,41,26,0],[3,21,27,0],[3,41,27,0],[3,21,28,0],[3,41,28,0],[3,41,29,0],[3,41,30,0],[3,41,31,0],[3,21,32,0],[3,41,32,0],[3,21,33,0],[3,41,33,0],[3,21,34,0],[3,41,34,0],[3,21,35,0],[3,41,35,0],[3,21,36,0],[3,41,36,0],[3,21,37,0],[3,41,37,0],[3,21,38,0],[3,41,38,0],[3,21,39,0],[3,41,39,0],[2,14,45,0],[2,15,45,0],[2,16,45,0],[2,17,45,0],[2,18,45,0],[2,19,14,0],[2,19,45,0],[2,20,14,0],[2,20,45,0],[2,21,14,0],[2,21,45,0],[2,22,14,0],[2,22,45,0],[2,23,14,0],[2,23,45,0],[2,24,14,0],[2,24,45,0],[2,25,14,0],[2,25,45,0],[2,26,45,0],[2,27,45,0],[2,28,14,0],[2,28,45,0],[2,29,45,0],[2,30,45,0],[2,31,14,0],[2,31,45,0],[2,32,14,0],[2,32,45,0],[2,33,14,0],[2,33,45,0],[2,34,14,0],[2,34,45,0],[2,35,14,0],[2,35,45,0],[2,36,14,0],[2,36,45,0],[2,37,14,0],[2,37,45,0],[2,38,45,0],[2,39,45,0],[2,40,45,0],[2,41,45,0],[2,42,45,0],[2,43,14,0],[2,43,45,0],[2,44,14,0],[2,44,45,0],[2,45,14,0],[2,45,45,0],[2,45,15,0],[2,45,16,0],[2,45,17,0],[2,45,18,0],[2,14,19,0],[2,45,19,0],[2,14,20,0],[2,45,20,0],[2,14,21,0],[2,45,21,0],[2,14,22,0],[2,45,22,0],[2,14,23,0],[2,45,23,0],[2,14,24,0],[2,45,24,0],[2,14,25,0],[2,45,25,0],[2,45,26,0],[2,45,27,0],[2,14,28,0],[2,45,28,0],[2,45,29,0],[2,45,30,0],[2,14,31,0],[2,45,31,0],[2,14,32,0],[2,45,32,0],[2,14,33,0],[2,45,33,0],[2,45,34,0],[2,45,35,0],[2,45,36,0],[2,14,37,0],[2,45,37,0],[2,45,38,0],[2,45,39,0],[2,45,40,0],[2,45,41,0],[2,45,42,0],[2,14,43,0],[2,45,43,0],[2,14,44,0],[2,45,44,0],[3,22,33,0],[3,22,34,0],[3,37,33,0],[3,38,33,0],[3,39,33,0],[3,40,33,0],[3,37,34,0],[3,38,34,0],[3,39,34,0],[3,40,34,0],[3,33,22,0],[3,34,22,0],[3,33,37,0],[3,33,38,0],[3,33,39,0],[3,33,40,0],[3,34,37,0],[3,34,38,0],[3,34,39,0],[3,34,40,0]]}},{"id":"scout-custom-14","headquartersLevel":5,"layout":{"stage":14,"name":"\u8702\u5de2\u8ff7\u9635","source":"user-authored-layout","units":[{"sid":114001,"typeid":20105,"x":31,"y":31,"localNativeStableSid":true},{"sid":114002,"typeid":30105,"x":35,"y":35,"localNativeStableSid":true},{"sid":114003,"typeid":30105,"x":27,"y":35,"localNativeStableSid":true},{"sid":114004,"typeid":30105,"x":27,"y":27,"localNativeStableSid":true},{"sid":114005,"typeid":30305,"x":35,"y":27,"localNativeStableSid":true},{"sid":114006,"typeid":30304,"x":35,"y":31,"localNativeStableSid":true},{"sid":114007,"typeid":30304,"x":27,"y":31,"localNativeStableSid":true},{"sid":114008,"typeid":30803,"x":35,"y":39,"localNativeStableSid":true},{"sid":114009,"typeid":30803,"x":27,"y":23,"localNativeStableSid":true},{"sid":114010,"typeid":30202,"x":39,"y":27,"localNativeStableSid":true},{"sid":114011,"typeid":30402,"x":23,"y":35,"localNativeStableSid":true},{"sid":114012,"typeid":30501,"x":31,"y":39,"localNativeStableSid":true},{"sid":114013,"typeid":20604,"x":35,"y":23,"localNativeStableSid":true},{"sid":114014,"typeid":20702,"x":17,"y":17,"localNativeStableSid":true},{"sid":114015,"typeid":20702,"x":43,"y":17,"localNativeStableSid":true},{"sid":114016,"typeid":20703,"x":17,"y":43,"localNativeStableSid":true},{"sid":114017,"typeid":20801,"x":43,"y":43,"localNativeStableSid":true},{"sid":114018,"typeid":20901,"x":23,"y":44,"localNativeStableSid":true},{"sid":114019,"typeid":21001,"x":44,"y":23,"localNativeStableSid":true},{"sid":114020,"typeid":21201,"x":14,"y":22,"localNativeStableSid":true},{"sid":114021,"typeid":21201,"x":14,"y":25,"localNativeStableSid":true},{"sid":114022,"typeid":21201,"x":22,"y":14,"localNativeStableSid":true},{"sid":114023,"typeid":21201,"x":25,"y":14,"localNativeStableSid":true},{"sid":114024,"typeid":20507,"x":38,"y":13,"localNativeStableSid":true},{"sid":114025,"typeid":20307,"x":46,"y":15,"localNativeStableSid":true},{"sid":114026,"typeid":20407,"x":13,"y":38,"localNativeStableSid":true},{"sid":114027,"typeid":20207,"x":15,"y":46,"localNativeStableSid":true},{"sid":114028,"id":114028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":27,"xp":0,"state":2,"did":"114002","defense_id":"114002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14603,14903],"localNativeStableSid":true,"localNativeGuard":true},{"sid":114029,"id":114029,"typeid":10901,"unit_type":109,"unit_level":1,"unit_mutateid":0,"lv":31,"xp":0,"state":2,"did":"114003","defense_id":"114003","rct":0,"aht":0,"aidx":-1,"skills":[10901,20203,20603,21103],"localNativeStableSid":true,"localNativeGuard":true},{"sid":114030,"id":114030,"typeid":10801,"unit_type":108,"unit_level":1,"unit_mutateid":0,"lv":25,"xp":0,"state":2,"did":"114004","defense_id":"114004","rct":0,"aht":0,"aidx":-1,"skills":[10801,18903,19103,19603],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,24,24,0],[3,24,38,0],[3,25,24,0],[3,25,38,0],[3,26,24,0],[3,26,38,0],[3,27,24,0],[3,27,38,0],[3,28,24,0],[3,28,38,0],[3,29,24,0],[3,30,24,0],[3,31,24,0],[3,32,24,0],[3,32,38,0],[3,33,24,0],[3,34,24,0],[3,35,24,0],[3,36,24,0],[3,36,38,0],[3,37,24,0],[3,37,38,0],[3,38,24,0],[3,38,38,0],[3,24,25,0],[3,24,26,0],[3,24,27,0],[3,24,28,0],[3,38,28,0],[3,24,29,0],[3,38,29,0],[3,24,30,0],[3,38,30,0],[3,24,31,0],[3,38,31,0],[3,24,32,0],[3,38,32,0],[3,24,33,0],[3,38,33,0],[3,24,34,0],[3,38,34,0],[3,24,35,0],[3,38,35,0],[3,24,36,0],[3,38,36,0],[3,24,37,0],[3,38,37,0],[2,14,26,0],[2,15,26,0],[2,16,26,0],[2,17,26,0],[2,18,26,0],[2,19,26,0],[2,20,26,0],[2,20,25,0],[2,20,24,0],[2,20,23,0],[2,20,22,0],[2,20,21,0],[2,20,20,0],[2,42,26,0],[2,43,26,0],[2,44,26,0],[2,45,26,0],[2,46,26,0],[2,42,25,0],[2,42,24,0],[2,42,20,0],[2,14,36,0],[2,15,36,0],[2,16,36,0],[2,17,36,0],[2,18,36,0],[2,19,36,0],[2,20,36,0],[2,20,37,0],[2,20,38,0],[2,20,39,0],[2,20,40,0],[2,20,41,0],[2,20,42,0],[2,42,36,0],[2,43,36,0],[2,44,36,0],[2,45,36,0],[2,46,36,0],[2,42,37,0],[2,42,38,0],[2,42,39,0],[2,42,40,0],[2,26,14,0],[2,26,15,0],[2,26,16,0],[2,26,17,0],[2,26,18,0],[2,26,19,0],[2,26,20,0],[2,27,14,0],[2,28,14,0],[2,29,14,0],[2,30,14,0],[2,31,14,0],[2,32,14,0],[2,36,14,0],[2,36,15,0],[2,36,16,0],[2,36,17,0],[2,36,18,0],[2,36,19,0],[2,36,20,0],[2,37,14,0],[2,38,14,0],[2,26,42,0],[2,26,43,0],[2,26,44,0],[2,26,45,0],[2,26,46,0],[2,27,46,0],[2,28,46,0],[2,29,46,0],[2,30,46,0],[2,31,46,0],[2,32,46,0],[2,36,42,0],[2,36,43,0],[2,36,44,0],[2,36,45,0],[2,36,46,0],[2,37,46,0],[2,38,46,0],[2,39,46,0],[2,40,46,0],[2,41,46,0],[2,42,46,0],[2,16,45,0],[2,17,45,0],[2,18,13,0],[2,18,45,0],[2,19,13,0],[2,19,45,0],[2,20,13,0],[2,20,45,0],[2,21,45,0],[2,22,45,0],[2,23,13,0],[2,23,45,0],[2,24,45,0],[2,25,45,0],[2,26,13,0],[2,27,13,0],[2,27,45,0],[2,28,13,0],[2,28,45,0],[2,29,13,0],[2,29,45,0],[2,30,13,0],[2,30,45,0],[2,31,13,0],[2,31,45,0],[2,32,13,0],[2,32,45,0],[2,33,13,0],[2,33,45,0],[2,34,13,0],[2,34,45,0],[2,35,13,0],[2,35,45,0],[2,37,45,0],[2,38,45,0],[2,39,45,0],[2,40,45,0],[2,41,45,0],[2,42,45,0],[2,43,45,0],[2,44,45,0],[2,45,45,0],[2,45,16,0],[2,45,17,0],[2,13,18,0],[2,45,18,0],[2,13,19,0],[2,45,19,0],[2,13,20,0],[2,45,20,0],[2,45,21,0],[2,45,22,0],[2,13,23,0],[2,45,23,0],[2,45,24,0],[2,45,25,0],[2,13,26,0],[2,13,27,0],[2,45,27,0],[2,13,28,0],[2,45,28,0],[2,13,29,0],[2,45,29,0],[2,13,30,0],[2,45,30,0],[2,13,31,0],[2,45,31,0],[2,13,32,0],[2,45,32,0],[2,13,33,0],[2,45,33,0],[2,13,34,0],[2,45,34,0],[2,13,35,0],[2,45,35,0],[2,45,37,0],[2,45,38,0],[2,45,39,0],[2,45,40,0],[2,45,41,0],[2,45,42,0],[2,45,43,0],[2,45,44,0]]}},{"id":"scout-custom-15","headquartersLevel":5,"layout":{"stage":15,"name":"\u957f\u86c7\u9501\u94fe","source":"user-authored-layout","units":[{"sid":115001,"typeid":20105,"x":28,"y":32,"localNativeStableSid":true},{"sid":115002,"typeid":30105,"x":32,"y":36,"localNativeStableSid":true},{"sid":115003,"typeid":30105,"x":23,"y":36,"localNativeStableSid":true},{"sid":115004,"typeid":30104,"x":23,"y":28,"localNativeStableSid":true},{"sid":115005,"typeid":30305,"x":32,"y":28,"localNativeStableSid":true},{"sid":115006,"typeid":30304,"x":32,"y":32,"localNativeStableSid":true},{"sid":115007,"typeid":30304,"x":23,"y":32,"localNativeStableSid":true},{"sid":115008,"typeid":30803,"x":36,"y":40,"localNativeStableSid":true},{"sid":115009,"typeid":30803,"x":20,"y":24,"localNativeStableSid":true},{"sid":115010,"typeid":30202,"x":36,"y":32,"localNativeStableSid":true},{"sid":115011,"typeid":30402,"x":19,"y":32,"localNativeStableSid":true},{"sid":115012,"typeid":30501,"x":28,"y":40,"localNativeStableSid":true},{"sid":115013,"typeid":20605,"x":32,"y":24,"localNativeStableSid":true},{"sid":115014,"typeid":20703,"x":17,"y":17,"localNativeStableSid":true},{"sid":115015,"typeid":20702,"x":42,"y":17,"localNativeStableSid":true},{"sid":115016,"typeid":20702,"x":17,"y":37,"localNativeStableSid":true},{"sid":115017,"typeid":20801,"x":42,"y":39,"localNativeStableSid":true},{"sid":115018,"typeid":20901,"x":24,"y":44,"localNativeStableSid":true},{"sid":115019,"typeid":21001,"x":43,"y":28,"localNativeStableSid":true},{"sid":115020,"typeid":21201,"x":14,"y":28,"localNativeStableSid":true},{"sid":115021,"typeid":21201,"x":14,"y":31,"localNativeStableSid":true},{"sid":115022,"typeid":21201,"x":28,"y":14,"localNativeStableSid":true},{"sid":115023,"typeid":21201,"x":31,"y":14,"localNativeStableSid":true},{"sid":115024,"typeid":20507,"x":40,"y":20,"localNativeStableSid":true},{"sid":115025,"typeid":20307,"x":43,"y":23,"localNativeStableSid":true},{"sid":115026,"typeid":20407,"x":16,"y":20,"localNativeStableSid":true},{"sid":115027,"typeid":20207,"x":19,"y":21,"localNativeStableSid":true},{"sid":115028,"id":115028,"typeid":10701,"unit_type":107,"unit_level":1,"unit_mutateid":0,"lv":29,"xp":0,"state":2,"did":"115002","defense_id":"115002","rct":0,"aht":0,"aidx":-1,"skills":[10701,17503,18103,17403],"localNativeStableSid":true,"localNativeGuard":true},{"sid":115029,"id":115029,"typeid":11001,"unit_type":110,"unit_level":1,"unit_mutateid":0,"lv":26,"xp":0,"state":2,"did":"115003","defense_id":"115003","rct":0,"aht":0,"aidx":-1,"skills":[11001,22003,22203],"localNativeStableSid":true,"localNativeGuard":true},{"sid":115030,"id":115030,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":38,"xp":0,"state":2,"did":"115004","defense_id":"115004","rct":0,"aht":0,"aidx":-1,"skills":[11201,23903,24803,24903],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,21,38,0],[3,22,38,0],[3,23,38,0],[3,24,26,0],[3,24,38,0],[3,25,26,0],[3,25,38,0],[3,26,26,0],[3,27,26,0],[3,28,26,0],[3,29,26,0],[3,29,38,0],[3,30,38,0],[3,31,38,0],[3,32,38,0],[3,33,26,0],[3,33,38,0],[3,34,26,0],[3,34,27,0],[3,34,28,0],[3,21,29,0],[3,34,29,0],[3,21,33,0],[3,34,33,0],[3,34,34,0],[3,34,35,0],[3,34,36,0],[3,21,37,0],[3,34,37,0],[2,14,22,0],[2,15,22,0],[2,16,22,0],[2,17,22,0],[2,21,22,0],[2,22,22,0],[2,23,22,0],[2,24,22,0],[2,25,22,0],[2,26,22,0],[2,27,22,0],[2,28,22,0],[2,33,22,0],[2,34,22,0],[2,35,22,0],[2,36,22,0],[2,37,22,0],[2,38,22,0],[2,39,22,0],[2,40,22,0],[2,16,23,0],[2,16,24,0],[2,16,25,0],[2,16,26,0],[2,16,27,0],[2,16,28,0],[2,16,29,0],[2,16,30,0],[2,16,31,0],[2,16,32,0],[2,16,38,0],[2,16,39,0],[2,16,40,0],[2,17,40,0],[2,18,40,0],[2,19,40,0],[2,20,40,0],[2,21,40,0],[2,22,40,0],[2,23,40,0],[2,24,40,0],[2,25,40,0],[2,29,40,0],[2,30,40,0],[2,31,40,0],[2,32,40,0],[2,33,40,0],[2,37,40,0],[2,38,40,0],[2,39,40,0],[2,40,40,0],[2,40,23,0],[2,40,24,0],[2,40,25,0],[2,40,26,0],[2,40,27,0],[2,40,28,0],[2,40,29,0],[2,40,30,0],[2,40,31,0],[2,40,32,0],[2,40,33,0],[2,40,34,0],[2,40,35,0],[2,40,36,0],[3,24,27,0],[3,24,28,0],[3,24,29,0],[3,24,30,0],[3,24,31,0],[3,31,33,0],[3,31,37,0],[2,13,45,0],[2,14,45,0],[2,15,45,0],[2,16,45,0],[2,17,45,0],[2,18,13,0],[2,18,45,0],[2,19,13,0],[2,19,45,0],[2,20,13,0],[2,20,45,0],[2,21,13,0],[2,21,45,0],[2,22,13,0],[2,22,45,0],[2,23,13,0],[2,23,45,0],[2,24,13,0],[2,24,45,0],[2,25,13,0],[2,25,45,0],[2,26,13,0],[2,26,45,0],[2,27,45,0],[2,28,45,0],[2,29,13,0],[2,29,45,0],[2,30,45,0],[2,31,45,0],[2,32,13,0],[2,32,45,0],[2,33,13,0],[2,33,45,0],[2,34,13,0],[2,34,45,0],[2,35,13,0],[2,35,45,0],[2,36,13,0],[2,36,45,0],[2,37,13,0],[2,37,45,0],[2,38,45,0],[2,39,45,0],[2,40,45,0],[2,41,45,0],[2,42,45,0],[2,43,13,0],[2,43,45,0],[2,44,13,0],[2,44,45,0],[2,45,13,0],[2,45,45,0],[2,45,14,0],[2,45,15,0],[2,45,16,0],[2,45,17,0],[2,13,18,0],[2,45,18,0],[2,13,19,0],[2,45,19,0],[2,13,20,0],[2,45,20,0],[2,13,21,0],[2,45,21,0],[2,13,22,0],[2,45,22,0],[2,13,23,0],[2,45,23,0],[2,13,24,0],[2,45,24,0],[2,13,25,0],[2,45,25,0],[2,13,26,0],[2,45,26,0],[2,45,27,0],[2,45,28,0],[2,13,29,0],[2,45,29,0],[2,45,30,0],[2,45,31,0],[2,13,32,0],[2,45,32,0],[2,45,33,0],[2,45,34,0],[2,45,35,0],[2,45,36,0],[2,45,37,0],[2,13,38,0],[2,45,38,0],[2,13,39,0],[2,45,39,0],[2,13,40,0],[2,45,40,0],[2,13,41,0],[2,45,41,0],[2,13,42,0],[2,45,42,0],[2,13,43,0],[2,45,43,0],[2,13,44,0],[2,45,44,0]]}},{"id":"scout-custom-16","headquartersLevel":5,"layout":{"stage":16,"name":"\u53cc\u73af\u5b88\u536b","source":"user-authored-layout","units":[{"sid":116001,"typeid":20105,"x":31,"y":31,"localNativeStableSid":true},{"sid":116002,"typeid":30106,"x":33,"y":35,"localNativeStableSid":true},{"sid":116003,"typeid":30105,"x":25,"y":35,"localNativeStableSid":true},{"sid":116004,"typeid":30105,"x":25,"y":25,"localNativeStableSid":true},{"sid":116005,"typeid":30306,"x":33,"y":25,"localNativeStableSid":true},{"sid":116006,"typeid":30305,"x":35,"y":31,"localNativeStableSid":true},{"sid":116007,"typeid":30305,"x":25,"y":31,"localNativeStableSid":true},{"sid":116008,"typeid":30804,"x":37,"y":21,"localNativeStableSid":true},{"sid":116009,"typeid":30804,"x":29,"y":38,"localNativeStableSid":true},{"sid":116010,"typeid":30203,"x":36,"y":35,"localNativeStableSid":true},{"sid":116011,"typeid":30403,"x":22,"y":27,"localNativeStableSid":true},{"sid":116012,"typeid":30501,"x":31,"y":42,"localNativeStableSid":true},{"sid":116013,"typeid":20605,"x":38,"y":27,"localNativeStableSid":true},{"sid":116014,"typeid":20703,"x":16,"y":16,"localNativeStableSid":true},{"sid":116015,"typeid":20703,"x":43,"y":16,"localNativeStableSid":true},{"sid":116016,"typeid":20702,"x":16,"y":43,"localNativeStableSid":true},{"sid":116017,"typeid":20801,"x":43,"y":43,"localNativeStableSid":true},{"sid":116018,"typeid":20901,"x":23,"y":42,"localNativeStableSid":true},{"sid":116019,"typeid":21001,"x":42,"y":23,"localNativeStableSid":true},{"sid":116020,"typeid":21201,"x":14,"y":34,"localNativeStableSid":true},{"sid":116021,"typeid":21201,"x":14,"y":37,"localNativeStableSid":true},{"sid":116022,"typeid":21201,"x":34,"y":14,"localNativeStableSid":true},{"sid":116023,"typeid":21201,"x":37,"y":14,"localNativeStableSid":true},{"sid":116024,"typeid":20508,"x":20,"y":20,"localNativeStableSid":true},{"sid":116025,"typeid":20308,"x":24,"y":20,"localNativeStableSid":true},{"sid":116026,"typeid":20408,"x":42,"y":38,"localNativeStableSid":true},{"sid":116027,"typeid":20208,"x":38,"y":42,"localNativeStableSid":true},{"sid":116028,"id":116028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":32,"xp":0,"state":2,"did":"116002","defense_id":"116002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14604,14904,15204],"localNativeStableSid":true,"localNativeGuard":true},{"sid":116029,"id":116029,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":37,"xp":0,"state":2,"did":"116003","defense_id":"116003","rct":0,"aht":0,"aidx":-1,"skills":[11201,24004,24704,24804],"localNativeStableSid":true,"localNativeGuard":true},{"sid":116030,"id":116030,"typeid":11101,"unit_type":111,"unit_level":1,"unit_mutateid":0,"lv":30,"xp":0,"state":2,"did":"116004","defense_id":"116004","rct":0,"aht":0,"aidx":-1,"skills":[11101,22804,23404,23704],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,26,26,0],[3,26,36,0],[3,27,26,0],[3,28,26,0],[3,29,26,0],[3,30,26,0],[3,30,36,0],[3,31,26,0],[3,31,36,0],[3,32,26,0],[3,32,36,0],[3,33,26,0],[3,33,36,0],[3,34,26,0],[3,34,36,0],[3,35,36,0],[3,36,36,0],[3,24,27,0],[3,24,28,0],[3,38,28,0],[3,38,29,0],[3,38,30,0],[3,38,31,0],[3,24,32,0],[3,38,32,0],[3,38,33,0],[3,38,34,0],[3,38,35,0],[2,19,43,0],[2,20,43,0],[2,21,19,0],[2,21,43,0],[2,22,43,0],[2,23,43,0],[2,24,43,0],[2,25,19,0],[2,25,43,0],[2,26,19,0],[2,26,43,0],[2,27,19,0],[2,27,43,0],[2,28,19,0],[2,28,43,0],[2,29,19,0],[2,29,43,0],[2,30,19,0],[2,30,43,0],[2,31,19,0],[2,31,43,0],[2,32,19,0],[2,32,43,0],[2,33,19,0],[2,33,43,0],[2,34,19,0],[2,34,43,0],[2,35,43,0],[2,36,43,0],[2,37,43,0],[2,38,19,0],[2,38,43,0],[2,39,19,0],[2,39,43,0],[2,40,19,0],[2,40,43,0],[2,41,19,0],[2,42,19,0],[2,43,19,0],[2,43,20,0],[2,19,21,0],[2,43,21,0],[2,19,22,0],[2,43,22,0],[2,19,23,0],[2,43,23,0],[2,19,24,0],[2,43,24,0],[2,19,25,0],[2,43,25,0],[2,19,26,0],[2,43,26,0],[2,19,27,0],[2,43,27,0],[2,19,28,0],[2,43,28,0],[2,19,29,0],[2,43,29,0],[2,19,30,0],[2,43,30,0],[2,19,31,0],[2,43,31,0],[2,19,32,0],[2,43,32,0],[2,19,33,0],[2,43,33,0],[2,19,34,0],[2,43,34,0],[2,19,35,0],[2,43,35,0],[2,19,36,0],[2,43,36,0],[2,19,37,0],[2,43,37,0],[2,19,38,0],[2,43,38,0],[2,19,39,0],[2,43,39,0],[2,19,40,0],[2,43,40,0],[2,19,41,0],[2,19,42,0]]}},{"id":"scout-custom-17","headquartersLevel":5,"layout":{"stage":17,"name":"\u4e09\u9636\u68af\u9632","source":"user-authored-layout","units":[{"sid":117001,"typeid":20105,"x":31,"y":35,"localNativeStableSid":true},{"sid":117002,"typeid":30106,"x":35,"y":38,"localNativeStableSid":true},{"sid":117003,"typeid":30106,"x":27,"y":38,"localNativeStableSid":true},{"sid":117004,"typeid":30105,"x":31,"y":31,"localNativeStableSid":true},{"sid":117005,"typeid":30305,"x":35,"y":31,"localNativeStableSid":true},{"sid":117006,"typeid":30305,"x":27,"y":31,"localNativeStableSid":true},{"sid":117007,"typeid":30305,"x":31,"y":22,"localNativeStableSid":true},{"sid":117008,"typeid":30804,"x":35,"y":22,"localNativeStableSid":true},{"sid":117009,"typeid":30804,"x":27,"y":22,"localNativeStableSid":true},{"sid":117010,"typeid":30203,"x":38,"y":26,"localNativeStableSid":true},{"sid":117011,"typeid":30403,"x":24,"y":26,"localNativeStableSid":true},{"sid":117012,"typeid":30501,"x":31,"y":41,"localNativeStableSid":true},{"sid":117013,"typeid":20605,"x":42,"y":22,"localNativeStableSid":true},{"sid":117014,"typeid":20703,"x":16,"y":16,"localNativeStableSid":true},{"sid":117015,"typeid":20702,"x":43,"y":16,"localNativeStableSid":true},{"sid":117016,"typeid":20702,"x":16,"y":43,"localNativeStableSid":true},{"sid":117017,"typeid":20801,"x":43,"y":43,"localNativeStableSid":true},{"sid":117018,"typeid":20901,"x":22,"y":43,"localNativeStableSid":true},{"sid":117019,"typeid":21001,"x":43,"y":30,"localNativeStableSid":true},{"sid":117020,"typeid":21201,"x":14,"y":22,"localNativeStableSid":true},{"sid":117021,"typeid":21201,"x":14,"y":25,"localNativeStableSid":true},{"sid":117022,"typeid":21201,"x":22,"y":14,"localNativeStableSid":true},{"sid":117023,"typeid":21201,"x":25,"y":14,"localNativeStableSid":true},{"sid":117024,"typeid":20508,"x":42,"y":40,"localNativeStableSid":true},{"sid":117025,"typeid":20308,"x":39,"y":38,"localNativeStableSid":true},{"sid":117026,"typeid":20408,"x":20,"y":30,"localNativeStableSid":true},{"sid":117027,"typeid":20208,"x":20,"y":34,"localNativeStableSid":true},{"sid":117028,"id":117028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":35,"xp":0,"state":2,"did":"117002","defense_id":"117002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14605,14905,15205],"localNativeStableSid":true,"localNativeGuard":true},{"sid":117029,"id":117029,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":39,"xp":0,"state":2,"did":"117003","defense_id":"117003","rct":0,"aht":0,"aidx":-1,"skills":[11201,24005,24705,24905],"localNativeStableSid":true,"localNativeGuard":true},{"sid":117030,"id":117030,"typeid":11101,"unit_type":111,"unit_level":1,"unit_mutateid":0,"lv":33,"xp":0,"state":2,"did":"117004","defense_id":"117004","rct":0,"aht":0,"aidx":-1,"skills":[11101,22805,23405,23705],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,26,40,0],[3,27,40,0],[3,28,29,0],[3,28,40,0],[3,32,29,0],[3,32,40,0],[3,33,40,0],[3,34,40,0],[3,35,40,0],[3,36,29,0],[3,36,40,0],[3,36,30,0],[3,36,31,0],[3,26,32,0],[3,36,32,0],[3,26,33,0],[3,36,33,0],[3,26,34,0],[3,36,34,0],[3,26,35,0],[3,36,35,0],[3,36,36,0],[3,36,37,0],[3,36,38,0],[3,26,39,0],[3,36,39,0],[2,24,18,0],[2,24,28,0],[2,25,18,0],[2,25,28,0],[2,26,18,0],[2,26,28,0],[2,27,18,0],[2,27,28,0],[2,28,18,0],[2,28,28,0],[2,29,18,0],[2,29,28,0],[2,30,18,0],[2,30,28,0],[2,31,18,0],[2,31,28,0],[2,32,18,0],[2,32,28,0],[2,33,18,0],[2,33,28,0],[2,34,18,0],[2,34,28,0],[2,35,18,0],[2,35,28,0],[2,36,18,0],[2,36,28,0],[2,37,18,0],[2,37,28,0],[2,38,18,0],[2,38,28,0],[2,24,19,0],[2,38,19,0],[2,24,20,0],[2,38,20,0],[2,24,21,0],[2,38,21,0],[2,24,22,0],[2,38,22,0],[2,24,23,0],[2,38,23,0],[2,24,27,0],[2,38,27,0],[2,18,15,0],[2,18,45,0],[2,19,15,0],[2,19,45,0],[2,20,15,0],[2,20,45,0],[2,21,15,0],[2,21,45,0],[2,22,15,0],[2,22,45,0],[2,23,15,0],[2,23,45,0],[2,24,15,0],[2,24,45,0],[2,25,15,0],[2,25,45,0],[2,26,15,0],[2,26,45,0],[2,27,15,0],[2,27,45,0],[2,28,15,0],[2,28,45,0],[2,29,15,0],[2,29,45,0],[2,30,15,0],[2,30,45,0],[2,31,15,0],[2,31,45,0],[2,32,15,0],[2,32,45,0],[2,33,15,0],[2,33,45,0],[2,34,15,0],[2,34,45,0],[2,35,15,0],[2,35,45,0],[2,36,15,0],[2,36,45,0],[2,37,15,0],[2,37,45,0],[2,38,15,0],[2,38,45,0],[2,39,45,0],[2,40,45,0],[2,41,45,0],[2,42,45,0],[2,43,45,0],[2,44,15,0],[2,44,45,0],[2,18,16,0],[2,44,16,0],[2,18,17,0],[2,44,17,0],[2,18,18,0],[2,44,18,0],[2,18,19,0],[2,44,19,0],[2,18,20,0],[2,44,20,0],[2,18,21,0],[2,44,21,0],[2,18,22,0],[2,44,22,0],[2,18,23,0],[2,44,23,0],[2,18,24,0],[2,44,24,0],[2,18,25,0],[2,44,25,0],[2,18,26,0],[2,44,26,0],[2,18,27,0],[2,44,27,0],[2,44,28,0],[2,44,29,0],[2,44,30,0],[2,18,31,0],[2,44,31,0],[2,44,32,0],[2,44,33,0],[2,44,34,0],[2,18,35,0],[2,44,35,0],[2,18,36,0],[2,44,36,0],[2,18,37,0],[2,44,37,0],[2,18,38,0],[2,44,38,0],[2,18,39,0],[2,44,39,0],[2,18,40,0],[2,44,40,0],[2,18,41,0],[2,44,41,0],[2,18,42,0],[2,44,42,0],[2,18,43,0],[2,44,43,0],[2,18,44,0],[2,44,44,0],[2,21,30,0],[2,22,30,0],[2,23,30,0],[2,39,30,0],[2,40,30,0]]}},{"id":"scout-custom-18","headquartersLevel":7,"layout":{"stage":18,"name":"\u9f99\u5de2\u5929\u7f61","source":"user-authored-layout","units":[{"sid":118001,"typeid":20107,"x":31,"y":31,"localNativeStableSid":true},{"sid":118002,"typeid":30107,"x":34,"y":34,"localNativeStableSid":true},{"sid":118003,"typeid":30107,"x":25,"y":34,"localNativeStableSid":true},{"sid":118004,"typeid":30107,"x":25,"y":25,"localNativeStableSid":true},{"sid":118005,"typeid":30307,"x":34,"y":25,"localNativeStableSid":true},{"sid":118006,"typeid":30307,"x":34,"y":31,"localNativeStableSid":true},{"sid":118007,"typeid":30307,"x":25,"y":31,"localNativeStableSid":true},{"sid":118008,"typeid":30806,"x":38,"y":38,"localNativeStableSid":true},{"sid":118009,"typeid":30806,"x":21,"y":21,"localNativeStableSid":true},{"sid":118010,"typeid":30205,"x":38,"y":31,"localNativeStableSid":true},{"sid":118011,"typeid":30405,"x":21,"y":31,"localNativeStableSid":true},{"sid":118012,"typeid":30503,"x":31,"y":38,"localNativeStableSid":true},{"sid":118013,"typeid":20606,"x":31,"y":21,"localNativeStableSid":true},{"sid":118014,"typeid":20704,"x":17,"y":17,"localNativeStableSid":true},{"sid":118015,"typeid":20704,"x":43,"y":17,"localNativeStableSid":true},{"sid":118016,"typeid":20704,"x":17,"y":43,"localNativeStableSid":true},{"sid":118017,"typeid":20803,"x":43,"y":43,"localNativeStableSid":true},{"sid":118018,"typeid":20903,"x":25,"y":43,"localNativeStableSid":true},{"sid":118019,"typeid":21003,"x":43,"y":25,"localNativeStableSid":true},{"sid":118020,"typeid":21201,"x":14,"y":26,"localNativeStableSid":true},{"sid":118021,"typeid":21201,"x":14,"y":29,"localNativeStableSid":true},{"sid":118022,"typeid":21201,"x":26,"y":14,"localNativeStableSid":true},{"sid":118023,"typeid":21201,"x":29,"y":14,"localNativeStableSid":true},{"sid":118024,"typeid":20508,"x":44,"y":30,"localNativeStableSid":true},{"sid":118025,"typeid":20308,"x":44,"y":34,"localNativeStableSid":true},{"sid":118026,"typeid":20408,"x":18,"y":30,"localNativeStableSid":true},{"sid":118027,"typeid":20208,"x":18,"y":34,"localNativeStableSid":true},{"sid":118028,"id":118028,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":36,"xp":0,"state":2,"did":"118002","defense_id":"118002","rct":0,"aht":0,"aidx":-1,"skills":[10501,14607,14907,15207],"localNativeStableSid":true,"localNativeGuard":true},{"sid":118029,"id":118029,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":40,"xp":0,"state":2,"did":"118003","defense_id":"118003","rct":0,"aht":0,"aidx":-1,"skills":[11201,24007,24707,24907],"localNativeStableSid":true,"localNativeGuard":true},{"sid":118030,"id":118030,"typeid":11101,"unit_type":111,"unit_level":1,"unit_mutateid":0,"lv":37,"xp":0,"state":2,"did":"118004","defense_id":"118004","rct":0,"aht":0,"aidx":-1,"skills":[11101,22807,23407,23707],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[3,28,34,0],[3,29,34,0],[3,30,34,0],[3,31,34,0],[3,32,28,0],[3,33,28,0],[3,34,28,0],[3,28,32,0],[3,28,33,0],[3,23,36,0],[3,24,36,0],[3,25,36,0],[3,26,23,0],[3,26,36,0],[3,27,23,0],[3,27,36,0],[3,28,23,0],[3,28,36,0],[3,29,23,0],[3,30,23,0],[3,31,23,0],[3,32,36,0],[3,33,36,0],[3,34,36,0],[3,35,23,0],[3,35,36,0],[3,36,23,0],[3,36,24,0],[3,36,25,0],[3,23,26,0],[3,36,26,0],[3,23,27,0],[3,36,27,0],[3,23,28,0],[3,36,28,0],[3,36,32,0],[3,36,33,0],[3,36,34,0],[3,23,35,0],[3,36,35,0],[3,19,40,0],[3,20,40,0],[3,21,40,0],[3,22,19,0],[3,22,40,0],[3,23,19,0],[3,23,40,0],[3,24,19,0],[3,24,40,0],[3,25,19,0],[3,25,40,0],[3,26,19,0],[3,26,40,0],[3,27,19,0],[3,27,40,0],[3,28,40,0],[3,29,40,0],[3,30,40,0],[3,31,40,0],[3,32,19,0],[3,32,40,0],[3,33,19,0],[3,33,40,0],[3,34,19,0],[3,34,40,0],[3,35,19,0],[3,35,40,0],[3,36,19,0],[3,36,40,0],[3,37,19,0],[3,37,40,0],[3,38,19,0],[3,38,40,0],[3,39,19,0],[3,39,40,0],[3,40,19,0],[3,40,40,0],[3,40,20,0],[3,40,21,0],[3,19,22,0],[3,40,22,0],[3,19,23,0],[3,40,23,0],[3,19,24,0],[3,40,24,0],[3,19,25,0],[3,40,25,0],[3,19,26,0],[3,40,26,0],[3,19,27,0],[3,40,27,0],[3,19,28,0],[3,40,28,0],[3,40,29,0],[3,40,30,0],[3,40,31,0],[3,19,32,0],[3,40,32,0],[3,19,33,0],[3,40,33,0],[3,19,34,0],[3,40,34,0],[3,19,35,0],[3,40,35,0],[3,19,36,0],[3,40,36,0],[3,19,37,0],[3,40,37,0],[3,19,38,0],[3,40,38,0],[3,19,39,0],[3,40,39,0],[2,13,45,0],[2,14,45,0],[2,15,45,0],[2,16,45,0],[2,17,45,0],[2,18,13,0],[2,18,45,0],[2,19,13,0],[2,19,45,0],[2,20,13,0],[2,20,45,0],[2,21,13,0],[2,21,45,0],[2,22,13,0],[2,22,45,0],[2,23,13,0],[2,23,45,0],[2,24,13,0],[2,24,45,0],[2,25,45,0],[2,26,45,0],[2,27,13,0],[2,27,45,0],[2,28,45,0],[2,29,45,0],[2,30,13,0],[2,30,45,0],[2,31,13,0],[2,31,45,0],[2,32,13,0],[2,32,45,0],[2,33,13,0],[2,33,45,0],[2,34,13,0],[2,34,45,0],[2,35,13,0],[2,35,45,0],[2,36,13,0],[2,36,45,0],[2,37,13,0],[2,37,45,0],[2,38,13,0],[2,38,45,0],[2,39,45,0],[2,40,45,0],[2,41,45,0],[2,42,45,0],[2,43,45,0],[2,44,13,0],[2,44,45,0],[2,45,13,0],[2,45,45,0],[2,45,14,0],[2,45,15,0],[2,45,16,0],[2,45,17,0],[2,13,18,0],[2,45,18,0],[2,13,19,0],[2,45,19,0],[2,13,20,0],[2,45,20,0],[2,13,21,0],[2,45,21,0],[2,13,22,0],[2,45,22,0],[2,13,23,0],[2,45,23,0],[2,13,24,0],[2,45,24,0],[2,45,25,0],[2,45,26,0],[2,13,27,0],[2,45,27,0],[2,45,28,0],[2,45,29,0],[2,13,30,0],[2,45,30,0],[2,13,31,0],[2,45,31,0],[2,13,32,0],[2,45,32,0],[2,13,33,0],[2,45,33,0],[2,13,34,0],[2,45,34,0],[2,13,35,0],[2,45,35,0],[2,13,36,0],[2,45,36,0],[2,13,37,0],[2,45,37,0],[2,13,38,0],[2,45,38,0],[2,45,39,0],[2,45,40,0],[2,45,41,0],[2,45,42,0],[2,45,43,0],[2,13,44,0],[2,45,44,0]]}},{"id":"abbas","headquartersLevel":8,"layout":{"stage":901,"name":"abbas","source":"user-authored-layout","units":[{"sid":1001001,"typeid":20108,"x":31,"y":31,"localNativeStableSid":true},{"sid":1001002,"typeid":20506,"x":35,"y":31,"localNativeStableSid":true},{"sid":1001003,"typeid":20506,"x":27,"y":31,"localNativeStableSid":true},{"sid":1001004,"typeid":20506,"x":31,"y":35,"localNativeStableSid":true},{"sid":1001005,"typeid":20306,"x":31,"y":27,"localNativeStableSid":true},{"sid":1001006,"typeid":20306,"x":35,"y":27,"localNativeStableSid":true},{"sid":1001007,"typeid":20306,"x":27,"y":27,"localNativeStableSid":true},{"sid":1001008,"typeid":30206,"x":35,"y":35,"localNativeStableSid":true},{"sid":1001009,"typeid":30206,"x":27,"y":35,"localNativeStableSid":true},{"sid":1001010,"typeid":30206,"x":23,"y":31,"localNativeStableSid":true},{"sid":1001011,"typeid":30807,"x":35,"y":23,"localNativeStableSid":true},{"sid":1001012,"typeid":30807,"x":27,"y":23,"localNativeStableSid":true},{"sid":1001013,"typeid":30807,"x":39,"y":31,"localNativeStableSid":true},{"sid":1001014,"typeid":30807,"x":31,"y":39,"localNativeStableSid":true},{"sid":1001015,"typeid":30308,"x":39,"y":27,"localNativeStableSid":true},{"sid":1001016,"typeid":30308,"x":39,"y":35,"localNativeStableSid":true},{"sid":1001017,"typeid":30308,"x":23,"y":27,"localNativeStableSid":true},{"sid":1001018,"typeid":30308,"x":23,"y":35,"localNativeStableSid":true},{"sid":1001019,"typeid":30308,"x":31,"y":23,"localNativeStableSid":true},{"sid":1001020,"typeid":30406,"x":27,"y":39,"localNativeStableSid":true},{"sid":1001021,"typeid":30406,"x":35,"y":39,"localNativeStableSid":true},{"sid":1001022,"typeid":30506,"x":23,"y":23,"localNativeStableSid":true},{"sid":1001023,"typeid":30506,"x":39,"y":23,"localNativeStableSid":true},{"sid":1001024,"typeid":30506,"x":39,"y":39,"localNativeStableSid":true},{"sid":1001025,"typeid":30602,"x":19,"y":31,"localNativeStableSid":true},{"sid":1001026,"typeid":30602,"x":43,"y":31,"localNativeStableSid":true},{"sid":1001027,"typeid":30602,"x":31,"y":19,"localNativeStableSid":true},{"sid":1001028,"typeid":30701,"x":31,"y":43,"localNativeStableSid":true},{"sid":1001029,"typeid":30108,"x":19,"y":23,"localNativeStableSid":true},{"sid":1001030,"typeid":30108,"x":43,"y":23,"localNativeStableSid":true},{"sid":1001031,"typeid":30108,"x":19,"y":39,"localNativeStableSid":true},{"sid":1001032,"typeid":30108,"x":43,"y":39,"localNativeStableSid":true},{"sid":1001033,"typeid":20607,"x":23,"y":43,"localNativeStableSid":true},{"sid":1001034,"typeid":20807,"x":43,"y":43,"localNativeStableSid":true},{"sid":1001035,"typeid":20908,"x":19,"y":27,"localNativeStableSid":true},{"sid":1001036,"typeid":21004,"x":43,"y":27,"localNativeStableSid":true},{"sid":1001037,"typeid":21201,"x":17,"y":35,"localNativeStableSid":true},{"sid":1001038,"typeid":21201,"x":17,"y":19,"localNativeStableSid":true},{"sid":1001039,"typeid":21201,"x":45,"y":35,"localNativeStableSid":true},{"sid":1001040,"typeid":21201,"x":45,"y":19,"localNativeStableSid":true},{"sid":1001041,"typeid":21201,"x":35,"y":17,"localNativeStableSid":true},{"sid":1001042,"typeid":20708,"x":23,"y":19,"localNativeStableSid":true},{"sid":1001043,"typeid":20708,"x":15,"y":31,"localNativeStableSid":true},{"sid":1001044,"typeid":20708,"x":15,"y":15,"localNativeStableSid":true},{"sid":1001045,"typeid":20708,"x":15,"y":20,"localNativeStableSid":true},{"sid":1001046,"typeid":20204,"x":27,"y":15,"localNativeStableSid":true},{"sid":1001047,"typeid":20204,"x":35,"y":15,"localNativeStableSid":true},{"sid":1001048,"typeid":20204,"x":43,"y":19,"localNativeStableSid":true},{"sid":1001049,"typeid":20204,"x":47,"y":27,"localNativeStableSid":true},{"sid":1001050,"typeid":20204,"x":14,"y":23,"localNativeStableSid":true},{"sid":1001051,"typeid":20204,"x":14,"y":26,"localNativeStableSid":true},{"sid":1001052,"typeid":20404,"x":15,"y":35,"localNativeStableSid":true},{"sid":1001053,"typeid":20404,"x":19,"y":47,"localNativeStableSid":true},{"sid":1001054,"typeid":20404,"x":27,"y":47,"localNativeStableSid":true},{"sid":1001055,"typeid":20404,"x":35,"y":47,"localNativeStableSid":true},{"sid":1001056,"typeid":20404,"x":43,"y":47,"localNativeStableSid":true},{"sid":1001057,"typeid":20404,"x":14,"y":38,"localNativeStableSid":true},{"sid":1001058,"typeid":50601,"x":14,"y":40,"localNativeStableSid":true},{"sid":1001059,"typeid":50601,"x":14,"y":42,"localNativeStableSid":true},{"sid":1001060,"typeid":50701,"x":14,"y":44,"localNativeStableSid":true},{"sid":1001061,"typeid":50701,"x":14,"y":46,"localNativeStableSid":true},{"sid":1001062,"typeid":50501,"x":14,"y":48,"localNativeStableSid":true},{"sid":1001063,"typeid":50501,"x":16,"y":22,"localNativeStableSid":true},{"sid":1001064,"typeid":40101,"x":24,"y":24,"localNativeStableSid":true},{"sid":1001065,"typeid":40101,"x":36,"y":24,"localNativeStableSid":true},{"sid":1001066,"typeid":40101,"x":30,"y":20,"localNativeStableSid":true},{"sid":1001067,"typeid":40201,"x":24,"y":36,"localNativeStableSid":true},{"sid":1001068,"typeid":40201,"x":36,"y":36,"localNativeStableSid":true},{"sid":1001069,"typeid":40201,"x":30,"y":40,"localNativeStableSid":true},{"sid":1001070,"typeid":40301,"x":20,"y":30,"localNativeStableSid":true},{"sid":1001071,"typeid":40301,"x":40,"y":30,"localNativeStableSid":true},{"sid":1001072,"typeid":40301,"x":26,"y":20,"localNativeStableSid":true},{"sid":1001073,"typeid":40301,"x":34,"y":20,"localNativeStableSid":true},{"sid":1001074,"typeid":40301,"x":26,"y":40,"localNativeStableSid":true},{"sid":1001075,"typeid":40301,"x":34,"y":40,"localNativeStableSid":true},{"sid":1001076,"id":1001076,"typeid":11201,"unit_type":112,"unit_level":1,"unit_mutateid":0,"lv":55,"xp":0,"state":2,"did":"1001029","defense_id":"1001029","rct":0,"aht":0,"aidx":-1,"skills":[11201,24007,24107,23907],"localNativeStableSid":true,"localNativeGuard":true},{"sid":1001077,"id":1001077,"typeid":11101,"unit_type":111,"unit_level":1,"unit_mutateid":0,"lv":52,"xp":0,"state":2,"did":"1001030","defense_id":"1001030","rct":0,"aht":0,"aidx":-1,"skills":[11101,22807,22907,23007],"localNativeStableSid":true,"localNativeGuard":true},{"sid":1001078,"id":1001078,"typeid":10701,"unit_type":107,"unit_level":1,"unit_mutateid":0,"lv":50,"xp":0,"state":2,"did":"1001031","defense_id":"1001031","rct":0,"aht":0,"aidx":-1,"skills":[10701,17407,17607,17507],"localNativeStableSid":true,"localNativeGuard":true},{"sid":1001079,"id":1001079,"typeid":11501,"unit_type":115,"unit_level":1,"unit_mutateid":0,"lv":48,"xp":0,"state":2,"did":"1001032","defense_id":"1001032","rct":0,"aht":0,"aidx":-1,"skills":[11501,26707,26907,26807],"localNativeStableSid":true,"localNativeGuard":true},{"sid":1001080,"id":1001080,"typeid":10501,"unit_type":105,"unit_level":1,"unit_mutateid":0,"lv":45,"xp":0,"state":2,"did":"1001058","defense_id":"1001058","rct":0,"aht":0,"aidx":-1,"skills":[10501,14707,14607,14507],"localNativeStableSid":true,"localNativeGuard":true},{"sid":1001081,"id":1001081,"typeid":10801,"unit_type":108,"unit_level":1,"unit_mutateid":0,"lv":45,"xp":0,"state":2,"did":"1001059","defense_id":"1001059","rct":0,"aht":0,"aidx":-1,"skills":[10801,19107,18907,19007],"localNativeStableSid":true,"localNativeGuard":true},{"sid":1001082,"id":1001082,"typeid":11001,"unit_type":110,"unit_level":1,"unit_mutateid":0,"lv":42,"xp":0,"state":2,"did":"1001060","defense_id":"1001060","rct":0,"aht":0,"aidx":-1,"skills":[11001,21607,21707,21807],"localNativeStableSid":true,"localNativeGuard":true},{"sid":1001083,"id":1001083,"typeid":11301,"unit_type":113,"unit_level":1,"unit_mutateid":0,"lv":40,"xp":0,"state":2,"did":"1001061","defense_id":"1001061","rct":0,"aht":0,"aidx":-1,"skills":[11301,709110,709210,709310],"localNativeStableSid":true,"localNativeGuard":true}],"walls":[[8,16,16,0],[8,16,46,0],[8,17,16,0],[8,18,16,0],[8,20,46,0],[8,21,46,0],[8,22,46,0],[8,23,46,0],[8,24,16,0],[8,24,46,0],[8,25,16,0],[8,26,16,0],[8,27,16,0],[8,28,16,0],[8,28,46,0],[8,29,16,0],[8,29,46,0],[8,30,16,0],[8,30,46,0],[8,31,16,0],[8,31,46,0],[8,32,16,0],[8,32,46,0],[8,33,16,0],[8,36,16,0],[8,36,46,0],[8,37,16,0],[8,37,46,0],[8,38,16,0],[8,38,46,0],[8,39,16,0],[8,39,46,0],[8,40,16,0],[8,40,46,0],[8,41,16,0],[8,42,16,0],[8,43,16,0],[8,44,16,0],[8,44,46,0],[8,45,16,0],[8,45,46,0],[8,46,16,0],[8,46,46,0],[8,16,17,0],[8,46,17,0],[8,46,18,0],[8,46,19,0],[8,16,20,0],[8,46,20,0],[8,46,21,0],[8,46,22,0],[8,16,23,0],[8,46,23,0],[8,16,24,0],[8,46,24,0],[8,16,25,0],[8,16,26,0],[8,16,27,0],[8,16,28,0],[8,46,28,0],[8,16,29,0],[8,46,29,0],[8,16,30,0],[8,46,30,0],[8,16,31,0],[8,46,31,0],[8,16,32,0],[8,46,32,0],[8,16,33,0],[8,46,33,0],[8,46,34,0],[8,46,35,0],[8,16,36,0],[8,46,36,0],[8,16,37,0],[8,46,37,0],[8,16,38,0],[8,46,38,0],[8,16,39,0],[8,46,39,0],[8,16,40,0],[8,46,40,0],[8,16,41,0],[8,46,41,0],[8,16,42,0],[8,46,42,0],[8,16,43,0],[8,46,43,0],[8,16,44,0],[8,46,44,0],[8,16,45,0],[8,46,45,0],[8,24,38,0],[8,25,24,0],[8,26,24,0],[8,27,24,0],[8,28,24,0],[8,28,38,0],[8,29,24,0],[8,30,24,0],[8,31,24,0],[8,32,24,0],[8,32,38,0],[8,33,24,0],[8,34,24,0],[8,35,24,0],[8,36,38,0],[8,37,24,0],[8,38,24,0],[8,24,25,0],[8,24,26,0],[8,24,27,0],[8,24,28,0],[8,38,28,0],[8,24,29,0],[8,24,30,0],[8,24,31,0],[8,24,32,0],[8,38,32,0],[8,24,33,0],[8,24,34,0],[8,24,35,0],[8,38,36,0],[8,24,37,0],[8,44,30,0],[8,45,30,0],[8,30,44,0],[8,30,45,0],[8,17,24,0],[8,18,24,0],[8,19,24,0],[8,20,24,0],[8,21,24,0],[8,22,24,0],[8,23,24,0],[8,24,17,0],[8,24,18,0],[8,24,19,0],[8,24,20,0],[8,24,21,0],[8,24,22,0],[8,24,23,0],[8,39,24,0],[8,40,24,0],[8,41,24,0],[8,42,24,0],[8,43,24,0],[8,44,24,0],[8,45,24,0],[8,38,17,0],[8,38,18,0],[8,38,19,0],[8,38,20,0],[8,20,38,0],[8,21,38,0],[8,22,38,0],[8,23,38,0],[8,24,39,0],[8,24,40,0],[8,24,41,0],[8,24,42,0],[8,24,43,0],[8,24,44,0],[8,24,45,0],[8,40,38,0],[8,44,38,0],[8,45,38,0],[8,38,40,0],[8,38,41,0],[8,38,42,0],[8,38,43,0],[8,38,44,0],[8,38,45,0]]}}]};
+        // END SCOUT LEVEL POOL
+
+        LocalNative.readScoutHeadquartersLevel = function(level) {
+            var units = level && level.units || [], found = 0;
+            for (var key in units) {
+                if (!Object.prototype.hasOwnProperty.call(units, key)) continue;
+                var typeid = Number(units[key] && units[key].typeid);
+                if (Math.floor(typeid / 100) === 201) found = Math.max(found, typeid % 100);
+            }
+            return found;
+        };
+        LocalNative.selectScoutLevel = function(level, random) {
+            var pool = LocalNative.scoutLevelPool, policy = pool.policy;
+            var candidates = pool.levels, hq = LocalNative.readScoutHeadquartersLevel(level);
+            if (policy.mode === 'headquarters-range') {
+                if (!hq) throw new Error('Scout player headquarters level missing');
+                candidates = candidates.filter(function(entry) {
+                    return Math.abs(entry.headquartersLevel - hq) <= policy.headquartersDelta;
+                });
+            } else if (policy.mode !== 'all') throw new Error('Unknown scout matching policy');
+            if (!candidates.length) throw new Error('No matching predefined scout levels');
+            var roll = (random || Math.random)();
+            if (!(roll >= 0 && roll < 1)) throw new Error('Invalid scout random value');
+            return candidates[Math.floor(roll * candidates.length)];
+        };
+
+        // Stock scouting UI, with independent user-authored opponent snapshots.
+        // Scout stocks contain the stealable share, which stock BattleResourceStorage
+        // transfers progressively on hits. Never alter the shared layout or unit config.
+        LocalNative.fillScoutResourceLoot = function(units) {
+            var total = {gold: 0, wood: 0};
+            for (var i = 0; i < units.length; i++) {
+                var unit = units[i], family = Math.floor(Number(unit.typeid) / 100);
+                if (!(family >= 202 && family <= 205) || unit.localNativeGuard) continue;
+                var cfg = LocalNative.lookupUnitMain(unit.typeid);
+                if (!cfg) throw new Error('Missing scout resource configuration ' + unit.typeid);
+                var producer = family === 202 || family === 204;
+                var type = family === 204 || family === 205 ? 2 : 1;
+                var capacity = Number(cfg[producer ? 'temp_storage' :
+                    (type === 2 ? 'gold_storage' : 'wood_storage')]);
+                if (!isFinite(capacity) || capacity < 0)
+                    throw new Error('Invalid scout resource capacity ' + unit.typeid);
+                var amount = Math.floor(capacity * (producer ? 80 : 20) / 100);
+                unit.sto = producer ? amount : {1: 0, 2: 0};
+                if (!producer) unit.sto[type] = amount;
+                unit.goldstorage = unit.gold_storage_cur = type === 2 ? amount : 0;
+                unit.woodstorage = unit.wood_storage_cur = type === 1 ? amount : 0;
+                unit.currentStorage = amount;
+                total[type === 2 ? 'gold' : 'wood'] += amount;
+            }
+            return total;
+        };
+        LocalNative.readScoutBattleLoot = function(gc, session) {
+            var total = session.scoutLoot || {gold: 0, wood: 0};
+            if (!total.gold && !total.wood) return {gold: 0, wood: 0};
+            if (!gc || gc.__localPvpSession !== session || gc.inReplayMode || gc.isEnterEnemyAttackReplay)
+                throw new Error('Scout resource battle session mismatch');
+            // The stock hit callback uses this same defender ResourceManager.
+            var client = gc.getStageClient && gc.getStageClient();
+            var rm = client && client.getComponent && client.getComponent('ResourceManager');
+            if (!rm || !rm.lostRes) throw new Error('Missing scout defender resource losses');
+            function amount(type, max) {
+                var lost = Number(rm.lostRes[type]);
+                if (!isFinite(lost) || lost < 0) throw new Error('Invalid scout resource loss');
+                return Math.floor(Math.min(max, lost));
+            }
+            return {gold: amount(2, total.gold), wood: amount(1, total.wood)};
+        };
+        LocalNative.buildPvpBattleDict = function(level, player) {
+            var target = LocalNative.selectScoutLevel(level);
+            var dict = LocalNative.buildPveBattleDict(1, target.layout);
+            dict.oppo.player.stage = 0;
+            dict.oppo.player.pveStage = 0;
+            dict.oppo.player.account = dict.oppo.player.account_id = 'local-scout-opponent';
+            dict.oppo.player.accountID = dict.oppo.player.account;
+            dict.oppo.player.nickname = target.layout.name;
+            dict.oppo.nickname = dict.oppo.player.nickname;
+            dict.oppo.account = dict.oppo.account_id = dict.oppo.accountID = dict.oppo.player.account;
+            dict.oppo.stage = 0;
+            dict.oppo.pveStage = 0;
+            dict.oppo.player.defence_score = 0;
+            dict.isPVE = false;
+            dict.localNativePve = false;
+            dict.localNativePveStage = 0;
+            dict.localNativePvp = true;
+            dict.source = 'local-predefined-scout';
+            dict.localNativeScoutLevelId = target.id;
+            dict.localNativeScoutHeadquartersLevel = target.headquartersLevel;
+            dict.localNativeScoutLoot = LocalNative.fillScoutResourceLoot(dict.oppo.units);
+            dict.oppo.gold = dict.localNativeScoutLoot.gold;
+            dict.oppo.wood = dict.localNativeScoutLoot.wood;
+            dict.self.player.stage = dict.self.stage = 0;
+            var rm = LocalNative.getResourceManager && LocalNative.getResourceManager();
+            if (rm && rm.Res && rm.maxRes) {
+                dict.self.gold = rm.Res[typeof RES_TYPE_GOLD !== 'undefined' ? RES_TYPE_GOLD : 2];
+                dict.self.wood = rm.Res[typeof RES_TYPE_WOOD !== 'undefined' ? RES_TYPE_WOOD : 1];
+                dict.self.max_gold = rm.maxRes[typeof RES_TYPE_GOLD !== 'undefined' ? RES_TYPE_GOLD : 2];
+                dict.self.max_wood = rm.maxRes[typeof RES_TYPE_WOOD !== 'undefined' ? RES_TYPE_WOOD : 1];
+            }
+            return dict;
+        };
+        LocalNative.handleEnterPvpBattle = function(player) {
+            var previous = LocalNative.pvpSession;
+            if (previous && !previous.closed && !previous.completed && !previous.scouting) return false;
+            var store = LocalNative.readRaw();
+            var dict = LocalNative.buildPvpBattleDict(store.level, player);
+            LocalNative.pveSession = null;
+            LocalNative.pvpSession = {closed: false, completed: false, returning: false,
+                scouting: true, player: player, scoutLevelId: dict.localNativeScoutLevelId,
+                scoutLoot: dict.localNativeScoutLoot};
+            player.rpc_c_enter_battle(dict);
+            LocalNative.writeStatus({step: 'enter-pvp-battle-ok', source: dict.source,
+                scoutLevelId: dict.localNativeScoutLevelId,
+                headquartersLevel: dict.localNativeScoutHeadquartersLevel,
+                heros: dict.self.heros.length, units: dict.oppo.units.length});
+            return true;
+        };
+        LocalNative.handleStartPvpBattle = function(gc) {
+            var session = LocalNative.pvpSession;
+            if (!session || session.closed || session.completed || session.started ||
+                !gc || gc.__localPvpSession !== session || !gc.battleStarted ||
+                gc.inReplayMode || gc.isEnterEnemyAttackReplay) return false;
+            var store = LocalNative.readRaw();
+            LocalNative.advanceDailyQuestCounter(store.level, 'mt_PVP', 1);
+            LocalNative.writeRaw(store);
+            session.started = true;
+            session.scouting = false;
+            LocalNative.syncQuestEventRecorder(session.player, store.level);
+            LocalNative.writeStatus({step: 'pvp-quest-start', field: 'mt_PVP'});
+            return true;
+        };
+        LocalNative.handleCompletePvpBattle = function(player) {
+            var session = LocalNative.pvpSession;
+            if (!session || session.closed || session.completed) return false;
+            var gc = LocalNative.getBattleController();
+            if (!session.started && !LocalNative.handleStartPvpBattle(gc)) return false;
+            var result = LocalNative.buildPveBattleResultDict(gc, 1);
+            result.stage = 0;
+            var loot = LocalNative.readScoutBattleLoot(gc, session);
+            result.win_gold = loot.gold;
+            result.win_wood = loot.wood;
+            result.enemy_id = 'local-scout-opponent';
+            var store = LocalNative.readRaw();
+            if (loot.gold || loot.wood) LocalNative.grantPveLoot(loot.gold, loot.wood, store.level);
+            LocalNative.ensurePlayerSocialFields(store.level.player);
+            var stats = store.level.player.achieve_raw;
+            stats.pvp_times = (Number(stats.pvp_times) || 0) + 1;
+            if (result.isWinner) {
+                stats.pvp_win_times = (Number(stats.pvp_win_times) || 0) + 1;
+                LocalNative.advanceDailyQuestCounter(store.level, 'mt_PVPvictory', 1);
+            }
+            player.achieve_raw = stats;
+            var recorder = player.getComponent && player.getComponent('AchievementRecorder');
+            if (recorder) recorder.achieve_raw = stats;
+            LocalNative.writeRaw(store);
+            session.completed = true;
+            LocalNative.syncQuestEventRecorder(player, store.level);
+            player.rpc_c_battle_result(result);
+            LocalNative.writeStatus({step: 'complete-pvp-battle-ok', pvp_times: stats.pvp_times,
+                starNum: result.starNum, isWinner: result.isWinner});
+            return true;
+        };
+        LocalNative.handlePvpBattleToHome = function(player) {
+            var session = LocalNative.pvpSession;
+            if (!session || session.returning || session.closed) return false;
+            session.returning = true;
+            var store = LocalNative.readRaw();
+            player.rpc_c_battle_to_home(store.level);
+            session.closed = true;
+            LocalNative.writeStatus({step: 'pvp-battle-to-home-ok', completed: session.completed});
+            return true;
         };
 
         LocalNative.handleEnterPveBattle = function(player, params) {
@@ -3421,8 +4880,9 @@
             var nextStars = Math.max(oldStars, starNum);
             var goldLeft = Math.max(0, (prev[0] || 0) - winGold);
             var woodLeft = Math.max(0, (prev[1] || 0) - winWood);
-            var remain = prev[3] != null ? prev[3] : 0;
-            stages[stageId] = [goldLeft, woodLeft, nextStars, remain];
+            var passTime = prev[3] != null ? prev[3] : 0;
+            if (starNum >= 1 && !(Number(passTime) > 0)) passTime = 1;
+            stages[stageId] = [goldLeft, woodLeft, nextStars, passTime];
             var unlocked = [];
             if (starNum >= 1) {
                 try {
@@ -3509,34 +4969,139 @@
             };
         };
 
-        LocalNative.grantPveLoot = function(winGold, winWood) {
-            try {
-                var rm = LocalNative.getResourceManager && LocalNative.getResourceManager();
-                if (!rm) return;
-                var goldType = typeof RES_TYPE_GOLD !== 'undefined' ? RES_TYPE_GOLD : 2;
-                var woodType = typeof RES_TYPE_WOOD !== 'undefined' ? RES_TYPE_WOOD : 1;
-                if (winGold > 0 && typeof rm.addRes === 'function') rm.addRes(goldType, winGold);
-                if (winWood > 0 && typeof rm.addRes === 'function') rm.addRes(woodType, winWood);
-            } catch (eGrant) {
-                LocalNative.writeStatus({step: 'pve-grant-loot-soft', error: String(eGrant)});
+        LocalNative.grantPveLoot = function(winGold, winWood, level) {
+            level = level || LocalNative.readRaw().level;
+            var granted = {gold: 0, wood: 0};
+            function add(type, amount, field, configField) {
+                var left = Math.max(0, Number(amount) || 0);
+                for (var i = 0; i < level.units.length && left > 0; i++) {
+                    var record = level.units[i];
+                    var cfg = LocalNative.lookupUnitMain(record.typeid);
+                    var cap = Number(cfg && cfg[configField]) || 0;
+                    if (!cap) continue;
+                    if (!record.sto || typeof record.sto !== 'object')
+                        record.sto = {1: Number(record.woodstorage) || 0, 2: Number(record.goldstorage) || 0};
+                    var have = Number(record.sto[type]) || 0;
+                    var gain = Math.min(left, Math.max(0, cap - have));
+                    record.sto[type] = have + gain;
+                    record[field] = record.sto[type];
+                    left -= gain;
+                }
+                return Math.max(0, Number(amount) || 0) - left;
             }
+            granted.gold = add(2, winGold, 'goldstorage', 'gold_storage');
+            granted.wood = add(1, winWood, 'woodstorage', 'wood_storage');
+            LocalNative.writeStatus({step: 'pve-loot-persisted', requestedGold: winGold,
+                requestedWood: winWood, granted: granted});
+            return granted;
+        };
+
+        LocalNative.applyPveItemReward = function(level, eventId, receiptKey) {
+            var item = typeof data !== 'undefined' && data.item_input && data.item_input[eventId];
+            if (!item || !(Number(item.item_id) > 0) || !(Number(item.item_num) > 0)) return [];
+            var cfg = data.item && data.item[item.item_id];
+            if (!cfg) throw new Error('Missing item configuration ' + item.item_id);
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            var name = names[Number(cfg.item_type) || 0];
+            if (!name) throw new Error('Unsupported reward package ' + cfg.item_type);
+            var pkg = level.player['package'] || (level.player['package'] = {});
+            for (var n = 0; n < names.length; n++) {
+                if (!pkg[names[n]]) pkg[names[n]] = {item_dict: {}, capacity: 100, new_items: 0, buy_slot_time: 0};
+            }
+            var oid = 'local_pve_' + item.item_id;
+            var bag = pkg[name].item_dict;
+            var old = bag[oid];
+            bag[oid] = {oid: oid, typeid: Number(item.item_id),
+                num: (old ? Number(old.num) || 0 : 0) + Number(item.item_num), is_new: true};
+            return [[19, [{oid: oid, typeid: Number(item.item_id), num: Number(item.item_num)}]]];
+        };
+
+        LocalNative.applyPveBattleItemRewards = function(level, eventId, stageId) {
+            var stage = data.pve_stage && data.pve_stage[stageId];
+            if (!stage) return [];
+            // Keep fixed first-win additions, then roll the shared repeat pool once.
+            // Event ids and item_input ids belong to different tables.
+            var shared = {}, seen = {}, cursor = stage.pve_roll_reward, gains = [];
+            while (cursor && !shared[cursor]) {
+                shared[cursor] = true;
+                var sharedEvent = data.input_event_client && data.input_event_client[cursor];
+                cursor = sharedEvent && sharedEvent.putin_event_next;
+            }
+            while (eventId && !shared[eventId] && !seen[eventId]) {
+                seen[eventId] = true;
+                var event = data.input_event_client && data.input_event_client[eventId];
+                if (!event) break;
+                var items = event.putin_event_item || [];
+                for (var i = 0; i < items.length; i++) {
+                    var item = data.item_input && data.item_input[items[i]];
+                    if (!item || (item.item_random_chance || []).length) continue;
+                    gains = gains.concat(LocalNative.applyPveItemReward(level, items[i], stageId));
+                }
+                eventId = event.putin_event_next;
+            }
+            return gains.concat(LocalNative.rollPveSweepItems(level, stageId).gains);
+        };
+
+        LocalNative.applyPveHeroRewards = function(level, eventId, stageId) {
+            var event = data.input_event_client && data.input_event_client[eventId];
+            var events = event && event.putin_event_hero || [];
+            var out = [];
+            for (var i = 0; i < events.length; i++) {
+                var cfg = data.hero_input_client && data.hero_input_client[events[i]];
+                if (!cfg) continue;
+                var pool = cfg.putin_team1 || [];
+                // Only an unambiguous fixed hero is a proven server substitute.
+                if (pool.length !== 1 || (cfg.putin_team2 || []).length ||
+                    (cfg.putin_team3 || []).length || (cfg.putin_team4 || []).length) {
+                    LocalNative.writeStatus({step: 'pve-hero-reward-unresolved', event: events[i]});
+                    continue;
+                }
+                var sid = Number(stageId) === 2 && Number(pool[0]) === 10501
+                    ? 'pve_first_2_hero' : 'pve_reward_' + stageId + '_' + events[i];
+                var existing = null;
+                for (var h = 0; h < level.heros.length; h++) {
+                    if (level.heros[h].sid === sid) existing = level.heros[h];
+                }
+                if (existing) { out.push([29, existing]); continue; }
+                var hero = LocalNative.defaultStarterHero();
+                hero.sid = hero.id = sid;
+                hero.typeid = hero.hero_id = Number(pool[0]);
+                hero.unit_type = Math.floor(hero.typeid / 100);
+                hero.unit_level = hero.typeid % 100;
+                hero.lv = hero.level = cfg.lv || 1;
+                hero.state = 0; hero.aidx = -1; hero.xp = 0;
+                delete hero.life; delete hero.health;
+                hero.skill_id = cfg.putin_skill;
+                hero.skill_slots = cfg.putin_skill
+                    ? [{sid: Math.floor(cfg.putin_skill / 100), lv: (cfg.putin_skill % 100) || 1, exp: 0}]
+                    : [];
+                LocalNative.ensureHeroSkill(hero, cfg.putin_skill);
+                level.heros.push(hero);
+                level.player.hero_slot_num = Math.max(Number(level.player.hero_slot_num) || 0, level.heros.length);
+                out.push([29,hero]);
+            }
+            return out;
         };
 
         // rpc_s_complete_pve_battle → rpc_c_battle_result (MatchEnd).
         LocalNative.handleCompletePveBattle = function(player, params) {
             player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
             var session = LocalNative.pveSession;
+            if (session && session.completed) return false;
+            if (session && session.localNativeWanted)
+                return LocalNative.completeWantedBattle(player, params);
             var gc = LocalNative.getBattleController();
             var stageId = LocalNative.readLivePveStageId();
+            var isAdventure = !!(session && session.localNativeAdventure);
             LocalNative.writeStatus({
                 step: 'complete-pve-battle',
                 stage: stageId,
+                adventure: isAdventure,
                 paramKeys: params ? Object.keys(params) : null
             });
             try {
                 var result = LocalNative.buildPveBattleResultDict(gc, stageId);
                 if (session) {
-                    session.completed = true;
                     session.starNum = result.starNum;
                     session.winGold = result.win_gold;
                     session.winWood = result.win_wood;
@@ -3545,19 +5110,61 @@
                 var store = LocalNative.readRaw();
                 var level = store && store.level ? store.level : LocalNative.defaultLevelDict();
                 level.player = level.player || LocalNative.defaultPlayer();
-                LocalNative.applyPveStageProgress(
-                    level.player, stageId, result.starNum, result.win_gold, result.win_wood);
-                if (player)
+                if (!isAdventure) {
                     LocalNative.applyPveStageProgress(
-                        player, stageId, result.starNum, result.win_gold, result.win_wood);
-                LocalNative.grantPveLoot(result.win_gold, result.win_wood);
+                        level.player, stageId, result.starNum, result.win_gold, result.win_wood);
+                    LocalNative.ensureStarterHeros(level);
+                    if (player)
+                        LocalNative.applyPveStageProgress(
+                            player, stageId, result.starNum, result.win_gold, result.win_wood);
+                }
+                LocalNative.grantPveLoot(result.win_gold, result.win_wood, level);
+                if (!isAdventure) {
+                    var claims = level.localPveFirstRewards || (level.localPveFirstRewards = {});
+                    var stageConfig = typeof data !== 'undefined' && data.pve_stage && data.pve_stage[stageId];
+                    if (result.starNum > 0 && stageConfig) {
+                        var first = !claims[stageId];
+                        var eventId = first ? stageConfig.pve_first_reward : stageConfig.pve_roll_reward;
+                        result.input_gains = LocalNative.applyPveBattleItemRewards(level, eventId, stageId);
+                        if (first) result.input_gains = result.input_gains.concat(
+                            LocalNative.applyPveHeroRewards(level, eventId, stageId));
+                        if (first) claims[stageId] = true;
+                        var event = data.input_event_client && data.input_event_client[eventId];
+                        var resources = event && event.putin_event_resource || [];
+                        for (var ri = 0; ri < resources.length; ri++) {
+                            var res = data.resource_input && data.resource_input[resources[ri]];
+                            if (!res) continue;
+                            var amount = Number(res.putin_num) || 0;
+                            if (res.putin_resource_type === 1 || res.putin_resource_type === 2)
+                                LocalNative.grantPveLoot(res.putin_resource_type === 2 ? amount : 0,
+                                    res.putin_resource_type === 1 ? amount : 0, level);
+                            else if (res.putin_resource_type === 3) level.player.diamond += amount;
+                            else if (res.putin_resource_type === 4) level.player.spirit += amount;
+                        }
+                        var exp = Number(stageConfig.sweep_hero_exp) || 0;
+                        for (var hi = 0; hi < (level.heros || []).length; hi++) {
+                            var hero = level.heros[hi];
+                            if (hero.state !== 1) continue;
+                            LocalNative.normalizeHeroExperience(level, hero, exp);
+                            result.exp_add[hero.sid] = exp;
+                        }
+                    }
+                } else if (result.starNum > 0) {
+                    // Home afterInitWorld → AdventureManager.checkAdventureStatus → capture.
+                    LocalNative.markAdventureCaptureAfterPveWin(player, level);
+                } else {
+                    LocalNative.clearAdventureProgress(player, level);
+                }
                 if (store) {
                     store.level = level;
                     LocalNative.writeRaw(store);
                 }
+                if (session) session.completed = true;
                 LocalNative.writeStatus({
                     step: 'complete-pve-battle-result',
                     stage: stageId,
+                    adventure: isAdventure,
+                    adventureStatus: level.player.adventure_status,
                     starNum: result.starNum,
                     winGold: result.win_gold,
                     winWood: result.win_wood,
@@ -3580,15 +5187,44 @@
             return true;
         };
 
+        // Stock main/Start use real elapsed time at 30 FPS. Battle temporarily
+        // switches the global Director to fixed steps; restore at the home boundary
+        // even if an early exit or a later battle callback bypasses normal cleanup.
+        LocalNative.restoreHomeClock = function() {
+            var report = {step: 'home-clock-restore', errors: []};
+            var director = typeof G_Director !== 'undefined' ? G_Director : null;
+            if (!director) return false;
+            try { report.intervalBefore = director.getAnimationInterval(); } catch (eRead) {}
+            try {
+                var scheduler = director.getScheduler();
+                if (typeof scheduler.getTimeScale === 'function')
+                    report.scaleBefore = scheduler.getTimeScale();
+                scheduler.setTimeScale(1);
+                if (typeof scheduler.getTimeScale === 'function')
+                    report.scaleAfter = scheduler.getTimeScale();
+            } catch (eScale) { report.errors.push(String(eScale)); }
+            try { director.setFixAnimationInterval(false); }
+            catch (eFix) { report.errors.push(String(eFix)); }
+            try { director.setAnimationInterval(1 / 30); }
+            catch (eInterval) { report.errors.push(String(eInterval)); }
+            try { cc.Application.getInstance().setAnimationInterval(1 / 30); }
+            catch (eApp) { report.errors.push(String(eApp)); }
+            try { report.intervalAfter = director.getAnimationInterval(); } catch (eAfter) {}
+            LocalNative.writeStatus(report);
+            return report.errors.length === 0;
+        };
+
         LocalNative.handlePveBattleToHome = function(player, params) {
             player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
             var session = LocalNative.pveSession;
             if (session && session.returning) return false;
             if (session) session.returning = true;
+            var isAdventure = !!(session && session.localNativeAdventure);
             LocalNative.writeStatus({
                 step: 'pve-battle-to-home',
                 stage: session ? session.stage : LocalNative.readLivePveStageId(),
                 completed: !!(session && session.completed),
+                adventure: isAdventure,
                 early: !!(params && params.early)
             });
             try {
@@ -3596,13 +5232,21 @@
                 var level = store && store.level ? store.level : LocalNative.defaultLevelDict();
                 if (level.player) LocalNative.ensureAvailableStages(level.player, 'pve-home');
                 if (player) LocalNative.ensureAvailableStages(player, 'pve-home-live');
+                if (isAdventure) {
+                    // Early quit / unfinished fight drops the run; win already flipped CAPTURE.
+                    if (!(session && session.completed && session.starNum > 0))
+                        LocalNative.clearAdventureProgress(player, level);
+                    else LocalNative.syncAdventureManager(player,
+                        LocalNative.readAdventureState(level));
+                }
                 if (store) {
                     store.level = level;
                     LocalNative.writeRaw(store);
                 }
                 if (player && typeof player.rpc_c_battle_to_home === 'function') {
                     player.rpc_c_battle_to_home(level);
-                    LocalNative.writeStatus({step: 'pve-rpc_c_battle_to_home-ok'});
+                    LocalNative.writeStatus({step: 'pve-rpc_c_battle_to_home-ok',
+                        adventureStatus: level.player && level.player.adventure_status});
                 } else if (player && typeof player.changeStageAndInit === 'function') {
                     var build = typeof GS_STAGE_BUILD !== 'undefined' ? GS_STAGE_BUILD : 1;
                     player.changeStageAndInit(build, level, true);
@@ -3618,6 +5262,820 @@
                 if (session) session.closed = true;
             }, 0.5);
             return true;
+        };
+
+        // User-authorized offline PVE sweep drops. Not recovered production rates.
+        // Preserve skill-book odds; knowledge book rolls independently at 33%.
+        LocalNative.pveSweepPolicy = {
+            version: 2,
+            ordinaryRateFallback: 1 / 3,
+            knowledgeBookRate: 0.33,
+            rareRate: 0.08,
+            dropFromStage: 7
+        };
+
+        LocalNative.classifyPveSweepItem = function(typeid) {
+            typeid = Number(typeid) || 0;
+            if (typeid >= 200000 && typeid < 210000) return 'ordinary';
+            if (typeid === 210000) return 'ordinary';
+            if (typeid === 1125 || typeid === 1123) return 'skip';
+            if (typeid > 0) return 'rare';
+            return 'skip';
+        };
+
+        LocalNative.collectPveSweepLootPools = function(stageId) {
+            var ordinary = [], rare = [], seen = {}, eventId = null;
+            var stage = data.pve_stage && (data.pve_stage[stageId] || data.pve_stage[String(stageId)]);
+            if (stage) eventId = stage.pve_roll_reward;
+            while (eventId && !seen[eventId]) {
+                seen[eventId] = true;
+                var event = data.input_event_client && data.input_event_client[eventId];
+                if (!event) break;
+                var items = event.putin_event_item || [];
+                for (var i = 0; i < items.length; i++) {
+                    var cfg = data.item_input && data.item_input[items[i]];
+                    if (!cfg || !(Number(cfg.item_id) > 0) || !(Number(cfg.item_num) > 0)) continue;
+                    if ((cfg.item_random_chance || []).length) continue;
+                    var kind = LocalNative.classifyPveSweepItem(cfg.item_id);
+                    var entry = {typeid: Number(cfg.item_id), num: Number(cfg.item_num)};
+                    if (kind === 'ordinary') ordinary.push(entry);
+                    else if (kind === 'rare') rare.push(entry);
+                }
+                eventId = event.putin_event_next;
+            }
+            return {ordinary: ordinary, rare: rare};
+        };
+
+        LocalNative.snapshotPveSweepTili = function(player, level) {
+            var sweep = player && player.getComponent && player.getComponent('PVESweepManager');
+            var max = (data.pve_sweep && data.pve_sweep[1] && Number(data.pve_sweep[1].max_tili)) || 10;
+            if (sweep) {
+                level.player.pve_sweep_tili = Math.max(0, Math.min(max,
+                    Number(sweep.Res && sweep.Res[typeof RES_TYPE_TILI !== 'undefined' ? RES_TYPE_TILI : 5]) ||
+                    Number(sweep.Res && sweep.Res[5]) || 0));
+                level.player.pve_sweep_ltt = Number(sweep.ltt) || Math.floor(Date.now() / 1000);
+            } else if (level.player.pve_sweep_tili == null) {
+                level.player.pve_sweep_tili = max;
+                level.player.pve_sweep_ltt = Math.floor(Date.now() / 1000);
+            }
+        };
+
+        LocalNative.syncPveSweepTili = function(player, level) {
+            var sweep = player && player.getComponent && player.getComponent('PVESweepManager');
+            if (!sweep) return;
+            var tili = Number(level.player.pve_sweep_tili);
+            var ltt = Number(level.player.pve_sweep_ltt) || Math.floor(Date.now() / 1000);
+            if (!isFinite(tili)) return;
+            if (sweep.Res) {
+                var key = typeof RES_TYPE_TILI !== 'undefined' ? RES_TYPE_TILI : 5;
+                sweep.Res[key] = tili;
+                if (key !== 5) sweep.Res[5] = tili;
+            }
+            sweep.ltt = ltt;
+        };
+
+        LocalNative.consumePveSweepPeriod = function(level, periodId) {
+            periodId = Number(periodId) || 0;
+            if (!(periodId > 0) || !data.period_control) return true;
+            var period = data.period_control[periodId];
+            if (!period || !(Number(period.num_limit) > 0)) return true;
+            var ptype = Number(period.period_type) || 1;
+            var counters = level.player.event_counters || (level.player.event_counters = {});
+            var group = counters[ptype] || (counters[ptype] = {});
+            var counter = group[periodId] || {c: 0};
+            var count = Math.max(Number(counter.c) || 0,
+                Number(counter.clientData && counter.clientData._eventCount) || 0);
+            // Stock UI may pay diamonds to reset when exhausted, then still call sweep.
+            if (count >= Number(period.num_limit)) count = 0;
+            if (count >= Number(period.num_limit)) return false;
+            group[periodId] = {c: count + 1, t: Math.floor(Date.now() / 1000),
+                clientData: {_eventCount: count + 1}};
+            return true;
+        };
+
+        LocalNative.syncPveSweepPeriod = function(player, level, periodId) {
+            var der = player && player.getComponent && player.getComponent('DailyEventRecorder');
+            if (!der || !level.player.event_counters) return;
+            der.event_counters = JSON.parse(JSON.stringify(level.player.event_counters));
+            der.last_update_time = level.player.last_update_time || Math.floor(Date.now() / 1000);
+            periodId = Number(periodId) || 0;
+            if (!(periodId > 0) || !player.rpc_c_refresh_daily_event) return;
+            var period = data.period_control && data.period_control[periodId];
+            var ptype = period ? Number(period.period_type) || 1 : 1;
+            var counter = level.player.event_counters[ptype] && level.player.event_counters[ptype][periodId];
+            if (counter) player.rpc_c_refresh_daily_event({
+                event_id: periodId,
+                last_update_time: Math.floor(Date.now() / 1000),
+                event_counter: JSON.parse(JSON.stringify(counter))
+            });
+        };
+
+        LocalNative.rollPveSweepItems = function(level, stageId) {
+            var policy = LocalNative.pveSweepPolicy;
+            var stage = data.pve_stage && (data.pve_stage[stageId] || data.pve_stage[String(stageId)]);
+            var gains = [], dropped = [];
+            if (!stage || Number(stageId) < policy.dropFromStage) return {gains: gains, dropped: dropped};
+            var pools = LocalNative.collectPveSweepLootPools(stageId);
+            var ordinaryRate = stage.green_pro != null ? Number(stage.green_pro) : policy.ordinaryRateFallback;
+            if (!(ordinaryRate >= 0)) ordinaryRate = policy.ordinaryRateFallback;
+            if (pools.ordinary.length && Math.random() < ordinaryRate) {
+                var ord = pools.ordinary[Math.floor(Math.random() * pools.ordinary.length)];
+                // Leave the original pool denominator intact for every skill book.
+                if (ord.typeid !== 210000) {
+                    var ordDelta = LocalNative.shopAddItem(level, ord.typeid, ord.num);
+                    gains.push([19, ordDelta]);
+                    dropped.push({kind: 'ordinary', typeid: ord.typeid, num: ord.num});
+                }
+            }
+            if (pools.rare.length && Math.random() < policy.rareRate) {
+                var rare = pools.rare[Math.floor(Math.random() * pools.rare.length)];
+                var rareDelta = LocalNative.shopAddItem(level, rare.typeid, rare.num);
+                gains.push([19, rareDelta]);
+                dropped.push({kind: 'rare', typeid: rare.typeid, num: rare.num});
+            }
+            var books = [];
+            for (var bi = 0; bi < pools.ordinary.length; bi++)
+                if (pools.ordinary[bi].typeid === 210000) books.push(pools.ordinary[bi]);
+            if (books.length && Math.random() < policy.knowledgeBookRate) {
+                var book = books[Math.floor(Math.random() * books.length)];
+                gains.push([19, LocalNative.shopAddItem(level, book.typeid, book.num)]);
+                dropped.push({kind: 'knowledge-book', typeid: book.typeid, num: book.num});
+            }
+            return {gains: gains, dropped: dropped};
+        };
+
+        LocalNative.handlePveSweep = function(player, params) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            var stageId = parseInt(params && (params.level != null ? params.level : params.stage), 10);
+            LocalNative.writeStatus({step: 'pve-sweep', stage: stageId});
+            try {
+                if (!(stageId > 0)) throw new Error('Invalid sweep stage');
+                var stage = data.pve_stage && (data.pve_stage[stageId] || data.pve_stage[String(stageId)]);
+                if (!stage) throw new Error('Missing sweep stage config');
+                var store = JSON.parse(JSON.stringify(LocalNative.readRaw()));
+                var level = store.level;
+                LocalNative.ensurePlayerSocialFields(level.player);
+                LocalNative.ensureAvailableStages(level.player, 'pve-sweep');
+                var progress = level.player.availableStages[stageId] ||
+                    level.player.availableStages[String(stageId)];
+                if (!progress || !(Number(progress[2]) > 0))
+                    throw new Error('Stage is not cleared for sweep');
+                var pm = player && player.getComponent && player.getComponent('PackageManager');
+                if (pm && pm['package'])
+                    level.player['package'] = JSON.parse(JSON.stringify(pm['package']));
+                var der = player && player.getComponent && player.getComponent('DailyEventRecorder');
+                if (der && der.event_counters) {
+                    if (der.checkAndResetAllEventCounters)
+                        der.checkAndResetAllEventCounters(Math.floor(Date.now() / 1000));
+                    level.player.event_counters = JSON.parse(JSON.stringify(der.event_counters));
+                    level.player.last_update_time = der.last_update_time || Math.floor(Date.now() / 1000);
+                }
+                var rm = player && player.getComponent && player.getComponent('ResourceManager');
+                if (rm && rm.Res) {
+                    if (isFinite(rm.Res[3])) level.player.diamond = Number(rm.Res[3]);
+                    if (isFinite(rm.Res[4])) level.player.spirit = Number(rm.Res[4]) || 0;
+                }
+                LocalNative.snapshotPveSweepTili(player, level);
+                if (typeof LocalNative.shopState === 'function') LocalNative.shopState(level);
+                var periodId = stage.period_num_limit;
+                if (!LocalNative.consumePveSweepPeriod(level, periodId))
+                    throw new Error('Sweep daily limit reached');
+                var inputGains = [];
+                var exp = Number(stage.sweep_hero_exp) || 0;
+                var expPairs = [];
+                for (var hi = 0; hi < (level.heros || []).length; hi++) {
+                    var hero = level.heros[hi];
+                    if (Number(hero.state) !== 1) continue;
+                    LocalNative.normalizeHeroExperience(level, hero, exp);
+                    expPairs.push([hero.sid, exp]);
+                }
+                if (expPairs.length) inputGains.push([5, expPairs]);
+                var rolled = LocalNative.rollPveSweepItems(level, stageId);
+                inputGains = inputGains.concat(rolled.gains);
+                LocalNative.writeRaw(store);
+                if (pm) pm.init({'package': JSON.parse(JSON.stringify(level.player['package'] || {}))});
+                LocalNative.syncPveSweepTili(player, level);
+                LocalNative.syncPveSweepPeriod(player, level, periodId);
+                var em = typeof G_EventManager !== 'undefined' ? G_EventManager : null;
+                var origAward = em && em.inputAward ? em.inputAward.bind(em) : null;
+                var origAdd = rm && rm.addRes ? rm.addRes.bind(rm) : null;
+                if (em && origAward) em.inputAward = function() {};
+                if (rm && origAdd) rm.addRes = function() { return true; };
+                try {
+                    if (player && typeof player.rpc_c_pvesweep_result === 'function')
+                        player.rpc_c_pvesweep_result({
+                            stage: stageId,
+                            score: 0,
+                            input_gains: inputGains
+                        });
+                } finally {
+                    if (em && origAward) em.inputAward = origAward;
+                    if (rm && origAdd) rm.addRes = origAdd;
+                }
+                // Stock sweep UI applies hero exp via ExpBar; re-snapshot after display.
+                try {
+                    var after = LocalNative.readRaw();
+                    if (after && after.level) {
+                        after.level.heros = JSON.parse(JSON.stringify(level.heros || []));
+                        if (typeof G_UnitManager !== 'undefined' && G_UnitManager) {
+                            for (var h = 0; h < after.level.heros.length; h++) {
+                                var saved = after.level.heros[h];
+                                var live = G_UnitManager.getUnitBySID ?
+                                    G_UnitManager.getUnitBySID(saved.sid) : null;
+                                if (!live) continue;
+                                var bar = live.getComponent && live.getComponent('ExpBar');
+                                if (bar && bar.growthLv != null) {
+                                    saved.lv = saved.level = Number(bar.growthLv) || saved.lv;
+                                    if (bar.growthXp != null) saved.xp = Number(bar.growthXp) || 0;
+                                }
+                            }
+                        }
+                        after.level.player.pve_sweep_tili = level.player.pve_sweep_tili;
+                        after.level.player.pve_sweep_ltt = level.player.pve_sweep_ltt;
+                        after.level.player.event_counters = level.player.event_counters;
+                        after.level.player['package'] = level.player['package'];
+                        LocalNative.writeRaw(after);
+                    }
+                } catch (eSnap) {}
+                LocalNative.writeStatus({
+                    step: 'pve-sweep-ok',
+                    stage: stageId,
+                    exp: exp,
+                    dropped: rolled.dropped,
+                    ordinaryRate: stage.green_pro != null ? Number(stage.green_pro) :
+                        LocalNative.pveSweepPolicy.ordinaryRateFallback,
+                    knowledgeBookRate: LocalNative.pveSweepPolicy.knowledgeBookRate,
+                    rareRate: LocalNative.pveSweepPolicy.rareRate
+                });
+                return true;
+            } catch (eSweep) {
+                LocalNative.writeStatus({step: 'pve-sweep-ERR', stage: stageId, error: String(eSweep)});
+                try {
+                    if (player && typeof player.rpc_c_pvesweep_fail === 'function')
+                        player.rpc_c_pvesweep_fail({});
+                } catch (eFail) {}
+                if (typeof G_MainController !== 'undefined' && G_MainController.setNotice)
+                    G_MainController.setNotice(String(eSweep));
+                return false;
+            }
+        };
+
+        LocalNative.handleRefreshSweepInfo = function(player) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            try {
+                var store = LocalNative.readRaw();
+                var level = store.level;
+                LocalNative.ensurePlayerSocialFields(level.player);
+                LocalNative.snapshotPveSweepTili(player, level);
+                LocalNative.writeRaw(store);
+                if (player && typeof player.rpc_c_refresh_sweepinfo === 'function') {
+                    player.rpc_c_refresh_sweepinfo({
+                        pve_sweep_tili: level.player.pve_sweep_tili,
+                        pve_sweep_ltt: level.player.pve_sweep_ltt
+                    });
+                }
+                LocalNative.writeStatus({
+                    step: 'pve-sweep-refresh-ok',
+                    tili: level.player.pve_sweep_tili
+                });
+                return true;
+            } catch (eRef) {
+                LocalNative.writeStatus({step: 'pve-sweep-refresh-ERR', error: String(eRef)});
+                return false;
+            }
+        };
+
+        // --- Little Green Dragon Invasion (小绿龙入侵) ---
+        // Stock Start button: onPressStart → ism.ready → rpc_s_invasion_wave_ready
+        // → rpc_c_start_wave({heroes,time,corner_type}). Without the reply, Start is inert.
+        LocalNative.getInvasionController = function() {
+            try {
+                if (typeof DA !== 'undefined' && DA && typeof DA.GETCGC === 'function') {
+                    var gc = DA.GETCGC();
+                    if (gc && gc.ism) return gc;
+                }
+            } catch (e1) {}
+            try {
+                if (typeof GS_STAGE_INVASION !== 'undefined' && typeof g_GameControllerList !== 'undefined' &&
+                    g_GameControllerList)
+                    return g_GameControllerList[GS_STAGE_INVASION] || null;
+            } catch (e2) {}
+            return null;
+        };
+
+        LocalNative.unitsArrayToIdMap = function(units, baseSid) {
+            var list = LocalNative.remapBattleUnitIds(
+                LocalNative.normalizeReplayUnits(units || []), baseSid || 93000);
+            var map = {};
+            for (var i = 0; i < list.length; i++) {
+                var u = list[i];
+                if (!u) continue;
+                map[u.sid] = u;
+            }
+            return map;
+        };
+
+        // Stock GameControllerInvasion.initLevelFromData only creates level_data.self.units.
+        // Garrison heros must sit in that map with did → remapped bunker SID (not only self.heros).
+        LocalNative.heroDefenseAnchor = function(hero) {
+            if (!hero) return null;
+            if (hero.did != null && hero.did !== '' && hero.did !== 0) return hero.did;
+            if (hero.defense_id != null && hero.defense_id !== '' && hero.defense_id !== 0)
+                return hero.defense_id;
+            return null;
+        };
+
+        LocalNative.buildRemappedUnitsMap = function(units, baseSid) {
+            baseSid = baseSid || 93000;
+            var normalized = LocalNative.normalizeReplayUnits(units || []);
+            var remapped = LocalNative.remapBattleUnitIds(normalized, baseSid);
+            var map = {};
+            var sidMap = {};
+            for (var i = 0; i < remapped.length; i++) {
+                var u = remapped[i];
+                if (!u) continue;
+                map[u.sid] = u;
+                var oldSid = normalized[i] && normalized[i].sid;
+                if (oldSid != null) sidMap[String(oldSid)] = u.sid;
+            }
+            return {
+                map: map,
+                sidMap: sidMap,
+                nextSid: baseSid + remapped.length + 1
+            };
+        };
+
+        LocalNative.injectDefenseHerosIntoUnitsMap = function(unitsMap, sidMap, nextSid, heros) {
+            var defenseState = typeof HERO_STATE_DEFENSE !== 'undefined' ? HERO_STATE_DEFENSE : 2;
+            var defender = typeof BATTLE_FACTION_DEFENDER !== 'undefined' ? BATTLE_FACTION_DEFENDER : 2;
+            var outHeros = [];
+            var sid = nextSid;
+            for (var i = 0; i < (heros || []).length; i++) {
+                var src = heros[i];
+                var anchor = LocalNative.heroDefenseAnchor(src);
+                if (anchor == null) continue;
+                var newDid = sidMap[String(anchor)];
+                if (newDid == null) continue;
+                var hero = {};
+                for (var k in src) {
+                    if (Object.prototype.hasOwnProperty.call(src, k)) hero[k] = src[k];
+                }
+                if (hero.typeid != null) {
+                    hero.unit_type = Math.floor(Number(hero.typeid) / 100);
+                    hero.unit_level = Number(hero.typeid) % 100;
+                }
+                if (!(hero.unit_level > 0)) continue;
+                hero.sid = hero.cid = hero.id = sid++;
+                hero.did = String(newDid);
+                hero.defense_id = String(newDid);
+                hero.state = defenseState;
+                hero.faction = defender;
+                // Stock createUnit treats x/y as TileHolder placement; mobile heros have none.
+                delete hero.x;
+                delete hero.y;
+                if (typeof LocalNative.prepareHeroBattleSkills === 'function') {
+                    try { LocalNative.prepareHeroBattleSkills(hero); } catch (eSkill) {}
+                }
+                unitsMap[hero.sid] = hero;
+                outHeros.push(hero);
+            }
+            return outHeros;
+        };
+
+        LocalNative.buildInvasionEnterDict = function() {
+            LocalNative.tryDumpAndSave();
+            var store = LocalNative.readRaw();
+            var level = store && store.level ? store.level : LocalNative.defaultLevelDict();
+            var selfPlayer = level.player || LocalNative.defaultPlayer();
+            var remapped = LocalNative.buildRemappedUnitsMap(level.units || [], 93000);
+            var unitsMap = remapped.map;
+            var walls = level.walls || [];
+            var modelInfo = level.model_info || {};
+            var userConfig = level.user_config || {};
+            var rawHeros = (level.heros && level.heros.length) ? level.heros :
+                ((selfPlayer.heros && selfPlayer.heros.length) ? selfPlayer.heros : []);
+            var defenseHeros = LocalNative.injectDefenseHerosIntoUnitsMap(
+                unitsMap, remapped.sidMap, remapped.nextSid, rawHeros);
+            var oppoPlayer = {
+                nickname: 'Invasion',
+                level: 1,
+                account: 'local-invasion',
+                account_id: 'local-invasion',
+                accountID: 'local-invasion',
+                diamond: 0,
+                spirit: 0,
+                exp: 0,
+                experience: 0,
+                soldiers: [],
+                heros: [],
+                buffs: []
+            };
+            var selfSide = LocalNative.makeBattleSide(selfPlayer, {
+                units: unitsMap,
+                walls: walls,
+                model_info: modelInfo,
+                user_config: userConfig,
+                heros: defenseHeros
+            });
+            var oppoSide = LocalNative.makeBattleSide(oppoPlayer, {
+                units: {},
+                walls: [],
+                heros: [],
+                soldiers: []
+            });
+            return {
+                self: selfSide,
+                oppo: oppoSide,
+                units: unitsMap,
+                walls: walls,
+                model_info: modelInfo,
+                user_config: userConfig,
+                localNativeInvasion: true
+            };
+        };
+
+        LocalNative.readInvasionAbsoluteWave = function(relativeWave) {
+            relativeWave = Math.max(1, Number(relativeWave) || 1);
+            try {
+                var ic = typeof G_Player !== 'undefined' && G_Player &&
+                    G_Player.getComponent && G_Player.getComponent('InvasionController');
+                if (ic && typeof ic.getRealWave === 'function')
+                    return ic.getRealWave(relativeWave);
+            } catch (e) {}
+            var unlocks = 0;
+            try {
+                var store = LocalNative.readRaw();
+                unlocks = Number(store && store.level && store.level.player &&
+                    store.level.player.invasion_unlocks) || 0;
+            } catch (e2) {}
+            var hardness = typeof data !== 'undefined' && data.invasion_hardness &&
+                (data.invasion_hardness[unlocks + 1] || data.invasion_hardness[unlocks] ||
+                    data.invasion_hardness[1]);
+            var begin = hardness && hardness.invasion_hardness_start != null
+                ? Number(hardness.invasion_hardness_start) : 1;
+            return begin + relativeWave - 1;
+        };
+
+        LocalNative.pickInvasionWaveHeroes = function(waveCfg) {
+            var pool = (waveCfg && waveCfg.AI_hero_id) || [];
+            var levels = (waveCfg && waveCfg.AI_hero_lv) || [1];
+            var need = Math.max(1, Number(waveCfg && waveCfg.AI_hero_num) || pool.length || 1);
+            var heroes = [];
+            if (!pool.length) return heroes;
+            var used = {};
+            var i;
+            for (i = 0; i < need; i++) {
+                var pick = null;
+                var attempt = 0;
+                while (attempt < pool.length * 2) {
+                    var cand = pool[Math.floor(Math.random() * pool.length)];
+                    attempt++;
+                    if (used[cand] && Object.keys(used).length < pool.length) continue;
+                    pick = cand;
+                    used[cand] = 1;
+                    break;
+                }
+                if (pick == null) pick = pool[i % pool.length];
+                var lvMin = Number(levels[0]) || 1;
+                var lvMax = Number(levels[levels.length - 1]) || lvMin;
+                if (lvMax < lvMin) {
+                    var tmp = lvMin;
+                    lvMin = lvMax;
+                    lvMax = tmp;
+                }
+                var level = lvMin + Math.floor(Math.random() * (lvMax - lvMin + 1));
+                heroes.push({typeid: Number(pick), level: level, leadership: [0, 0]});
+            }
+            return heroes;
+        };
+
+        LocalNative.buildInvasionWaveStartDict = function(absoluteWave) {
+            var cfg = typeof data !== 'undefined' && data.invasion && data.invasion[absoluteWave];
+            if (!cfg) cfg = (data && data.invasion && data.invasion[1]) || {};
+            var heroes = LocalNative.pickInvasionWaveHeroes(cfg);
+            return {
+                heroes: heroes,
+                time: Number(cfg.invasion_duration) || 60,
+                corner_type: Math.floor(Math.random() * 4)
+            };
+        };
+
+        LocalNative.applyInvasionEventRewards = function(level, eventId, receiptKey) {
+            var may = [];
+            var gains = [];
+            var guard = 0;
+            var next = eventId;
+            while (next && guard++ < 12) {
+                var event = data.input_event_client && data.input_event_client[next];
+                if (!event) break;
+                var items = event.putin_event_item || [];
+                for (var i = 0; i < items.length; i++) {
+                    var gained = LocalNative.applyPveItemReward(level, items[i], receiptKey + '_' + items[i]);
+                    may = may.concat(gained);
+                    gains = gains.concat(gained);
+                }
+                var resources = event.putin_event_resource || [];
+                for (var ri = 0; ri < resources.length; ri++) {
+                    var res = data.resource_input && data.resource_input[resources[ri]];
+                    if (!res) continue;
+                    var amount = Number(res.putin_num) || 0;
+                    var rtype = Number(res.putin_resource_type);
+                    if (rtype === 1) {
+                        LocalNative.grantPveLoot(0, amount, level);
+                        may.push([2, amount]);
+                        gains.push([2, amount]);
+                    } else if (rtype === 2) {
+                        LocalNative.grantPveLoot(amount, 0, level);
+                        may.push([3, amount]);
+                        gains.push([3, amount]);
+                    } else if (rtype === 3) {
+                        level.player.diamond = (Number(level.player.diamond) || 0) + amount;
+                        may.push([4, amount]);
+                        gains.push([4, amount]);
+                    } else if (rtype === 4) {
+                        level.player.spirit = (Number(level.player.spirit) || 0) + amount;
+                        may.push([11, amount]);
+                        gains.push([11, amount]);
+                    }
+                }
+                next = event.putin_event_next || 0;
+            }
+            return {may_input: may, input_gains: gains};
+        };
+
+        // Unlock popup 206500 uses rookie_click:1 → only finishRookieProcess in memory.
+        // Finished process bits are not saved; only finishRookie(2065) → setUserConfig persists.
+        // Entering invasion (or returning home) means the unlock is done — persist pid 2065
+        // so Build GC does not re-open NewUnlocked("unlock_invasion") after settle→home.
+        LocalNative.INVASION_UNLOCK_ROOKIE_PID = 2065;
+
+        LocalNative.finishInvasionUnlockGuide = function(reason) {
+            var pid = LocalNative.INVASION_UNLOCK_ROOKIE_PID;
+            var persisted = false;
+            try {
+                var starts = (typeof ROOKIE_START_PID !== 'undefined' && ROOKIE_START_PID)
+                    ? ROOKIE_START_PID
+                    : {rookie0: 2000, rookie1: 2031, rookie2: 2062, rookie3: 2093, rookie4: 2124};
+                var bitKey = null;
+                var bitOffset = -1;
+                for (var key in starts) {
+                    if (!Object.prototype.hasOwnProperty.call(starts, key)) continue;
+                    var off = pid - starts[key];
+                    if (off >= 0 && off <= 30) {
+                        bitKey = key;
+                        bitOffset = off;
+                        break;
+                    }
+                }
+                if (bitKey != null) {
+                    var store = LocalNative.readRaw();
+                    if (store && store.level) {
+                        if (!store.level.user_config) store.level.user_config = {};
+                        var cfg = store.level.user_config;
+                        var cur = Number(cfg[bitKey]) || 0;
+                        var next = cur | (1 << bitOffset);
+                        if (next !== cur || !cfg[bitKey]) {
+                            if (typeof LocalNative.mergeUserConfig === 'function') {
+                                LocalNative.mergeUserConfig({key: bitKey, value: next});
+                            } else {
+                                cfg[bitKey] = next;
+                                if (!cfg.rookieBits || typeof cfg.rookieBits !== 'object')
+                                    cfg.rookieBits = {};
+                                cfg.rookieBits[bitKey] = next;
+                                store.revision = (store.revision || 0) + 1;
+                                store.updatedAt = Math.floor(Date.now() / 1000);
+                                LocalNative.writeRaw(store);
+                            }
+                            persisted = true;
+                        } else {
+                            persisted = true;
+                        }
+                    }
+                }
+            } catch (eBit) {
+                LocalNative.writeStatus({
+                    step: 'invasion-unlock-rookie-bit-ERR',
+                    error: String(eBit)
+                });
+            }
+            try {
+                var gc = LocalNative.getAnyGameController();
+                if (gc && typeof gc.finishRookie === 'function') {
+                    gc.finishRookie(pid);
+                }
+            } catch (eFin) {
+                LocalNative.writeStatus({
+                    step: 'invasion-unlock-rookie-finish-ERR',
+                    error: String(eFin)
+                });
+            }
+            try {
+                if (typeof G_Player !== 'undefined' && G_Player && G_Player.localUserInfo &&
+                    !G_Player.localUserInfo.invasionPrompt) {
+                    G_Player.localUserInfo.invasionPrompt = true;
+                    if (typeof G_Player.writeLocalUserInfo === 'function')
+                        G_Player.writeLocalUserInfo();
+                }
+            } catch (ePrompt) {}
+            LocalNative.writeStatus({
+                step: 'invasion-unlock-rookie-done',
+                reason: reason || null,
+                pid: pid,
+                persisted: persisted
+            });
+            return persisted;
+        };
+
+        LocalNative.handleEnterInvasion = function(player, params) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            if (LocalNative.invasionSession && !LocalNative.invasionSession.closed) {
+                LocalNative.writeStatus({step: 'invasion-enter-duplicate'});
+                return false;
+            }
+            LocalNative.invasionSession = {
+                closed: false,
+                returning: false,
+                firstWaveClaims: {},
+                wave: 0
+            };
+            LocalNative.writeStatus({step: 'enter-invasion'});
+            try {
+                LocalNative.finishInvasionUnlockGuide('enter');
+                LocalNative.tryDumpAndSave();
+                var dict = LocalNative.buildInvasionEnterDict();
+                if (player && typeof player.rpc_c_enter_invasion === 'function') {
+                    player.rpc_c_enter_invasion(dict);
+                    LocalNative.writeStatus({
+                        step: 'rpc_c_enter_invasion-ok',
+                        units: dict.self && dict.self.units ?
+                            Object.keys(dict.self.units).length : 0
+                    });
+                    return true;
+                }
+                LocalNative.writeStatus({step: 'enter-invasion-no-handler'});
+                LocalNative.invasionSession.closed = true;
+                return false;
+            } catch (eEnter) {
+                if (LocalNative.invasionSession) LocalNative.invasionSession.closed = true;
+                LocalNative.writeStatus({step: 'enter-invasion-ERR', error: String(eEnter)});
+                return false;
+            }
+        };
+
+        LocalNative.handleInvasionWaveReady = function(player, params) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            var session = LocalNative.invasionSession;
+            if (!session || session.closed) {
+                session = LocalNative.invasionSession = {
+                    closed: false, returning: false, firstWaveClaims: {}, wave: 0
+                };
+            }
+            var gc = LocalNative.getInvasionController();
+            var relativeNext = 1;
+            try {
+                if (gc && gc.ism && gc.ism.passedWaves != null)
+                    relativeNext = (Number(gc.ism.passedWaves) || 0) + 1;
+                else relativeNext = (Number(session.wave) || 0) + 1;
+            } catch (eRel) {}
+            var absoluteWave = LocalNative.readInvasionAbsoluteWave(relativeNext);
+            session.wave = relativeNext;
+            session.absoluteWave = absoluteWave;
+            var dict = LocalNative.buildInvasionWaveStartDict(absoluteWave);
+            LocalNative.writeStatus({
+                step: 'invasion-wave-ready',
+                relative: relativeNext,
+                absolute: absoluteWave,
+                heroes: dict.heroes.length,
+                time: dict.time,
+                corner: dict.corner_type
+            });
+            try {
+                if (player && typeof player.rpc_c_start_wave === 'function') {
+                    player.rpc_c_start_wave(dict);
+                    return true;
+                }
+                // Fallback: talk to the live state machine if the RPC helper is missing.
+                if (gc && gc.ism && typeof gc.ism.onReceiveAttackerData === 'function') {
+                    gc.ism.onReceiveAttackerData(dict);
+                    return true;
+                }
+                LocalNative.writeStatus({step: 'invasion-wave-ready-no-handler'});
+                return false;
+            } catch (eReady) {
+                LocalNative.writeStatus({step: 'invasion-wave-ready-ERR', error: String(eReady)});
+                return false;
+            }
+        };
+
+        LocalNative.handleInvasionWaveStart = function(player, params) {
+            LocalNative.writeStatus({step: 'invasion-wave-start-ack'});
+            return true;
+        };
+
+        LocalNative.handleInvasionWaveEnd = function(player, params) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            params = params || {};
+            var session = LocalNative.invasionSession ||
+                (LocalNative.invasionSession = {closed: false, firstWaveClaims: {}, wave: 0});
+            var succeed = !!params.succeed;
+            var gc = LocalNative.getInvasionController();
+            var relativeDone = session.wave || 1;
+            try {
+                if (gc && gc.ism && gc.ism.passedWaves != null) {
+                    // Stock bytecode increments passedWaves after callServer; prefer live value.
+                    var live = Number(gc.ism.passedWaves) || 0;
+                    if (live > 0) relativeDone = live;
+                    else if (succeed) {
+                        gc.ism.passedWaves = relativeDone;
+                    }
+                }
+            } catch (ePass) {}
+            var absoluteWave = session.absoluteWave ||
+                LocalNative.readInvasionAbsoluteWave(relativeDone);
+            LocalNative.writeStatus({
+                step: 'invasion-wave-end',
+                succeed: succeed,
+                relative: relativeDone,
+                absolute: absoluteWave
+            });
+            try {
+                if (!succeed) {
+                    if (player && typeof player.rpc_c_invasion_end === 'function')
+                        player.rpc_c_invasion_end({});
+                    else if (gc && gc.ism && typeof gc.ism.endInvasion === 'function')
+                        gc.ism.endInvasion({});
+                    return true;
+                }
+                var store = LocalNative.readRaw();
+                var level = store && store.level ? store.level : LocalNative.defaultLevelDict();
+                level.player = level.player || LocalNative.defaultPlayer();
+                var claims = level.localInvasionFirstWaves ||
+                    (level.localInvasionFirstWaves = {});
+                var cfg = data.invasion && data.invasion[absoluteWave];
+                var first = !claims[absoluteWave];
+                var eventId = cfg && (first ? cfg.input_id_first : cfg.input_id);
+                var awards = eventId
+                    ? LocalNative.applyInvasionEventRewards(level, eventId,
+                        'invasion_' + absoluteWave)
+                    : {may_input: [], input_gains: []};
+                if (first && eventId) claims[absoluteWave] = true;
+                if (store) {
+                    store.level = level;
+                    LocalNative.writeRaw(store);
+                }
+                if (player && typeof player.rpc_c_wave_end === 'function') {
+                    player.rpc_c_wave_end({
+                        may_input: awards.may_input,
+                        input_gains: awards.input_gains
+                    });
+                } else if (gc && gc.ism && typeof gc.ism.serverSettle === 'function') {
+                    gc.ism.serverSettle({
+                        may_input: awards.may_input,
+                        input_gains: awards.input_gains
+                    });
+                }
+                LocalNative.writeStatus({
+                    step: 'invasion-wave-end-ok',
+                    absolute: absoluteWave,
+                    first: first,
+                    awards: awards.input_gains.length
+                });
+                return true;
+            } catch (eEnd) {
+                LocalNative.writeStatus({step: 'invasion-wave-end-ERR', error: String(eEnd)});
+                return false;
+            }
+        };
+
+        LocalNative.handleInvasionToHome = function(player, params) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            var session = LocalNative.invasionSession;
+            if (session) {
+                if (session.returning || session.closed) return false;
+                session.returning = true;
+            }
+            LocalNative.writeStatus({step: 'invasion-to-home'});
+            try {
+                LocalNative.finishInvasionUnlockGuide('to_home');
+                LocalNative.tryDumpAndSave();
+                var store = LocalNative.readRaw();
+                var level = store && store.level ? store.level : LocalNative.defaultLevelDict();
+                if (player && typeof player.rpc_c_invasion_to_home === 'function')
+                    player.rpc_c_invasion_to_home(level);
+                else if (player && typeof player.rpc_c_battle_to_home === 'function')
+                    player.rpc_c_battle_to_home(level);
+                else if (player && typeof player.changeStageAndInit === 'function') {
+                    var build = typeof GS_STAGE_BUILD !== 'undefined' ? GS_STAGE_BUILD : 1;
+                    player.changeStageAndInit(build, level, true);
+                }
+                if (session) session.closed = true;
+                LocalNative.writeStatus({step: 'invasion-to-home-ok'});
+                return true;
+            } catch (eHome) {
+                if (session) session.closed = true;
+                LocalNative.writeStatus({step: 'invasion-to-home-ERR', error: String(eHome)});
+                return false;
+            }
         };
 
         LocalNative.handleEnterEnemyAttackReplay = function(player, params) {
@@ -3834,6 +6292,3545 @@
             return LocalNative.handlePveBattleToHome(player, params || {});
         };
 
+        // No fixed tutorial capsule result was found in the client. This one-time
+        // fallback is explicitly requested by the user: level-30 JINGLING_DRAGON.
+        LocalNative.ensureWelcomeLetter = function(player) {
+            if (!player || typeof LETTER_TYPE_SYS_REWARD === 'undefined') return false;
+            if (!(player.sys_letters instanceof Array)) player.sys_letters = [];
+            var id = 'local_goddess_newbie_gift';
+            for (var i = 0; i < player.sys_letters.length; i++) {
+                if (player.sys_letters[i].letter_id === id) {
+                    player.sys_letters[i].sender_name = "\u6765\u81ea\u5973\u795e\u7684\u4fe1";
+                    player.sys_letters[i].msg = "\u65b0\u624b\u793c\u5305\uff1a\u94bb\u77f3\u00d7100\uff0c\u9f99\u5e01\u00d75000\uff0c\u65e5\u5149\u00d75000\uff0c\u82f1\u7075\u503c\u00d750\u3002\u70b9\u51fb\u9886\u53d6\u83b7\u5f97\u5168\u90e8\u5956\u52b1\u3002";
+                    return false;
+                }
+            }
+            player.sys_letters.push({
+                letter_id: id, letter_type: LETTER_TYPE_SYS_REWARD,
+                sender_name: "\u6765\u81ea\u5973\u795e\u7684\u4fe1", sender_id: 'local-system-goddess',
+                sender_avatar: 45, sender_level: 1,
+                timestamp: Math.floor(Date.now() / 1000),
+                msg: "\u65b0\u624b\u793c\u5305\uff1a\u94bb\u77f3\u00d7100\uff0c\u9f99\u5e01\u00d75000\uff0c\u65e5\u5149\u00d75000\uff0c\u82f1\u7075\u503c\u00d750\u3002\u70b9\u51fb\u9886\u53d6\u83b7\u5f97\u5168\u90e8\u5956\u52b1\u3002",
+                params: {res_type: 3, res_num: 100},
+                is_gained: !!player.localWelcomeGiftClaimed
+            });
+            return true;
+        };
+        LocalNative.syncSavedHomeWallet = function(level) {
+            var gold = 0, wood = 0;
+            for (var i = 0; i < level.units.length; i++) {
+                var record = level.units[i];
+                if (!record.sto || typeof record.sto !== 'object') continue;
+                gold += Number(record.sto[2]) || 0;
+                wood += Number(record.sto[1]) || 0;
+                var unit = G_UnitManager.getUnitBySID(record.sid);
+                var holder = unit && unit.componentList && unit.componentList.ResourceStorage;
+                if (!holder && unit && unit.getComponent) holder = unit.getComponent('ResourceStorage');
+                if (holder && holder.currentStorage) {
+                    holder.currentStorage[1] = Number(record.sto[1]) || 0;
+                    holder.currentStorage[2] = Number(record.sto[2]) || 0;
+                    if (holder.refreshDisplay) holder.refreshDisplay();
+                }
+            }
+            var rm = LocalNative.getResourceManager();
+            rm.Res[1] = wood; rm.Res[2] = gold;
+            rm.Res[3] = level.player.diamond; rm.Res[4] = level.player.spirit;
+            if (typeof rm.updateResFromStageAndAverage === 'function')
+                rm.updateResFromStageAndAverage(GS_STAGE_BUILD);
+            LocalNative.refreshResHud();
+        };
+        LocalNative.handleWelcomeLetterReward = function(player, params) {
+            if (!params || params.letter_id !== 'local_goddess_newbie_gift') return false;
+            var before = LocalNative.readRaw();
+            if (before.level.player.localWelcomeGiftReceiptV2) return false;
+            var repair = !!before.level.player.localWelcomeGiftClaimed;
+            if (!repair) LocalNative.tryDumpAndSave();
+            var store = LocalNative.readRaw();
+            var level = store.level;
+            var rm = LocalNative.getResourceManager();
+            if (!rm || !rm.Res) throw new Error('No resource manager for welcome gift');
+            // Server-side saved records are authoritative; never mark a claim
+            // from four optimistic addRes calls whose snapshot may have failed.
+            level.player.diamond = Math.max(Number(level.player.diamond) || 0, Number(rm.Res[3]) || 0);
+            if (!repair) level.player.diamond += 100;
+            level.player.spirit = (Number(level.player.spirit) || 0) + 50;
+            var credited = LocalNative.grantPveLoot(5000, 5000, level);
+            level.player.localWelcomeGiftClaimed = true;
+            level.player.localWelcomeGiftReceiptV2 = {diamond: repair ? 0 : 100,
+                gold: credited.gold, wood: credited.wood, spirit: 50, repaired: repair};
+            var letters = level.player.sys_letters || [];
+            for (var i = 0; i < letters.length; i++) {
+                if (letters[i].letter_id === params.letter_id) letters[i].is_gained = true;
+            }
+            LocalNative.writeRaw(store);
+            LocalNative.syncSavedHomeWallet(level);
+            var lm = player.getComponent && player.getComponent('LetterManager');
+            if (lm && lm.sysLetters) {
+                for (var j = 0; j < lm.sysLetters.length; j++) {
+                    if (lm.sysLetters[j].letter_id === params.letter_id) lm.sysLetters[j].is_gained = true;
+                }
+            }
+            LocalNative.writeStatus({step: 'welcome-letter-gift-persisted', receipt: level.player.localWelcomeGiftReceiptV2,
+                diamond: level.player.diamond, spirit: level.player.spirit});
+            return true;
+        };
+
+        LocalNative.rookieSignNow = function() {
+            // DailyEventRecorder compares UTC dates of this same client clock.
+            var clock = 0;
+            try {
+                if (typeof DA !== 'undefined' && DA.getSystemCurrentTimeSec)
+                    clock = Number(DA.getSystemCurrentTimeSec());
+            } catch (eClock) {}
+            return isFinite(clock) && clock > 1000000000
+                ? Math.floor(clock) : Math.floor(Date.now() / 1000);
+        };
+
+        LocalNative.ensureRookieSign = function(level) {
+            var p = level.player, now = LocalNative.rookieSignNow();
+            var today = Math.floor(now / 86400);
+            var state = level.localRookieSign;
+            if (!state) {
+                var oldDay = Number(p.rookie_days) || 1;
+                var oldCounter = p.event_counters && p.event_counters[1] && p.event_counters[1][8301];
+                state = level.localRookieSign = {version: 1,
+                    claimedDays: Math.max(0, Math.min(7, oldDay - 1)), receipts: {},
+                    lastClaimDay: oldCounter && Number(oldCounter.c) > 0 &&
+                        Math.floor((Number(p.last_update_time) || 0) / 86400) === today ? today : null};
+            }
+            if (state.version !== 1 || !isFinite(state.claimedDays) ||
+                state.claimedDays < 0 || state.claimedDays > 7 || state.claimedDays % 1)
+                throw new Error('Invalid rookie sign receipt; existing save preserved');
+            if (!state.receipts) state.receipts = {};
+            p.rookie_days = state.claimedDays + 1;
+            if (!p.event_counters) p.event_counters = {};
+            // Match stock daily rollover without resetting monthly/tutorial events.
+            if (p.last_update_time && Math.floor(p.last_update_time / 86400) < today)
+                delete p.event_counters[1];
+            if (!p.event_counters[1]) p.event_counters[1] = {};
+            var denied = state.claimedDays >= 7 ||
+                (state.lastClaimDay != null && state.lastClaimDay >= today);
+            p.event_counters[1][8301] = {c: denied ? 1 : 0, t: now,
+                clientData: {_eventCount: denied ? 1 : 0}};
+            p.last_update_time = now;
+            return {state: state, today: today, now: now, day: p.rookie_days,
+                eligible: !denied && p.rookie_days <= 7};
+        };
+
+        LocalNative.syncRookieSign = function(player, level) {
+            var info = LocalNative.ensureRookieSign(level);
+            var sr = player.getComponent('SignReward');
+            var der = player.getComponent('DailyEventRecorder');
+            player.rookie_days = info.day;
+            if (sr) sr.rookie_days = info.day;
+            if (der) {
+                if (!der.event_counters) der.event_counters = {};
+                der.refreshDailyEvent({last_update_time: info.now, event_id: 8301,
+                    event_counter: JSON.parse(JSON.stringify(level.player.event_counters[1][8301]))});
+            }
+            if (sr) sr.newRookieReward = info.eligible;
+            return info;
+        };
+
+        LocalNative.applyRookieSignRewards = function(level, day) {
+            var sign = data.sevendays && data.sevendays[day];
+            if (!sign) throw new Error('Missing seven-day configuration ' + day);
+            var eventId = sign.input_event, seen = {}, rewards = [];
+            while (eventId) {
+                if (seen[eventId]) throw new Error('Cyclic rookie reward event ' + eventId);
+                seen[eventId] = true;
+                var event = data.input_event_client && data.input_event_client[eventId];
+                if (!event) throw new Error('Missing rookie reward event ' + eventId);
+                if ((event.putin_event_exp || []).length || (event.putin_event_slot || []).length ||
+                    (event.putin_event_skill || []).length)
+                    throw new Error('Unresolved rookie reward category ' + eventId);
+                var resources = event.putin_event_resource || [];
+                for (var r = 0; r < resources.length; r++) {
+                    var res = data.resource_input && data.resource_input[resources[r]];
+                    if (!res || !(Number(res.putin_num) > 0))
+                        throw new Error('Missing rookie resource ' + resources[r]);
+                    var amount = Number(res.putin_num), type = Number(res.putin_resource_type);
+                    if (type === 3) {
+                        level.player.diamond = (Number(level.player.diamond) || 0) + amount;
+                        rewards.push([4, amount]);
+                    } else if (type === 4) {
+                        level.player.spirit = (Number(level.player.spirit) || 0) + amount;
+                        rewards.push([11, amount]);
+                    } else if (type === 1 || type === 2) {
+                        var credited = LocalNative.grantPveLoot(type === 2 ? amount : 0, type === 1 ? amount : 0, level);
+                        rewards.push([type === 1 ? 2 : 3, type === 1 ? credited.wood : credited.gold]);
+                    } else throw new Error('Unsupported rookie currency ' + type);
+                }
+                var items = event.putin_event_item || [];
+                for (var i = 0; i < items.length; i++) {
+                    var itemRewards = LocalNative.applyPveItemReward(level, items[i], 'rookie_' + day);
+                    if (!itemRewards.length) throw new Error('Unresolved rookie item ' + items[i]);
+                    rewards = rewards.concat(itemRewards);
+                }
+                var oldCapacity = Number(level.player.hero_slot_num) || 0;
+                var heroes = LocalNative.applyPveHeroRewards(level, eventId, 'rookie_' + day);
+                if (heroes.length !== (event.putin_event_hero || []).length)
+                    throw new Error('Unresolved rookie hero ' + eventId);
+                for (var h = 0; h < heroes.length; h++) {
+                    var heroReward = JSON.parse(JSON.stringify(heroes[h]));
+                    heroReward[1].hero_slot = h === 0
+                        ? Math.max(0, Number(level.player.hero_slot_num) - oldCapacity) : 0;
+                    // Type 29 creates the hero but stock mergeInputs does not render
+                    // it. Type 0 supplies the original hero reward card (no grant).
+                    rewards.push([0, {hero_id: heroReward[1].hero_id,
+                        level: heroReward[1].lv, unit_mutateid: heroReward[1].unit_mutateid || 0,
+                        skill_id: heroReward[1].skill_id || 0}]);
+                    rewards.push(heroReward);
+                }
+                eventId = event.putin_event_next;
+            }
+            if (!rewards.length) throw new Error('Empty rookie reward ' + day);
+            return rewards;
+        };
+
+        LocalNative.handleRookieSignReward = function(player) {
+            if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) return false;
+            var before = LocalNative.readRaw();
+            var info = LocalNative.ensureRookieSign(before.level);
+            if (!info.eligible) {
+                LocalNative.syncRookieSign(player, before.level);
+                LocalNative.writeStatus({step: 'rookie-sign-denied', day: info.day});
+                return false;
+            }
+            LocalNative.tryDumpAndSave();
+            // Work on a detached transaction: a missing table or write failure cannot
+            // persist a partial reward, nor an optimistic stock rookie_days increment.
+            var store = JSON.parse(JSON.stringify(LocalNative.readRaw()));
+            info = LocalNative.ensureRookieSign(store.level);
+            if (!info.eligible) return false;
+            var rewards = LocalNative.applyRookieSignRewards(store.level, info.day);
+            info.state.receipts[info.day] = {day: info.day, claimedAt: info.now, reward: rewards};
+            info.state.claimedDays++;
+            info.state.lastClaimDay = info.today;
+            LocalNative.ensureRookieSign(store.level);
+            LocalNative.writeRaw(store);
+            var pm = player.getComponent('PackageManager');
+            if (pm) {
+                if (!pm['package']) pm['package'] = {};
+                var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+                for (var n = 0; n < names.length; n++) {
+                    if (!pm['package'][names[n]])
+                        pm['package'][names[n]] = {item_dict: {}, capacity: 100, new_items: 0, buy_slot_time: 0};
+                }
+            }
+            try {
+                // Runtime still has its pre-claim wallet/package. The unchanged stock
+                // response displays and applies this reward exactly once.
+                player.rpc_c_get_rookie_sign_reward_ans({reward: rewards});
+            } finally {
+                LocalNative.syncSavedHomeWallet(store.level);
+                if (pm) {
+                    pm.init({'package': JSON.parse(JSON.stringify(store.level.player['package']))});
+                    if (pm.refreshNewItems) pm.refreshNewItems();
+                }
+                LocalNative.syncRookieSign(player, store.level);
+            }
+            LocalNative.writeStatus({step: 'rookie-sign-claimed', day: info.day,
+                next: store.level.player.rookie_days, reward: rewards});
+            return true;
+        };
+
+        LocalNative.maybeShowRookieSign = function(player, gc) {
+            var gate = function(reason, details) {
+                if (LocalNative._rookieSignGate !== reason) {
+                    LocalNative._rookieSignGate = reason;
+                    LocalNative.writeStatus({step: 'rookie-sign-gate', reason: reason, details: details || null});
+                }
+                return false;
+            };
+            if (GS_CURRENT_STAGE !== GS_STAGE_BUILD || !player || !gc || gc.firstMovie) return false;
+            if (typeof Rookie === 'undefined' || typeof ROOKIE_CODE_SIGN_AWARD === 'undefined' ||
+                !Rookie.isRookieCodeFinished(ROOKIE_CODE_SIGN_AWARD))
+                return gate('tutorial-locked', typeof ROOKIE_CODE_SIGN_AWARD !== 'undefined' ? ROOKIE_CODE_SIGN_AWARD : null);
+            var currentUI = G_UIManager.getCurrentUIIDForRookie();
+            if (currentUI !== 1) return gate('other-ui', currentUI);
+            // A curProcesses entry may wait for an unbuilt unit indefinitely.
+            // Only nodes actually attached and visible can block this popup.
+            var active = gc.curRookies || {};
+            for (var pid in active) {
+                var processes = active[pid].curProcesses || {};
+                for (var processId in processes) {
+                    var cfg = gc.allRookies && gc.allRookies[pid] && gc.allRookies[pid].processes[processId];
+                    var process = processes[processId];
+                    var nodes = [process.avataNode, process.markNode];
+                    var displayed = false;
+                    for (var ni = 0; ni < nodes.length; ni++) {
+                        var node = nodes[ni];
+                        if (!node || !node.getParent || !node.getParent()) continue;
+                        var visible = true;
+                        while (node) {
+                            if (node.isVisible && !node.isVisible()) { visible = false; break; }
+                            node = node.getParent ? node.getParent() : null;
+                        }
+                        if (visible) displayed = true;
+                    }
+                    if (displayed)
+                        return gate('active-guide', {pid: pid, process: processId,
+                            text: cfg && cfg.rookie_text, ui: cfg && cfg.rookie_current_ui});
+                }
+            }
+            var store = LocalNative.readRaw();
+            var info = LocalNative.ensureRookieSign(store.level);
+            if (!info.eligible || info.state.promptDay === info.today) return false;
+            LocalNative.syncRookieSign(player, store.level);
+            G_UIManager.get_ui(UI.Reward.RewardInterface.UIID).open('RookieSign');
+            info.state.promptDay = info.today;
+            LocalNative.writeRaw(store);
+            LocalNative.writeStatus({step: 'rookie-sign-open', day: info.day});
+            return true;
+        };
+
+        LocalNative.startRookieSignClock = function(gc) {
+            var root = LocalNative.getScheduleRoot();
+            if (!root || !root.schedule) return;
+            if (root.__localRookieSignTick) return;
+            var lastDate = null;
+            root.__localRookieSignTick = function() {
+                if (GS_CURRENT_STAGE !== GS_STAGE_BUILD || !G_Player) return;
+                try {
+                    var store = LocalNative.readRaw();
+                    var today = Math.floor(LocalNative.rookieSignNow() / 86400);
+                    if (lastDate !== today) {
+                        LocalNative.syncRookieSign(G_Player, store.level);
+                        LocalNative.syncMonthlySign(G_Player, store.level);
+                        LocalNative.writeRaw(store);
+                        lastDate = today;
+                        LocalNative.writeStatus({step: 'rookie-sign-ready',
+                            day: store.level.player.rookie_days,
+                            eligible: G_Player.getComponent('SignReward').newRookieReward});
+                    }
+                    LocalNative.maybeShowRookieSign(G_Player, LocalNative.getBuildController() || gc);
+                } catch (e) {
+                    LocalNative.writeStatus({step: 'rookie-sign-refresh-ERR', error: String(e)});
+                }
+            };
+            root.schedule(root.__localRookieSignTick, 5);
+            LocalNative.scheduleOnRoot(root.__localRookieSignTick, 1);
+        };
+
+        LocalNative.installRookieSignHooks = function() {
+            var proto = typeof UI !== 'undefined' && UI.Reward && UI.Reward.RewardInterface && UI.Reward.RewardInterface.prototype;
+            if (!proto || !proto.open || proto.open.__localRookieSign) return;
+            var original = proto.open;
+            proto.open = function() {
+                if (GS_CURRENT_STAGE === GS_STAGE_BUILD && G_Player) {
+                    var store = LocalNative.readRaw();
+                    LocalNative.syncRookieSign(G_Player, store.level);
+                    LocalNative.syncMonthlySign(G_Player, store.level);
+                    LocalNative.writeRaw(store);
+                }
+                return original.apply(this, arguments);
+            };
+            proto.open.__localRookieSign = true;
+        };
+
+        LocalNative.installMonthlySignRewards = function(year) {
+            // User-requested local reward, separate from the original seven-day table.
+            var eventId = 990100001;
+            if (!data.daily_register) data.daily_register = {};
+            if (!data.input_event_client) data.input_event_client = {};
+            if (!data.resource_input) data.resource_input = {};
+            data.resource_input[eventId] = {putin_type: 6, putin_limit: 0,
+                putin_num: 100000, putin_resource_type: 3};
+            data.input_event_client[eventId] = {putin_event_exp: [], putin_event_resource: [eventId],
+                putin_event_hero: [], putin_event_slot: [], putin_event_next: 0,
+                putin_event_skill: [], putin_event_item: []};
+            for (var month = 1; month <= 12; month++) {
+                var days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+                for (var day = 1; day <= 31; day++) {
+                    if (day <= days) data.daily_register[month * 100 + day] = {dr_putin: eventId};
+                    else delete data.daily_register[month * 100 + day];
+                }
+            }
+        };
+
+        LocalNative.ensureMonthlySign = function(level) {
+            var clock = LocalNative.ensureRookieSign(level);
+            var date = new Date(clock.now * 1000);
+            var year = date.getUTCFullYear(), month = date.getUTCMonth() + 1;
+            var days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+            var key = year + '-' + (month < 10 ? '0' : '') + month;
+            var state = level.localMonthlySign;
+            if (!state) state = level.localMonthlySign = {version: 1, months: {}, lastClaimDay: null};
+            if (state.version !== 1 || !state.months || typeof state.months !== 'object')
+                throw new Error('Invalid monthly sign state; existing save preserved');
+            var record = state.months[key];
+            if (!record) record = state.months[key] = {claimedDays: 0, receipts: {}};
+            if (!isFinite(record.claimedDays) || record.claimedDays % 1 ||
+                record.claimedDays < 0 || record.claimedDays > days || !record.receipts)
+                throw new Error('Invalid monthly sign receipt; existing save preserved');
+            var denied = record.claimedDays >= days ||
+                (state.lastClaimDay != null && state.lastClaimDay >= clock.today);
+            var counters = level.player.event_counters;
+            if (!counters[3]) counters[3] = {};
+            counters[1][2003] = {c: denied ? 1 : 0, t: clock.now,
+                clientData: {_eventCount: denied ? 1 : 0}};
+            counters[3][2002] = {c: record.claimedDays, t: clock.now,
+                d: {month: month, year: year}, clientData: {_eventCount: record.claimedDays}};
+            // Normal once-a-day claims only. The unrecovered paid retroactive path
+            // must not charge items/diamonds or bypass the daily receipt.
+            counters[3][2111] = {c: 31, t: clock.now, clientData: {_eventCount: 31}};
+            counters[1][3010] = {c: state.showDay === clock.today ? 1 : 0, t: clock.now,
+                clientData: {_eventCount: state.showDay === clock.today ? 1 : 0}};
+            LocalNative.installMonthlySignRewards(year);
+            return {state: state, record: record, key: key, month: month, year: year,
+                days: days, today: clock.today, now: clock.now,
+                nextDay: record.claimedDays + 1, eligible: !denied};
+        };
+
+        LocalNative.syncMonthlySign = function(player, level) {
+            var info = LocalNative.ensureMonthlySign(level);
+            LocalNative.installMonthlySignRewards(info.year);
+            var der = player.getComponent('DailyEventRecorder');
+            if (der) {
+                if (!der.event_counters) der.event_counters = {};
+                var events = [2003, 2111, 3010, 2002];
+                for (var i = 0; i < events.length; i++) {
+                    var id = events[i], period = id === 2003 || id === 3010 ? 1 : 3;
+                    var dict = {event_id: id, last_update_time: info.now,
+                        event_counter: JSON.parse(JSON.stringify(level.player.event_counters[period][id]))};
+                    if (player.rpc_c_refresh_daily_event) player.rpc_c_refresh_daily_event(dict);
+                    else der.refreshDailyEvent(dict);
+                }
+            }
+            var sr = player.getComponent('SignReward');
+            if (sr) sr.newDailySignReward = info.eligible;
+            return info;
+        };
+
+        LocalNative.handleMonthlySignReward = function(player, params) {
+            if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) return false;
+            var current = LocalNative.readRaw();
+            var info = LocalNative.ensureMonthlySign(current.level);
+            if (!info.eligible || !params || Number(params.month) !== info.month ||
+                Number(params.day) !== info.nextDay) {
+                LocalNative.syncMonthlySign(player, current.level);
+                LocalNative.writeStatus({step: 'monthly-sign-denied', month: info.key,
+                    nextDay: info.nextDay, requested: params || null});
+                return false;
+            }
+            LocalNative.tryDumpAndSave();
+            var store = JSON.parse(JSON.stringify(LocalNative.readRaw()));
+            info = LocalNative.ensureMonthlySign(store.level);
+            if (!info.eligible || Number(params.month) !== info.month || Number(params.day) !== info.nextDay)
+                return false;
+            var rm = LocalNative.getResourceManager();
+            if (!rm || !rm.Res) throw new Error('No wallet for monthly sign');
+            // If a snapshot fails, retain the current spent balance instead of
+            // restoring an older larger wallet from the save.
+            var balance = Number(rm.Res[3]);
+            if (!isFinite(balance) || balance < 0) throw new Error('Invalid monthly sign wallet');
+            store.level.player.diamond = balance + 100000;
+            var reward = [[4, 100000]];
+            info.record.receipts[info.today] = {day: info.nextDay, claimedAt: info.now,
+                diamond: 100000, balanceAfter: store.level.player.diamond};
+            info.record.claimedDays++;
+            info.state.lastClaimDay = info.today;
+            LocalNative.ensureMonthlySign(store.level);
+            LocalNative.writeRaw(store);
+            try {
+                player.rpc_c_get_sign_reward_ans({reward: reward});
+            } finally {
+                rm.Res[3] = store.level.player.diamond;
+                if (player.resetCurDiamond) player.resetCurDiamond();
+                LocalNative.refreshResHud();
+                LocalNative.syncMonthlySign(player, store.level);
+            }
+            LocalNative.writeStatus({step: 'monthly-sign-claimed', month: info.key,
+                day: info.nextDay, diamond: store.level.player.diamond});
+            return true;
+        };
+
+        LocalNative.refreshMonthlySign = function(player, markShown) {
+            if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) return false;
+            var store = LocalNative.readRaw();
+            var info = LocalNative.ensureMonthlySign(store.level);
+            if (markShown) info.state.showDay = info.today;
+            LocalNative.writeRaw(store);
+            LocalNative.syncMonthlySign(player, store.level);
+            return true;
+        };
+
+        // User-authorized offline economy v1. These probabilities are local policy,
+        // not recovered production-server probabilities. Keep all stock UI/RPCs.
+        LocalNative.shopPolicy = {version: 1, weights: [70, 25, 5], pity: 20,
+            cardColors: [2, 3, 4], dismissSpirit: [10, 30, 100], maxBatch: 100};
+
+        // Independent fragment rolls; retain the original species weights inside each pool.
+        LocalNative.rebirthTreasurePolicy = {
+            1504: {fragmentStage:50032, fragments:[[9061,1,2,4],[9082,0.25,1,2]], blueprints:{}},
+            1505: {fragmentStage:50042, fragments:[[9081,1,5,8],[9082,0.75,4,6]], blueprints:{50045:[9086,0.10]}},
+            1506: {fragmentStage:50052, fragments:[[9101,1,16,22],[9102,1,12,16]], blueprints:{50055:[9106,0.02],50056:[9107,0.15]}}
+        };
+
+        LocalNative.heroTreasurePolicy = {
+            1501: {fragmentStage:50003, fragmentMultiplier:2, boostedStages:{50002:0.40,50004:0.40}},
+            1502: {fragmentStage:50013, fragmentMultiplier:2, boostedStages:{50012:0.60,50014:0.60}},
+            1503: {fragmentStage:50023, fragmentMultiplier:2, boostedStages:{50022:0.80,50024:0.80}}
+        };
+
+        LocalNative.shopState = function(level) {
+            if (!level.localShop) level.localShop = {version: 1, sequence: 0,
+                rareMisses: 0, itemCounters: {}, pending: null};
+            if (level.localShop.version !== 1) throw new Error('Unsupported shop save version');
+            return level.localShop;
+        };
+
+        LocalNative.shopPick = function(entries) {
+            var total = 0, i;
+            for (i = 0; i < entries.length; i++) total += Number(entries[i][1]) || 0;
+            if (!(total > 0)) throw new Error('Empty shop reward pool');
+            var roll = Math.random() * total;
+            for (i = 0; i < entries.length; i++) {
+                roll -= Number(entries[i][1]) || 0;
+                if (roll < 0) return entries[i][0];
+            }
+            return entries[entries.length - 1][0];
+        };
+
+        LocalNative.snapshotResearch = function(level, player) {
+            var tm = player && player.getComponent('TechManager');
+            if (tm && tm.gained_techs)
+                level.player.gained_techs = JSON.parse(JSON.stringify(tm.gained_techs));
+            var rm = player && player.getComponent('ResourceManager');
+            if (rm && rm.Res && isFinite(rm.Res[9])) level.player.league_points = Number(rm.Res[9]);
+        };
+
+        LocalNative.restoreResearch = function(player) {
+            var level = LocalNative.readRaw().level;
+            var tm = player.getComponent('TechManager');
+            tm.gained_techs = JSON.parse(JSON.stringify(level.player.gained_techs || {}));
+            var ids = data.tech.summary.all_techs;
+            for (var i = 0; i < ids.length; i++)
+                if (!tm.gained_techs[ids[i]]) tm.gained_techs[ids[i]] = {lv: 0, exp: 0};
+            var tree = tm.getTechTree(), tc = tree && tree.getComponent('TechController');
+            if (tc) for (var j = 0; j < level.units.length; j++) {
+                if (String(level.units[j].sid) !== String(tree.sid)) continue;
+                var record = level.units[j];
+                tc.training_tech = record.training_tech || 0;
+                tc.last_train_tech_time = record.last_train_tech_time || 0;
+                tc.trained_time = record.trained_time || 0;
+                if (!tc.training_tech && tc.researchingAnimationHandle) {
+                    DA.unschedule(tree.rootNode, tc.researchingAnimationHandle);
+                    tc.researchingAnimationHandle = null;
+                }
+                if (tc.techBubble) tc.techBubble.refresh();
+            }
+            LocalNative.syncSavedHomeWallet(level);
+            var rm = player.getComponent('ResourceManager');
+            if (rm && rm.Res) rm.Res[9] = Number(level.player.league_points) || 0;
+            if (tm.invokeAffectedSelectors) tm.invokeAffectedSelectors();
+        };
+
+        LocalNative.handleTrainTech = function(player, params) {
+            try {
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var tm = player.getComponent('TechManager'), id = Number(params.tech_id);
+                var info = tm.gained_techs[id], tree = tm.getTechTree();
+                var cfg = info && data.tech[id * 100 + info.lv + 1];
+                var previous = LocalNative.readRaw().level.player.gained_techs || {};
+                var before = previous[id] || {lv: 0, exp: 0};
+                // Stock has paid and added one point per click. Multiple clicks may
+                // reach the zero-delay callback together; commit their full snapshot.
+                if (!cfg || !tree || cfg.tree_lv > tree.level ||
+                    cfg.resource_type1.indexOf(Number(params.res_type)) < 0 ||
+                    info.lv !== before.lv || info.exp < before.exp ||
+                    info.exp > cfg.level_stage_num) throw new Error('Invalid research point');
+                if (info.exp === before.exp) return true;
+                LocalNative.snapshotResearch(level, player);
+                LocalNative.writeRaw(store);
+                LocalNative.writeStatus({step: 'tech-point-saved', id: id, lv: info.lv, exp: info.exp});
+                return true;
+            } catch (e) {
+                LocalNative.restoreResearch(player);
+                LocalNative.writeStatus({step: 'tech-point-ERR', error: String(e)});
+                return false;
+            }
+        };
+
+        LocalNative.finishResearch = function(player, forcedId) {
+            if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) return false;
+            var tm = player.getComponent('TechManager'), tree = tm && tm.getTechTree();
+            var tc = tree && tree.getComponent('TechController');
+            var id = tc && tc.training_tech;
+            if (!id || (forcedId && Number(forcedId) !== Number(id))) return false;
+            if (!forcedId && tc.getTrainingLeftTime() > 0) return false;
+            var committed = false;
+            try {
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var info = tm.gained_techs[id], cfg = tm.getNextTechConfig(id);
+                if (!cfg || info.exp !== cfg.level_stage_num) throw new Error('Research points incomplete');
+                var savedInfo = LocalNative.readRaw().level.player.gained_techs;
+                if (!savedInfo || !savedInfo[id] || savedInfo[id].lv !== info.lv ||
+                    savedInfo[id].exp !== info.exp) throw new Error('Research not committed');
+                LocalNative.snapshotResearch(level, player);
+                level.player.gained_techs[id] = {lv: info.lv + 1, exp: 0};
+                for (var i = 0; i < level.units.length; i++) {
+                    if (String(level.units[i].sid) !== String(tree.sid)) continue;
+                    level.units[i].training_tech = 0;
+                    level.units[i].last_train_tech_time = 0;
+                    level.units[i].trained_time = 0;
+                }
+                LocalNative.writeRaw(store);
+                committed = true;
+                player.rpc_c_tech_training_complete({tech_id: id});
+                LocalNative.writeStatus({step: 'tech-level-saved', id: id, lv: info.lv});
+                return true;
+            } catch (e) {
+                if (forcedId || committed) LocalNative.restoreResearch(player);
+                LocalNative.writeStatus({step: 'tech-finish-ERR', error: String(e)});
+                return false;
+            }
+        };
+
+        LocalNative.startResearchClock = function() {
+            var root = LocalNative.getScheduleRoot();
+            if (!root || !root.schedule || root.__localResearchTick) return;
+            root.__localResearchTick = function() {
+                if (GS_CURRENT_STAGE === GS_STAGE_BUILD && G_Player)
+                    LocalNative.finishResearch(G_Player, 0);
+            };
+            root.schedule(root.__localResearchTick, 1);
+            LocalNative.scheduleOnRoot(root.__localResearchTick, 0);
+        };
+
+        LocalNative.shopTransaction = function(player) {
+            if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) throw new Error('Shop requires home stage');
+            var store = JSON.parse(JSON.stringify(LocalNative.readRaw()));
+            var level = store.level;
+            LocalNative.shopState(level);
+            var rm = player.getComponent('ResourceManager');
+            if (!rm || !rm.Res || !isFinite(rm.Res[3]) || rm.Res[3] < 0)
+                throw new Error('Invalid shop wallet');
+            // Stock shop already used useRes before sending paid RPCs. Snapshot
+            // that debit, never subtract the price a second time.
+            level.player.diamond = Number(rm.Res[3]);
+            level.player.spirit = Number(rm.Res[4]) || 0;
+            LocalNative.copyAccountProgress(level.player, player);
+            var pm = player.getComponent('PackageManager');
+            if (pm && pm['package']) level.player['package'] = JSON.parse(JSON.stringify(pm['package']));
+            var der = player.getComponent('DailyEventRecorder');
+            if (der && der.event_counters) {
+                if (der.checkAndResetAllEventCounters)
+                    der.checkAndResetAllEventCounters(Math.floor(Date.now() / 1000));
+                level.player.event_counters = JSON.parse(JSON.stringify(der.event_counters));
+                level.player.last_update_time = der.last_update_time;
+            }
+            for (var i = 0; i < level.units.length; i++) {
+                var unit = G_UnitManager.getUnitBySID(level.units[i].sid);
+                if (unit && unit.getComponent && unit.getComponent('BuildingBuilder'))
+                    level.units[i] = LocalNative.snapshotBuildingRecord(unit);
+            }
+            return store;
+        };
+
+        LocalNative.shopSync = function(player, level) {
+            LocalNative.syncSavedHomeWallet(level);
+            var pm = player.getComponent('PackageManager');
+            if (pm && level.player['package'])
+                pm.init({'package': JSON.parse(JSON.stringify(level.player['package']))});
+            var der = player.getComponent('DailyEventRecorder');
+            if (der && level.player.event_counters) {
+                der.event_counters = JSON.parse(JSON.stringify(level.player.event_counters));
+                der.last_update_time = level.player.last_update_time;
+            }
+            var state = LocalNative.shopState(level);
+            if (der && state.freeEggAt && player.rpc_c_refresh_daily_event) {
+                player.rpc_c_refresh_daily_event({event_id: 8033,
+                    last_update_time: Math.floor(Date.now() / 1000),
+                    event_counter: {c: 1, t: state.freeEggAt, clientData: {_eventCount: 1}}});
+            }
+            if (der && player.rpc_c_refresh_daily_event) {
+                for (var id = 8000; id <= 8008; id++) {
+                    var counter = level.player.event_counters && level.player.event_counters[1] &&
+                        level.player.event_counters[1][id];
+                    if (counter) player.rpc_c_refresh_daily_event({event_id: id,
+                        last_update_time: Math.floor(Date.now() / 1000), event_counter: counter});
+                }
+            }
+        };
+
+        // Stock getBuySlotPrice requires a numeric purchase count. Legacy local
+        // bags omitted it, hiding the stock expansion button even when full.
+        LocalNative.ensurePackageSlotMetadata = function(level) {
+            var pkg = level.player['package'] || {};
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            for (var i = 0; i < names.length; i++) {
+                var bag = pkg[names[i]];
+                if (bag && bag.buy_slot_time == null) bag.buy_slot_time = 0;
+            }
+        };
+
+        LocalNative.handleBuyPackageSlot = function(player, params) {
+            var id = Number(params.pkgid);
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            if (!isFinite(id) || id % 1 || id < 0 || id >= names.length)
+                throw new Error('Invalid package slot selection');
+            var before = LocalNative.readRaw().level;
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var oldBag = before.player['package'] && before.player['package'][names[id]];
+            var bag = level.player['package'] && level.player['package'][names[id]];
+            var count = oldBag && Number(oldBag.buy_slot_time == null ? 0 : oldBag.buy_slot_time);
+            var price = typeof PACKAGE_ADD_ITEM_COST !== 'undefined' && PACKAGE_ADD_ITEM_COST[count];
+            if (!oldBag || !bag || !isFinite(count) || count % 1 || count < 0 || !price ||
+                Number(bag.buy_slot_time) !== count + 1 ||
+                Number(bag.capacity) !== Number(oldBag.capacity) + Number(price[0]))
+                throw new Error('Invalid package slot expansion');
+            if (Number(before.player.diamond) < Number(price[1]) ||
+                level.player.diamond !== Number(before.player.diamond) - Number(price[1]))
+                throw new Error('Package slot debit mismatch');
+            // The original UI has already charged and added the slots. Persist
+            // both together; do not charge or expand a second time.
+            LocalNative.writeRaw(store);
+            LocalNative.shopSync(player, level);
+            return true;
+        };
+
+        LocalNative.shopAddItem = function(level, typeid, num) {
+            var cfg = data.item && data.item[typeid];
+            if (!cfg || !(num > 0) || num % 1) throw new Error('Invalid shop item ' + typeid);
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            var name = names[Number(cfg.item_type) || 0];
+            if (!name) throw new Error('Unknown item package ' + typeid);
+            var pkg = level.player['package'] || (level.player['package'] = {});
+            for (var n = 0; n < names.length; n++) {
+                if (!pkg[names[n]]) pkg[names[n]] = {item_dict: {}, capacity: 100, new_items: 0, buy_slot_time: 0};
+            }
+            var bag = pkg[name], remaining = num, deltas = [];
+            var max = Number(cfg.item_overlap) || 1;
+            for (var oid in bag.item_dict) {
+                var item = bag.item_dict[oid];
+                if (Number(item.typeid) !== Number(typeid) || item.num >= max) continue;
+                var add = Math.min(remaining, max - item.num);
+                item.num += add; item.is_new = true; remaining -= add;
+                deltas.push({oid: oid, typeid: Number(typeid), num: add, is_new: true});
+                if (!remaining) break;
+            }
+            while (remaining > 0) {
+                if (Object.keys(bag.item_dict).length >= Number(bag.capacity == null ? 100 : bag.capacity))
+                    throw new Error('Shop reward package is full');
+                var state = LocalNative.shopState(level);
+                var key = 'local_shop_' + (++state.sequence);
+                var amount = Math.min(remaining, max);
+                bag.item_dict[key] = {oid: key, typeid: Number(typeid), num: amount, is_new: true};
+                deltas.push({oid: key, typeid: Number(typeid), num: amount, is_new: true});
+                remaining -= amount;
+            }
+            bag.new_items = 0;
+            for (var k in bag.item_dict) if (bag.item_dict[k].is_new) bag.new_items++;
+            return deltas;
+        };
+
+        LocalNative.shopHeroPools = function() {
+            var pools = [[], [], []], bases = {}, events = data.hero_input_client || {};
+            for (var key in events) {
+                var event = events[key];
+                for (var team = 1; team <= 4; team++) {
+                    var ids = event['putin_team' + team] || [];
+                    for (var i = 0; i < ids.length; i++) {
+                        var base = Number(ids[i]), main = data.unit_main[base];
+                        if (base % 100 !== 1 || !main || !main.is_hero || main.hero_class !== 1) continue;
+                        if (!bases[base]) bases[base] = {skill: 0};
+                        if (event.putin_skill && data.skill_data[event.putin_skill])
+                            bases[base].skill = event.putin_skill;
+                    }
+                }
+            }
+            for (var baseId in bases) {
+                var id = Number(baseId), seen = {}, found = {};
+                while (id && !seen[id]) {
+                    seen[id] = true;
+                    var cfg = data.unit_main[id], battle = data.unit_battle[id];
+                    if (!cfg || !battle) break;
+                    for (var tier = 0; tier < 3; tier++) {
+                        if (!found[tier] && battle.hero_card_color === LocalNative.shopPolicy.cardColors[tier]) {
+                            pools[tier].push({typeid: id, skill: bases[baseId].skill});
+                            found[tier] = true;
+                        }
+                    }
+                    id = Number(cfg.upgrade_target) || 0;
+                }
+            }
+            for (var p = 0; p < 3; p++) if (!pools[p].length) throw new Error('Missing hero tier ' + p);
+            return pools;
+        };
+
+        LocalNative.shopRollHeroes = function(level, count) {
+            var pools = LocalNative.shopHeroPools(), state = LocalNative.shopState(level);
+            var result = [], hasExcellent = false;
+            for (var i = 0; i < count; i++) {
+                var weights = LocalNative.shopPolicy.weights;
+                var tier = LocalNative.shopPick([[0,weights[0]], [1,weights[1]], [2,weights[2]]]);
+                if (state.rareMisses >= LocalNative.shopPolicy.pity - 1) tier = 2;
+                if (count === 3 && i === 2 && !hasExcellent && tier === 0) tier = 1;
+                hasExcellent = hasExcellent || tier >= 1;
+                state.rareMisses = tier === 2 ? 0 : (state.rareMisses || 0) + 1;
+                var pool = pools[tier], entry = pool[Math.floor(Math.random() * pool.length)];
+                var hero = LocalNative.defaultStarterHero();
+                hero.id = hero.sid = 'local_shop_hero_' + (++state.sequence);
+                hero.hero_id = hero.typeid = entry.typeid;
+                hero.unit_type = Math.floor(entry.typeid / 100); hero.unit_level = entry.typeid % 100;
+                hero.lv = hero.level = 1; hero.xp = 0; hero.state = 0; hero.aidx = -1;
+                hero.unit_mutateid = hero.mutateid = 0;
+                hero.rct = hero.aht = Math.floor(Date.now() / 1000);
+                hero.skill_id = 0;
+                hero.skill_slots = [];
+                LocalNative.ensureHeroSkill(hero);
+                delete hero.life; delete hero.health;
+                result.push({hero: hero, tier: tier, status: 'pending'});
+            }
+            return result;
+        };
+
+        LocalNative.shopShowPending = function(player, level) {
+            var pending = LocalNative.shopState(level).pending;
+            if (!pending || pending.closed) return false;
+            var ans = [];
+            pending.displayIndices = [];
+            for (var i = 0; i < pending.cards.length; i++) {
+                if (pending.cards[i].status === 'pending') {
+                    LocalNative.ensureHeroSkill(pending.cards[i].hero);
+                    ans.push([29, pending.cards[i].hero]);
+                    pending.displayIndices.push(i);
+                }
+            }
+            var store = LocalNative.readRaw();
+            LocalNative.shopState(store.level).pending = pending;
+            LocalNative.writeRaw(store);
+            if (!ans.length) return LocalNative.handleShopGain(player);
+            if (ans.length) player.rpc_c_draw_card({ans: ans});
+            return !!ans.length;
+        };
+
+        LocalNative.handleShopDraw = function(player, params) {
+            var old = LocalNative.readRaw(), tutorial = old.level.localTutorialEgg;
+            if (params.buy_id === 100 && params.free === true && (!tutorial || !tutorial.claimed))
+                return LocalNative.handleTutorialEggDraw(player, params);
+            var state = LocalNative.shopState(old.level);
+            if (state.pending && !state.pending.closed) {
+                LocalNative.shopSync(player, old.level);
+                return LocalNative.shopShowPending(player, old.level);
+            }
+            var id = Number(params.buy_id), cfg = data.virtual_item[id];
+            if ((id !== 100 && id !== 101) || !cfg) throw new Error('Unknown dragon egg');
+            var now = Math.floor(Date.now() / 1000);
+            if (params.free === true) {
+                var counters = old.level.player.event_counters || {};
+                var last = state.freeEggAt || (counters[5] && counters[5][8033] && counters[5][8033].t) || 0;
+                if (id !== 100 || now - last < Number(data.period_control[8033].interval))
+                    throw new Error('Free egg is still cooling down');
+            }
+            var store = LocalNative.shopTransaction(player);
+            state = LocalNative.shopState(store.level);
+            state.pending = {id: ++state.sequence, buyId: id,
+                cards: LocalNative.shopRollHeroes(store.level, id === 101 ? 3 : 1), closed: false};
+            if (params.free === true) {
+                state.freeEggAt = now;
+                if (!store.level.player.event_counters) store.level.player.event_counters = {};
+                if (!store.level.player.event_counters[5]) store.level.player.event_counters[5] = {};
+                store.level.player.event_counters[5][8033] = {c:1,t:now,clientData:{_eventCount:1}};
+            }
+            LocalNative.writeRaw(store);
+            LocalNative.shopSync(player, store.level);
+            return LocalNative.shopShowPending(player, store.level);
+        };
+
+        LocalNative.handleShopGain = function(player) {
+            var old = LocalNative.readRaw(), tutorial = old.level.localTutorialEgg;
+            if (tutorial && !tutorial.claimed) return LocalNative.handleTutorialEggGain(player);
+            var pending = LocalNative.shopState(old.level).pending;
+            if (!pending || pending.closed) return false;
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            pending = LocalNative.shopState(level).pending;
+            var roster = level.heros || (level.heros = []), ans = [];
+            var hm = player.getComponent('HeroManager');
+            var capacity = Math.max(Number(level.player.hero_slot_num) || 0, hm ? hm.getHeroCapacity() : 0);
+            for (var i = 0; i < pending.cards.length; i++) {
+                var card = pending.cards[i];
+                if (card.status !== 'pending') continue;
+                var hero = card.hero;
+                LocalNative.ensureHeroSkill(hero);
+                hero.hero_slot = Math.max(0, roster.length + 1 - capacity);
+                capacity += hero.hero_slot;
+                roster.push(JSON.parse(JSON.stringify(hero)));
+                card.status = 'claimed'; ans.push([29, hero]);
+            }
+            level.player.hero_slot_num = capacity;
+            LocalNative.ensurePlayerSocialFields(level.player);
+            level.player.achieve_raw.hero_times = (Number(level.player.achieve_raw.hero_times) || 0) + ans.length;
+            pending.closed = true;
+            LocalNative.writeRaw(store);
+            try { if (ans.length) player.rpc_c_gain_drawcard({ans: ans}); }
+            finally {
+                var recorder = player.getComponent('AchievementRecorder');
+                if (recorder) recorder.achieve_raw = level.player.achieve_raw;
+                player.achieve_raw = level.player.achieve_raw;
+                LocalNative.shopSync(player, level);
+            }
+            return true;
+        };
+
+        LocalNative.handleShopDismiss = function(player, params) {
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var pending = LocalNative.shopState(level).pending, index = Number(params.index);
+            if (!pending || pending.closed || !isFinite(index) || index % 1 || index < 0) return false;
+            index = pending.displayIndices ? pending.displayIndices[index] : index;
+            if (index == null || !pending.cards[index] || pending.cards[index].status !== 'pending') return false;
+            var card = pending.cards[index];
+            card.status = 'dismissed';
+            var spirit = LocalNative.shopPolicy.dismissSpirit[card.tier];
+            level.player.spirit += spirit;
+            // Keep the session until the stock gain RPC closes it, including all-dismissed sessions.
+            LocalNative.writeRaw(store);
+            LocalNative.shopSync(player, level);
+            if (typeof G_MainController !== 'undefined') G_MainController.setNotice('reincarnate_get_spirit');
+            return true;
+        };
+
+        LocalNative.shopRollItemEvent = function(level, eventId, rewardPolicy) {
+            var cfg = data.item_input[eventId];
+            if (!cfg) throw new Error('Missing item input ' + eventId);
+            // Some original chain nodes are explicit empty placeholders.
+            if (!Number(cfg.item_id) && !(cfg.item_random_chance || []).length) return [];
+            if (!rewardPolicy || !rewardPolicy.bypassLimit) {
+                var state = LocalNative.shopState(level);
+                var counter = state.itemCounters[eventId] || {attempts:0, wins:0, misses:0};
+                state.itemCounters[eventId] = counter;
+                var limit = cfg.item_random_useLimit || [], window = Number(limit[0]) || 0, cap = Number(limit[1]) || 0;
+                if (window && counter.attempts % window === 0) counter.wins = 0;
+                counter.attempts++;
+                var guarantee = Number(cfg.item_random_security) || 0;
+                var win = !window || (counter.wins < cap &&
+                    ((guarantee && counter.misses >= guarantee - 1) || Math.random() < cap / window));
+                if (!win) { counter.misses++; return []; }
+                counter.wins++; counter.misses = 0;
+            }
+            var typeid = Number(cfg.item_id), num = Number(cfg.item_num);
+            if (!typeid) typeid = Number(LocalNative.shopPick(cfg.item_random_chance || []));
+            if (!(num > 0)) {
+                var range = cfg.item_random_numRange;
+                if (!range || range.length !== 2 || range[1] < range[0]) throw new Error('Invalid quantity range');
+                num = Number(range[0]) + Math.floor(Math.random() * (Number(range[1]) - Number(range[0]) + 1));
+            }
+            if (rewardPolicy && rewardPolicy.quantityMultiplier) num *= rewardPolicy.quantityMultiplier;
+            return [[19, LocalNative.shopAddItem(level, typeid, num)]];
+        };
+
+        LocalNative.shopTreasureRewards = function(level, itemId) {
+            var cfg = data.item[itemId], starts = cfg && cfg.item_getAfterUse;
+            if (!starts || !starts.length) throw new Error('Missing treasure reward chain');
+            var ans = [], seen = {};
+            for (var s = 0; s < starts.length; s++) {
+                var id = starts[s];
+                while (id) {
+                    if (seen[id]) throw new Error('Cyclic treasure reward chain');
+                    seen[id] = true;
+                    var event = data.input_event_client[id];
+                    if (!event) throw new Error('Missing treasure event ' + id);
+                    var res = event.putin_event_resource || [];
+                    if (res.length) {
+                        var r = data.resource_input[res[Math.floor(Math.random() * res.length)]];
+                        if (!r || !(r.putin_num > 0)) throw new Error('Invalid treasure resource');
+                        var type = Number(r.putin_resource_type), amount = Number(r.putin_num);
+                        if (type === 1 || type === 2) {
+                            var gained = LocalNative.grantPveLoot(type === 2 ? amount : 0, type === 1 ? amount : 0, level);
+                            var actual = type === 2 ? gained.gold : gained.wood;
+                            if (actual) ans.push([type === 2 ? 3 : 2, actual]);
+                        } else if (type === 3 || type === 4) {
+                            level.player[type === 3 ? 'diamond' : 'spirit'] += amount;
+                            ans.push([type === 3 ? 4 : 11, amount]);
+                        } else throw new Error('Unsupported treasure resource ' + type);
+                    }
+                    var policy = LocalNative.rebirthTreasurePolicy[itemId];
+                    var blueprint = policy && policy.blueprints[id];
+                    var heroPolicy = LocalNative.heroTreasurePolicy[itemId];
+                    var heroChance = heroPolicy && heroPolicy.boostedStages[id];
+                    if (heroPolicy && (id === heroPolicy.fragmentStage || heroChance != null)) {
+                        var heroItems = event.putin_event_item || [];
+                        if (!heroItems.length) throw new Error('Missing hero treasure items ' + id);
+                        if (heroChance == null || Math.random() < heroChance) {
+                            var heroEventId = heroItems[Math.floor(Math.random() * heroItems.length)];
+                            ans = ans.concat(LocalNative.shopRollItemEvent(level, heroEventId,
+                                heroChance == null ? {quantityMultiplier:heroPolicy.fragmentMultiplier} : {bypassLimit:true}));
+                        }
+                    } else if (policy && id === policy.fragmentStage) {
+                        for (var f = 0; f < policy.fragments.length; f++) {
+                            var roll = policy.fragments[f];
+                            if (roll[1] < 1 && Math.random() >= roll[1]) continue;
+                            var pool = data.item_input[roll[0]];
+                            if (!pool) throw new Error('Missing rebirth fragment pool ' + roll[0]);
+                            var fragmentId = Number(LocalNative.shopPick(pool.item_random_chance));
+                            var quantity = roll[2] + Math.floor(Math.random() * (roll[3] - roll[2] + 1));
+                            ans.push([19, LocalNative.shopAddItem(level, fragmentId, quantity)]);
+                        }
+                    } else if (blueprint) {
+                        if (Math.random() < blueprint[1])
+                            ans = ans.concat(LocalNative.shopRollItemEvent(level, blueprint[0]));
+                    } else {
+                        var items = event.putin_event_item || [];
+                        if (items.length) ans = ans.concat(LocalNative.shopRollItemEvent(level,
+                            items[Math.floor(Math.random() * items.length)]));
+                    }
+                    if ((event.putin_event_hero || []).length || (event.putin_event_skill || []).length ||
+                        (event.putin_event_exp || []).length || (event.putin_event_slot || []).length)
+                        throw new Error('Unsupported treasure reward branch');
+                    id = event.putin_event_next;
+                }
+            }
+            return ans;
+        };
+
+        LocalNative.handleShopBuyPackage = function(player, params) {
+            var id = Number(params.typeid), num = Number(params.num), cfg = data.virtual_item[id];
+            if (id < 89 || id > 97 || !cfg || !cfg.item_ID || !isFinite(num) || num % 1 || num < 1 ||
+                num > LocalNative.shopPolicy.maxBatch) throw new Error('Invalid treasure purchase');
+            var store = LocalNative.shopTransaction(player);
+            var period = data.period_control[cfg.circle_round];
+            if (period && period.num_limit) {
+                var counters = store.level.player.event_counters || (store.level.player.event_counters = {});
+                var group = counters[period.period_type] || (counters[period.period_type] = {});
+                var counter = group[cfg.circle_round] || {c:0};
+                var count = Math.max(Number(counter.c) || 0,
+                    Number(counter.clientData && counter.clientData._eventCount) || 0);
+                if (count + num > period.num_limit) throw new Error('Treasure daily purchase limit');
+                group[cfg.circle_round] = {c:count + num,t:Math.floor(Date.now()/1000),
+                    clientData:{_eventCount:count + num}};
+            }
+            var items = LocalNative.shopAddItem(store.level, cfg.item_ID, num);
+            LocalNative.writeRaw(store);
+            try { player.rpc_c_buy_package_ans({success: true, items: items}); }
+            finally { LocalNative.shopSync(player, store.level); }
+            return true;
+        };
+
+        // Stock AlchemySkillAttribute.getSkillIdByItemId.
+        LocalNative.resolveSkillBookReplaceId = function(typeid) {
+            var cfg = data.item && data.item[typeid];
+            var eventId = cfg && cfg.item_getAfterUse && cfg.item_getAfterUse[0];
+            var event = eventId && data.input_event_client && data.input_event_client[eventId];
+            var skillEventId = event && event.putin_event_skill && event.putin_event_skill[0];
+            var skillEvent = skillEventId && data.skill_input && data.skill_input[skillEventId];
+            var sid = skillEvent && Number(skillEvent.replace_skill);
+            return sid > 0 ? sid : 0;
+        };
+
+        LocalNative.isSkillEnforceBook = function(typeid) {
+            var cfg = data.item && data.item[typeid];
+            var eventId = cfg && cfg.item_getAfterUse && cfg.item_getAfterUse[0];
+            var event = eventId && data.input_event_client && data.input_event_client[eventId];
+            var skillEventId = event && event.putin_event_skill && event.putin_event_skill[0];
+            var skillEvent = skillEventId && data.skill_input && data.skill_input[skillEventId];
+            return !!(skillEvent && Number(skillEvent.upgrade_skill) > 0 &&
+                !(Number(skillEvent.replace_skill) > 0));
+        };
+
+        LocalNative.applySkillBookUse = function(level, typeid, useParams) {
+            var heroId = useParams && useParams.hero_id;
+            var slotIndex = Number(useParams && useParams.slot_index);
+            if (heroId == null || !isFinite(slotIndex) || slotIndex % 1 || slotIndex < 0)
+                throw new Error('Invalid skill book target');
+            var hero = null;
+            for (var i = 0; i < (level.heros || []).length; i++) {
+                if (String(level.heros[i].sid) === String(heroId)) { hero = level.heros[i]; break; }
+            }
+            if (!hero) throw new Error('Missing skill book hero');
+            LocalNative.ensureHeroSkill(hero);
+            var slots = hero.skill_slots || [];
+            if (slotIndex >= slots.length || !slots[slotIndex])
+                throw new Error('Missing skill slot');
+            var replaceId = LocalNative.resolveSkillBookReplaceId(typeid);
+            if (replaceId) {
+                var row = data.skill_to_hero && data.skill_to_hero[replaceId];
+                var family = Math.floor(Number(hero.typeid) / 100);
+                if (row && Number(row.to_hero_id) > 0 && Number(row.to_hero_id) !== family)
+                    throw new Error('Skill book hero mismatch');
+                slots[slotIndex].sid = replaceId;
+                if (!(Number(slots[slotIndex].lv) > 0)) slots[slotIndex].lv = 1;
+                if (slots[slotIndex].exp == null || !isFinite(Number(slots[slotIndex].exp)))
+                    slots[slotIndex].exp = 0;
+                hero.skill_id = replaceId * 100 + Number(slots[slotIndex].lv);
+                return [[7, {operation: 'replace', hero_id: heroId, slot_index: slotIndex,
+                    skill_id: replaceId}]];
+            }
+            if (LocalNative.isSkillEnforceBook(typeid)) {
+                var slot = slots[slotIndex];
+                var lv = Math.max(1, Number(slot.lv) || 1);
+                var exp = Math.max(0, Number(slot.exp) || 0);
+                var need = Number(data.skill_lv_client && data.skill_lv_client[lv] &&
+                    data.skill_lv_client[lv].skill_exp) || 1;
+                var succeed = true;
+                if (exp + 1 < need) slot.exp = exp + 1;
+                else {
+                    slot.exp = 0;
+                    slot.lv = lv + 1;
+                }
+                hero.skill_id = Number(slot.sid) * 100 + Number(slot.lv);
+                return [[7, {operation: 'enforce', hero_id: heroId, slot_index: slotIndex,
+                    succeed: succeed}]];
+            }
+            throw new Error('Unsupported skill item');
+        };
+
+        // Stock HeroFeed.doHeroFeed → useItemByTypeid({sid,targetTypeId,itemid}).
+        // Missing ans leaves LOCK_ID_FEED_HERO set so later clicks do nothing.
+        LocalNative.isHeroFeedUse = function(typeid, useParams) {
+            if (useParams && useParams.sid != null && useParams.itemid != null) return true;
+            var feedIds = {
+                1107: 1, 1108: 1, 1109: 1, 1110: 1, 1111: 1, 1112: 1,
+                1119: 1, 1120: 1, 1121: 1, 210021: 1, 210022: 1,
+                7222: 1, 7223: 1, 7224: 1, 7225: 1
+            };
+            return !!feedIds[Number(typeid)];
+        };
+
+        LocalNative.findHeroRecord = function(level, sid) {
+            for (var i = 0; i < (level.heros || []).length; i++) {
+                if (String(level.heros[i].sid) === String(sid)) return level.heros[i];
+            }
+            return null;
+        };
+
+        LocalNative.pickMutateId = function(typeid) {
+            var cfg = data.item && data.item[typeid];
+            var want = Number(cfg && cfg.item_level) || 1;
+            var pool = [], effects = data.mutate_effect || {};
+            for (var id in effects) {
+                if (Number(effects[id].mutate_level) === want) pool.push(Number(id));
+            }
+            if (!pool.length) {
+                for (var any in effects) pool.push(Number(any));
+            }
+            if (!pool.length) throw new Error('Missing mutate_effect pool');
+            return pool[Math.floor(Math.random() * pool.length)];
+        };
+
+        LocalNative.pickFeedSlotSkill = function(hero) {
+            var family = Math.floor(Number(hero.typeid) / 100);
+            var mapping = data.hero_to_skill && data.hero_to_skill[family];
+            var candidates = (mapping && mapping.skill_id) || [], owned = {}, pool = [];
+            var slots = hero.skill_slots || [];
+            for (var s = 0; s < slots.length; s++) owned[Number(slots[s].sid)] = true;
+            for (var i = 0; i < candidates.length; i++) {
+                var sid = Number(candidates[i]);
+                var row = data.skill_to_hero && data.skill_to_hero[sid];
+                if (owned[sid] || !row || Number(row.to_hero_id) !== family) continue;
+                if (!(Number(row.skill_weight_1) > 0) || !data.skill_data[sid * 100 + 1]) continue;
+                pool.push(sid);
+            }
+            if (!pool.length) return 0;
+            return pool[Math.floor(Math.random() * pool.length)];
+        };
+
+        LocalNative.applyHeroFeedUse = function(level, typeid, useParams, num) {
+            var sid = useParams && useParams.sid;
+            var itemid = Number((useParams && useParams.itemid) != null ? useParams.itemid : typeid);
+            if (sid == null) throw new Error('Missing feed hero');
+            var hero = LocalNative.findHeroRecord(level, sid);
+            if (!hero) throw new Error('Missing feed hero record');
+            var cfg = data.item && data.item[typeid];
+            var eventId = cfg && cfg.item_getAfterUse && cfg.item_getAfterUse[0];
+            var event = eventId && data.input_event_client && data.input_event_client[eventId];
+            if (!event) throw new Error('Missing feed item event');
+            var ans = [], times = Math.max(1, Number(num) || 1), e, r;
+
+            var exps = event.putin_event_exp || [];
+            if (exps.length) {
+                var total = 0;
+                for (e = 0; e < exps.length; e++) {
+                    var expCfg = data.exp_input && data.exp_input[exps[e]];
+                    if (!expCfg || Number(expCfg.putin_resource_type) !== 7)
+                        throw new Error('Unsupported feed exp input');
+                    total += Number(expCfg.putin_num) || 0;
+                }
+                total *= times;
+                if (!(total > 0)) throw new Error('Empty feed exp');
+                LocalNative.normalizeHeroExperience(level, hero, total);
+                ans.push([24, {exp_num: total, sid: sid, itemid: itemid}]);
+                return ans;
+            }
+
+            var resources = event.putin_event_resource || [];
+            if (resources.length) {
+                var reduce = 0;
+                for (r = 0; r < resources.length; r++) {
+                    var resCfg = data.resource_input && data.resource_input[resources[r]];
+                    if (!resCfg || Number(resCfg.putin_resource_type) !== 10)
+                        throw new Error('Unsupported feed resource input');
+                    reduce += Number(resCfg.putin_num) || 0;
+                }
+                reduce *= times;
+                if (!(reduce > 0)) throw new Error('Empty feed recover time');
+                ans.push([22, {reduce_time: reduce, sid: sid, itemid: itemid}]);
+                return ans;
+            }
+
+            // Rune stones and skill fruits both use putin_event_slot. Stock
+            // HeroEquipment persists opened slots as eqp (including null slots).
+            if (typeid >= 7222 && typeid <= 7225) {
+                var openSlot = typeid - 7221;
+                var equipment = hero.eqp;
+                if (!Array.isArray(equipment)) {
+                    var oldEquipment = equipment || {};
+                    equipment = [];
+                    for (var key in oldEquipment) equipment.push(oldEquipment[key]);
+                    if (!equipment.length) equipment.push(null);
+                }
+                if (times !== 1 || equipment.length !== openSlot)
+                    throw new Error('Equipment slot must be opened once and in order');
+                hero.eqp = equipment.concat([null]);
+                ans.push([31, {itemid: itemid, hero_id: sid, slot: openSlot}]);
+                return ans;
+            }
+
+            if (typeid === 210021 || typeid === 210022) {
+                LocalNative.ensureHeroSkill(hero);
+                if ((hero.skill_slots || []).length >= 3) throw new Error('Skill slots full');
+                var newSid = LocalNative.pickFeedSlotSkill(hero);
+                hero.skill_slots.push({sid: newSid, lv: 1, exp: 0});
+                ans.push([8, {itemid: itemid, hero_id: sid, skill_id: newSid}]);
+                return ans;
+            }
+
+            if (typeid === 1119 || typeid === 1120 || typeid === 1121) {
+                // Client tables leave mutate events empty; pick by fruit item_level.
+                var mutateId = LocalNative.pickMutateId(typeid);
+                hero.mutateid = hero.unit_mutateid = mutateId;
+                ans.push([25, {unit_mutateid: mutateId, sid: sid, itemid: itemid}]);
+                return ans;
+            }
+
+            throw new Error('Unsupported feed item ' + typeid);
+        };
+
+        LocalNative.unlockHeroFeedIfNeeded = function(params) {
+            try {
+                var useParams = params && params.params;
+                if (!useParams || useParams.sid == null) return;
+                if (typeof DA !== 'undefined' && typeof DA.unlock === 'function' &&
+                    typeof LOCK_ID_FEED_HERO !== 'undefined')
+                    DA.unlock(LOCK_ID_FEED_HERO);
+            } catch (eUnlock) {}
+        };
+
+        LocalNative.applyBuildTimeUse = function(level, typeid, params, num) {
+            if (GS_CURRENT_STAGE !== GS_STAGE_BUILD || params.sid == null)
+                throw new Error('Building acceleration requires a home building');
+            var unit = G_UnitManager.getUnitBySID(params.sid);
+            var bb = unit && LocalNative.getBuildingBuilder(unit);
+            if (!bb || bb.state !== BUILD_STATE_BUILDING ||
+                !isFinite(bb.beginTime) || !(bb.buildTime > 0))
+                throw new Error('Building is not under construction');
+            var now = DA.getSystemCurrentTimeSec();
+            if (bb.beginTime + bb.buildTime <= now)
+                throw new Error('Building has already finished');
+            var cfg = data.item[typeid], events = cfg && cfg.item_getAfterUse;
+            var reduce = 0;
+            for (var i = 0; events && i < events.length; i++) {
+                var event = data.input_event_client[events[i]];
+                var resources = event && event.putin_event_resource;
+                for (var j = 0; resources && j < resources.length; j++) {
+                    var res = data.resource_input[resources[j]];
+                    if (!res || Number(res.putin_resource_type) !== 11 || !(res.putin_num > 0))
+                        throw new Error('Invalid building time input');
+                    reduce += Number(res.putin_num);
+                }
+            }
+            reduce *= num;
+            if (!(reduce > 0) || !isFinite(reduce)) throw new Error('Missing building time input');
+            var record = null;
+            for (i = 0; i < level.units.length; i++)
+                if (String(level.units[i].sid) === String(unit.sid)) record = level.units[i];
+            if (!record) throw new Error('Building missing from save');
+            // Commit the reduced clock with the inventory debit before the stock award runs.
+            record.bt = record.beginTime = Number(bb.beginTime) - reduce;
+            return [[23, {reduce_time: reduce, sid: unit.sid, itemid: typeid}]];
+        };
+
+        LocalNative.scheduleAcceleratedBuild = function(player, sid) {
+            var unit = G_UnitManager.getUnitBySID(sid);
+            var bb = unit && LocalNative.getBuildingBuilder(unit);
+            if (!bb || bb.state !== BUILD_STATE_BUILDING) return;
+            var begin = bb.beginTime;
+            var ticket = LocalNative.pendingBuilds[sid];
+            var remaining = Math.max(0, Math.ceil(begin + bb.buildTime - DA.getSystemCurrentTimeSec()));
+            LocalNative.scheduleOnRoot(function() {
+                if (GS_CURRENT_STAGE !== GS_STAGE_BUILD ||
+                    G_UnitManager.getUnitBySID(sid) !== unit ||
+                    LocalNative.getBuildingBuilder(unit) !== bb ||
+                    bb.state !== BUILD_STATE_BUILDING || bb.beginTime !== begin ||
+                    LocalNative.pendingBuilds[sid] !== ticket) return;
+                if (bb.beginTime + bb.buildTime > DA.getSystemCurrentTimeSec()) return;
+                LocalNative.ackBuildComplete(player, sid, 'build-time-item');
+            }, remaining);
+        };
+
+        LocalNative.handleShopUseItem = function(player, params) {
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            var pkgid = Number(params.pkgid), num = Number(params.num);
+            if (!isFinite(pkgid) || pkgid % 1 || pkgid < 0 || pkgid > 3 ||
+                !isFinite(num) || num % 1 || num < 1) throw new Error('Invalid item use');
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var pkg = level.player['package'] && level.player['package'][names[pkgid]];
+            var item = pkg && pkg.item_dict[params.oid];
+            if (!item) {
+                for (var p = 0; p < names.length && !item; p++) {
+                    var bag = level.player['package'] && level.player['package'][names[p]];
+                    if (bag && bag.item_dict && bag.item_dict[params.oid]) {
+                        pkg = bag; item = bag.item_dict[params.oid]; pkgid = p;
+                    }
+                }
+            }
+            if (!item || item.num < num) throw new Error('Insufficient treasure items');
+            var typeid = Number(item.typeid), state = LocalNative.shopState(level);
+            var spiritFragment = typeid === 1101;
+            var maxUse = spiritFragment ? Number(data.item[typeid].item_overlap) : LocalNative.shopPolicy.maxBatch;
+            if (!(num <= maxUse)) throw new Error('Invalid item use');
+            var useParams = params.params || {};
+            var egg = typeid === 1124;
+            var skillReplace = LocalNative.resolveSkillBookReplaceId(typeid);
+            var skillEnforce = LocalNative.isSkillEnforceBook(typeid);
+            var feed = LocalNative.isHeroFeedUse(typeid, useParams);
+            var buildTimeItem = typeid === 1113 || typeid === 1114 || typeid === 1115;
+            if (!spiritFragment && !egg && !skillReplace && !skillEnforce && !feed && !buildTimeItem &&
+                (typeid < 1501 || typeid > 1509))
+                return false;
+            if ((egg || skillReplace || skillEnforce) && num !== 1)
+                throw new Error('Skill and egg items must be used one at a time');
+            if (feed && (num < 1 || num > LocalNative.shopPolicy.maxBatch))
+                throw new Error('Invalid feed quantity');
+            if (egg && state.pending && !state.pending.closed)
+                throw new Error('Claim the current egg first');
+            var ans = [];
+            if (spiritFragment) {
+                // Use the stock deterministic chain once, then aggregate the batch award.
+                var rewards = LocalNative.shopTreasureRewards(level, typeid);
+                if (rewards.length !== 1 || rewards[0][0] !== 11 || !(rewards[0][1] > 0))
+                    throw new Error('Invalid spirit fragment reward');
+                var spiritPerItem = rewards[0][1];
+                level.player.spirit += spiritPerItem * (num - 1);
+                ans = [[11, spiritPerItem * num]];
+            }
+            else if (egg) state.pending = {id: ++state.sequence, itemId: typeid,
+                cards: LocalNative.shopRollHeroes(level, 1), closed: false};
+            else if (skillReplace || skillEnforce)
+                ans = LocalNative.applySkillBookUse(level, typeid, useParams);
+            else if (feed)
+                ans = LocalNative.applyHeroFeedUse(level, typeid, useParams, num);
+            else if (buildTimeItem)
+                ans = LocalNative.applyBuildTimeUse(level, typeid, useParams, num);
+            else for (var i = 0; i < num; i++) ans = ans.concat(LocalNative.shopTreasureRewards(level, typeid));
+            item.num -= num;
+            if (!item.num) delete pkg.item_dict[params.oid];
+            LocalNative.writeRaw(store);
+            try { player.rpc_c_use_item_ans({item: {pkgid:pkgid,oid:params.oid,num:num}, ans:ans}); }
+            finally { LocalNative.shopSync(player, level); }
+            if (buildTimeItem) LocalNative.scheduleAcceleratedBuild(player, useParams.sid);
+            if (egg) LocalNative.shopShowPending(player, level);
+            return true;
+        };
+
+        LocalNative.handleComposeItem = function(player, params) {
+            var id = Number(params.product_id), cfg = data.item[id];
+            var recipe = cfg && cfg.item_composition, events = cfg && cfg.item_composition_get;
+            if (!recipe || !recipe.length || !events || events.length !== 1)
+                throw new Error('Unsupported item recipe');
+            var event = data.input_event_client[events[0]];
+            var rewardIds = event && event.putin_event_item;
+            var reward = rewardIds && rewardIds.length === 1 && data.item_input[rewardIds[0]];
+            var heroIds = event && event.putin_event_hero || [];
+            var heroReward = heroIds.length === 1 && data.hero_input_client && data.hero_input_client[heroIds[0]];
+            var heroPool = heroReward && heroReward.putin_team1 || [];
+            var fixedHero = heroPool.length === 1 && data.unit_main[heroPool[0]] &&
+                !(heroReward.putin_team2 || []).length && !(heroReward.putin_team3 || []).length &&
+                !(heroReward.putin_team4 || []).length && Number(heroReward.lv) === 1;
+            var itemReward = reward && Number(reward.item_id) === id && Number(reward.item_num) === 1 &&
+                !(reward.item_random_chance || []).length && !heroIds.length;
+            if (!event || !(itemReward || (fixedHero && !(rewardIds || []).length)) || event.putin_event_next ||
+                (event.putin_event_resource || []).length ||
+                (event.putin_event_skill || []).length || (event.putin_event_exp || []).length ||
+                (event.putin_event_slot || []).length)
+                throw new Error('Unsupported compose reward');
+            var requested = params.mtr_list;
+            if (!Array.isArray(requested) || requested.length !== recipe.length)
+                throw new Error('Invalid compose materials');
+            var needs = {}, supplied = {};
+            for (var i = 0; i < recipe.length; i++) {
+                var type = Number(recipe[i][0]), num = Number(recipe[i][1]);
+                if (!data.item[type] || !(num > 0) || num % 1)
+                    throw new Error('Invalid compose recipe');
+                needs[type] = (needs[type] || 0) + num;
+                var input = requested[i], amount = input && Number(input.num);
+                if (!input || !(amount > 0) || amount % 1 || !isFinite(amount))
+                    throw new Error('Invalid compose quantity');
+                supplied[input.typeid] = (supplied[input.typeid] || 0) + amount;
+            }
+            if (Object.keys(needs).length !== Object.keys(supplied).length)
+                throw new Error('Invalid compose material types');
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            for (var key in needs) {
+                if (needs[key] !== supplied[key]) throw new Error('Compose recipe mismatch');
+                var remaining = needs[key];
+                for (var p = 0; p < names.length; p++) {
+                    var bag = level.player['package'][names[p]];
+                    if (!bag) continue;
+                    for (var oid in bag.item_dict) {
+                        var item = bag.item_dict[oid];
+                        if (Number(item.typeid) !== Number(key)) continue;
+                        var take = Math.min(remaining, Number(item.num));
+                        item.num -= take; remaining -= take;
+                        if (!item.num) delete bag.item_dict[oid];
+                        if (!remaining) break;
+                    }
+                    bag.new_items = 0;
+                    for (var left in bag.item_dict) if (bag.item_dict[left].is_new) bag.new_items++;
+                    if (!remaining) break;
+                }
+                if (remaining) throw new Error('Insufficient compose materials');
+            }
+            // Stock inputAward grants the product. Expose consumed materials first so
+            // HeroReincarnation refreshes the correct counts during the stock answer.
+            var consumed = JSON.parse(JSON.stringify(level.player['package']));
+            var ans;
+            if (itemReward) ans = [[19, LocalNative.shopAddItem(level, id, 1)]];
+            else {
+                var roster = level.heros || (level.heros = []);
+                var hero = LocalNative.defaultStarterHero(), state = LocalNative.shopState(level);
+                hero.id = hero.sid = 'local_compose_hero_' + (++state.sequence);
+                hero.typeid = hero.hero_id = Number(heroPool[0]);
+                hero.unit_type = Math.floor(hero.typeid / 100); hero.unit_level = hero.typeid % 100;
+                hero.lv = hero.level = 1; hero.xp = 0; hero.state = 0; hero.aidx = -1;
+                hero.unit_mutateid = hero.mutateid = 0;
+                hero.rct = hero.aht = Math.floor(Date.now() / 1000);
+                hero.skill_id = heroReward.putin_skill; hero.skill_slots = [];
+                LocalNative.ensureHeroSkill(hero, heroReward.putin_skill);
+                delete hero.life; delete hero.health;
+                var hm = player.getComponent('HeroManager');
+                var capacity = Math.max(Number(level.player.hero_slot_num) || 0, hm ? hm.getHeroCapacity() : 0);
+                hero.hero_slot = Math.max(0, roster.length + 1 - capacity);
+                level.player.hero_slot_num = capacity + hero.hero_slot;
+                roster.push(hero);
+                LocalNative.ensurePlayerSocialFields(level.player);
+                level.player.achieve_raw.hero_times = (Number(level.player.achieve_raw.hero_times) || 0) + 1;
+                ans = [[29, hero]];
+            }
+            LocalNative.writeRaw(store);
+            try {
+                player.getComponent('PackageManager').init({'package': consumed});
+                player.rpc_c_compose_item_ans2({ans: ans, mtr_ans: []});
+            } finally {
+                if (!itemReward) {
+                    var recorder = player.getComponent('AchievementRecorder');
+                    if (recorder) recorder.achieve_raw = level.player.achieve_raw;
+                    player.achieve_raw = level.player.achieve_raw;
+                }
+                LocalNative.shopSync(player, level);
+            }
+            return true;
+        };
+
+        LocalNative.generateComposedRune = function(id) {
+            // User-authorized local policy: equal candidate odds, one attribute
+            // per stock layer; exclusive hero attributes are not generated.
+            var cfg = data.item[id], eventIds = cfg && cfg.item_composition_get;
+            var event = eventIds && eventIds.length === 1 && data.input_event_client[eventIds[0]];
+            var inputs = event && event.putin_event_item || [], candidates = [];
+            for (var i = 0; i < inputs.length; i++) {
+                var input = data.item_input[inputs[i]], target = input && data.item[input.item_id];
+                if (!target || !target.rune_type || Number(input.item_num) !== 1 ||
+                    Number(target.item_form) !== Number(cfg.item_form) ||
+                    Number(target.item_level) !== Number(cfg.item_level))
+                    throw new Error('Invalid rune reward table');
+                candidates.push(Number(input.item_id));
+            }
+            if (candidates.length !== 3) throw new Error('Missing rune reward candidates');
+            var result = {typeid: candidates[Math.floor(Math.random() * candidates.length)], hero_attr: 0};
+            var layers = {base_attr: 'att_basic_color', two_attr: 'att_evolve2_color', three_attr: 'att_evolve3_color'};
+            for (var layer in layers) {
+                var pool = [];
+                for (var key in data.equipment_attribute) {
+                    var attr = data.equipment_attribute[key];
+                    if (attr.attr_name && Number(attr[layers[layer]]) > 0) pool.push(Number(key));
+                }
+                if (!pool.length) throw new Error('Missing rune attribute pool');
+                result[layer] = [pool[Math.floor(Math.random() * pool.length)]];
+            }
+            return result;
+        };
+
+        LocalNative.handleComposeEquipment = function(player, params) {
+            var id = Number(params.equip_id), cfg = data.item[id];
+            var recipe = cfg && cfg.item_composition;
+            if (!cfg || cfg.rune_type || Number(cfg.item_subID) !== 9 || !recipe || recipe.length !== 3)
+                throw new Error('Invalid rune recipe');
+            var store = LocalNative.shopTransaction(player), level = store.level;
+            var needs = {};
+            function pieces(input, category, pointsNeeded) {
+                if (!input || typeof input !== 'object' || Array.isArray(input))
+                    throw new Error('Invalid rune pieces');
+                var points = 0;
+                for (var key in input) {
+                    var amount = Number(input[key]), item = data.item[key];
+                    if (!item || Number(item.item_subID) !== category ||
+                        !isFinite(amount) || amount < 1 || amount % 1)
+                        throw new Error('Invalid rune piece quantity or type');
+                    var point = category === 11 && Number(item.item_level) === 2 ? 3 : 1;
+                    points += point * amount;
+                    needs[key] = (needs[key] || 0) + amount;
+                }
+                if (points < Number(pointsNeeded)) throw new Error('Insufficient rune piece points');
+            }
+            pieces(params.hero_pieces, 7, recipe[0][1]);
+            pieces(params.prop_pieces, 11, recipe[1][1]);
+            needs[recipe[2][0]] = Number(recipe[2][1]);
+            var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+            for (var type in needs) {
+                var remaining = needs[type];
+                for (var p = 0; p < names.length && remaining; p++) {
+                    var bag = level.player['package'][names[p]];
+                    if (!bag) continue;
+                    for (var oid in bag.item_dict) {
+                        var item = bag.item_dict[oid];
+                        if (Number(item.typeid) !== Number(type)) continue;
+                        var take = Math.min(remaining, Number(item.num));
+                        item.num -= take; remaining -= take;
+                        if (!item.num) delete bag.item_dict[oid];
+                        if (!remaining) break;
+                    }
+                    bag.new_items = 0;
+                    for (var left in bag.item_dict) if (bag.item_dict[left].is_new) bag.new_items++;
+                }
+                if (remaining) throw new Error('Insufficient rune materials');
+            }
+            var rune = LocalNative.generateComposedRune(id);
+            var consumed = JSON.parse(JSON.stringify(level.player['package']));
+            var deltas = LocalNative.shopAddItem(level, rune.typeid, 1);
+            if (deltas.length !== 1) throw new Error('Invalid rune award');
+            var award = deltas[0];
+            for (var field in rune) award[field] = rune[field];
+            var record = level.player['package'].advanced_prop.item_dict[award.oid];
+            for (var field in rune) record[field] = rune[field];
+            LocalNative.writeRaw(store);
+            try {
+                player.getComponent('PackageManager').init({'package': consumed});
+                player.rpc_c_compose_equipment_ans({ans: [[19, [award]]]});
+            } finally { LocalNative.shopSync(player, level); }
+            return true;
+        };
+
+        LocalNative.unlockCompose = function() {
+            if (typeof G_UIManager === 'undefined' || typeof UI === 'undefined' || !UI.AlchemyCompound)
+                return;
+            if (G_UIManager.isUIOpen(UI.AlchemyCompound.UIID)) {
+                var ui = G_UIManager.get_ui(UI.AlchemyCompound.UIID);
+                ui.playing = false;
+                ui.refreshButtonGray();
+            }
+        };
+
+        LocalNative.runShopRequest = function(player, method, params) {
+            try {
+                var fn = {rpc_s_drawcard: 'handleShopDraw', rpc_s_gain_drawcard: 'handleShopGain',
+                    rpc_s_dismiss_drawcard: 'handleShopDismiss', rpc_s_buy_package: 'handleShopBuyPackage',
+                    rpc_s_use_item: 'handleShopUseItem', rpc_s_buy_package_slot: 'handleBuyPackageSlot',
+                    rpc_s_compose_item_inputevent: 'handleComposeItem',
+                    rpc_s_compose_equipment: 'handleComposeEquipment'}[method];
+                var result = LocalNative[fn](player, params || {});
+                LocalNative.writeStatus({step: 'shop-rpc', method: method, ok: !!result});
+                if (!result) LocalNative.unlockHeroFeedIfNeeded(params);
+                return result;
+            } catch (eShop) {
+                // Restore optimistic stock debits/counters when the transaction failed.
+                LocalNative.shopSync(player, LocalNative.readRaw().level);
+                LocalNative.unlockHeroFeedIfNeeded(params);
+                if (method === 'rpc_s_compose_item_inputevent' || method === 'rpc_s_compose_equipment')
+                    LocalNative.unlockCompose();
+                LocalNative.writeStatus({step: 'shop-rpc-ERR', method: method, error: String(eShop)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(eShop));
+                return false;
+            }
+        };
+
+        // Stock Trader UI and currency exchange; only the unavailable server is replaced.
+        LocalNative.traderPolicy = {version: 1, interval: 28800, size: 8, refreshPrice: 80, coin: 1123,
+            runeFragmentWeightMultiplier: 3};
+
+        LocalNative.installTraderPolicy = function() {
+            if (data.itemshop && data.itemshop[1])
+                data.itemshop[1].refresh_price = LocalNative.traderPolicy.refreshPrice;
+            // Local sale IDs; stock item definitions provide icons, names and use.
+            data.itemshop_sell[134] = {item_id: 210021, item_num: 1, price_kind: 3,
+                price_num: 1200, weight: 0, replication: 1, discount_weight: [[1, 100]]};
+            data.itemshop_sell[135] = {item_id: 210022, item_num: 1, price_kind: 3,
+                price_num: 6000, weight: 0, replication: 1, discount_weight: [[1, 100]]};
+        };
+
+        LocalNative.pickTraderOfferIds = function(pool) {
+            pool = pool.slice();
+            var result = [];
+            while (result.length < LocalNative.traderPolicy.size && pool.length) {
+                var id = LocalNative.shopPick(pool);
+                result.push(id);
+                for (var i = pool.length - 1; i >= 0; i--)
+                    if (pool[i][0] === id) pool.splice(i, 1);
+            }
+            return result;
+        };
+
+        LocalNative.ensureTrader = function(level, force) {
+            LocalNative.installTraderPolicy();
+            var now = Math.floor(Date.now() / 1000), bucket = Math.floor(now / LocalNative.traderPolicy.interval);
+            var state = level.localTrader;
+            if (state && state.version !== 1) throw new Error('Unsupported trader save version');
+            var changed = !state || state.bucket !== bucket || force;
+            if (changed) {
+                state = {version: 1, bucket: bucket, items: [], discounts: {}};
+                var pool = [], cfg, id;
+                for (id in data.itemshop_sell) {
+                    cfg = data.itemshop_sell[id];
+                    // Mutation fruits now use the same explicit gate as primary
+                    // unlock fruit, rather than competing at tiny stock weights.
+                    if (Number(cfg.item_id) >= 1119 && Number(cfg.item_id) <= 1121) continue;
+                    if (cfg.weight > 0 && cfg.price_num > 0 && cfg.item_num > 0 && data.item[cfg.item_id]) {
+                        var weight = Number(cfg.weight);
+                        // User-requested local boost for rune unlock stone fragments.
+                        if (Number(cfg.item_id) === 7221)
+                            weight *= LocalNative.traderPolicy.runeFragmentWeightMultiplier;
+                        pool.push([Number(id), weight]);
+                    }
+                }
+                var selected = LocalNative.pickTraderOfferIds(pool);
+                // Use independent baseline samples as exact reference events.
+                // If rune inclusion is p, fruit inclusion is p/3 and p/6.
+                // Merely dividing weights would not give these per-refresh ratios.
+                var fruits = [[134, 3], [135, 6], [25, 3], [26, 3], [27, 3]];
+                for (var f = 0; f < fruits.length; f++) {
+                    var reference = LocalNative.pickTraderOfferIds(pool), hasRune = false;
+                    for (var r = 0; r < reference.length; r++)
+                        if (Number(data.itemshop_sell[reference[r]].item_id) === 7221) hasRune = true;
+                    if (hasRune && Math.random() < 1 / fruits[f][1]) {
+                        for (var slot = selected.length - 1; slot >= 0; slot--) {
+                            var itemId = Number(data.itemshop_sell[selected[slot]].item_id);
+                            if (itemId !== 7221 && selected[slot] !== 134 && selected[slot] !== 135 &&
+                                selected[slot] !== 25 && selected[slot] !== 26 && selected[slot] !== 27) {
+                                selected[slot] = fruits[f][0];
+                                break;
+                            }
+                        }
+                    }
+                }
+                for (var s = 0; s < selected.length; s++) {
+                    id = selected[s];
+                    cfg = data.itemshop_sell[id];
+                    state.items.push([id, 1]); // Stock TRADER_STATUS_READY.
+                    state.discounts[id] = LocalNative.shopPick(cfg.discount_weight || [[1, 1]]);
+                }
+                level.localTrader = state;
+            }
+            var counters = level.player.event_counters || (level.player.event_counters = {});
+            var shopGroup = data.period_control[2020].period_type;
+            var discountGroup = data.period_control[8800].period_type;
+            if (!counters[shopGroup]) counters[shopGroup] = {};
+            if (!counters[discountGroup]) counters[discountGroup] = {};
+            counters[shopGroup][2020] = {c: 1, t: now, d: {items: JSON.parse(JSON.stringify(state.items))}};
+            counters[discountGroup][8800] = {c: 1, t: now, d: {discounts: state.discounts}};
+            level.player.last_update_time = now;
+            return changed;
+        };
+
+        LocalNative.syncTrader = function(player, level) {
+            LocalNative.shopSync(player, level);
+            if (!player.rpc_c_refresh_daily_event) return;
+            for (var i = 0; i < 2; i++) {
+                var id = i ? 8800 : 2020;
+                var counter = level.player.event_counters &&
+                    level.player.event_counters[data.period_control[id].period_type] &&
+                    level.player.event_counters[data.period_control[id].period_type][id];
+                if (counter) player.rpc_c_refresh_daily_event({event_id: id,
+                    last_update_time: level.player.last_update_time,
+                    event_counter: JSON.parse(JSON.stringify(counter))});
+            }
+        };
+
+        LocalNative.traderItemCount = function(level, typeid) {
+            var pkg = level.player['package'] || {}, count = 0;
+            for (var name in pkg) {
+                var items = pkg[name].item_dict || {};
+                for (var oid in items) if (Number(items[oid].typeid) === Number(typeid))
+                    count += Number(items[oid].num) || 0;
+            }
+            return count;
+        };
+
+        LocalNative.traderCheckItemDebit = function(before, after, typeid, num) {
+            var oldCount = LocalNative.traderItemCount(before, typeid);
+            if (!(num > 0) || num % 1 || oldCount < num ||
+                LocalNative.traderItemCount(after, typeid) !== oldCount - num)
+                throw new Error('Trader item debit mismatch: ' + typeid);
+        };
+
+        LocalNative.traderEventItems = function(level, cfg, num) {
+            var event = cfg.input_event && data.input_event_client[cfg.input_event];
+            // Later coin-shop rows have no input_event: the displayed item is the reward.
+            if (!event) return LocalNative.shopAddItem(level, cfg.item_id, num);
+            if (event.putin_event_next || (event.putin_event_resource || []).length ||
+                (event.putin_event_hero || []).length || (event.putin_event_skill || []).length)
+                throw new Error('Unsupported trader reward event');
+            var result = [], events = event.putin_event_item || [];
+            if (!events.length) throw new Error('Empty trader reward');
+            for (var i = 0; i < events.length; i++) {
+                var item = data.item_input[events[i]];
+                if (!item || !(item.item_id > 0) || !(item.item_num > 0))
+                    throw new Error('Invalid trader reward quantity');
+                result = result.concat(LocalNative.shopAddItem(level, item.item_id, item.item_num * num));
+            }
+            return result;
+        };
+
+        LocalNative.runTraderRequest = function(player, method, params) {
+            params = params || {};
+            var committed = false;
+            try {
+                var before = LocalNative.readRaw().level;
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var state = level.localTrader, cfg, items = [], ans, num, id;
+                var nowBucket = Math.floor(Date.now() / 1000 / LocalNative.traderPolicy.interval);
+                if (method === 'rpc_s_refresh_trader' || method === 'rpc_s_reset_trader') {
+                    if (Number(params.trader_id) !== 1) throw new Error('Unsupported trader page');
+                    if (method === 'rpc_s_reset_trader') {
+                        if (before.player.diamond < LocalNative.traderPolicy.refreshPrice ||
+                            level.player.diamond !== before.player.diamond - LocalNative.traderPolicy.refreshPrice)
+                            throw new Error('Trader refresh debit mismatch');
+                    }
+                    LocalNative.ensureTrader(level, method === 'rpc_s_reset_trader');
+                } else if (method === 'rpc_s_trader_buy') {
+                    id = Number(params.sale_id); num = Number(params.buy_num);
+                    var index = Number(params.sale_index);
+                    if (Number(params.trader_id) !== 1 || !state || state.bucket !== nowBucket ||
+                        index % 1 || index < 0 || index >= state.items.length || num !== 1 ||
+                        state.items[index][0] !== id || state.items[index][1] !== 1)
+                        throw new Error('Trader offer expired or already sold');
+                    cfg = data.itemshop_sell[id];
+                    var cost = Math.max(1, Math.ceil(cfg.price_num * state.discounts[id]));
+                    var rm = player.getComponent('ResourceManager');
+                    if (!isFinite(rm.Res[cfg.price_kind]) || rm.Res[cfg.price_kind] < 0)
+                        throw new Error('Invalid trader wallet');
+                    if (cfg.price_kind === 3 && (before.player.diamond < cost ||
+                        level.player.diamond !== before.player.diamond - cost))
+                        throw new Error('Trader purchase debit mismatch');
+                    items = LocalNative.traderEventItems(level, cfg, 1);
+                    state.items[index][1] = 0; // Stock TRADER_STATUS_EMPTY.
+                    LocalNative.ensureTrader(level, false);
+                    ans = 'rpc_c_trader_buy_ans';
+                } else if (method === 'rpc_s_coin_exchange') {
+                    if (!(params.items instanceof Array) || !params.items.length || params.items.length > 100)
+                        throw new Error('Invalid trader recycle selection');
+                    var total = 0, seen = {};
+                    for (var n = 0; n < params.items.length; n++) {
+                        var pair = params.items[n];
+                        if (!(pair instanceof Array) || pair.length !== 2) throw new Error('Invalid recycle item');
+                        id = Number(pair[0]); num = Number(pair[1]);
+                        cfg = data.itemshop_collect[id];
+                        if (!cfg || !(cfg.price > 0) || seen[id]) throw new Error('Unsupported recycle item');
+                        seen[id] = true;
+                        LocalNative.traderCheckItemDebit(before, level, id, num);
+                        total += num * cfg.price;
+                    }
+                    if (!isFinite(total) || total > 100000000) throw new Error('Invalid recycle value');
+                    items = LocalNative.shopAddItem(level, LocalNative.traderPolicy.coin, total);
+                    ans = 'rpc_c_coin_exchange_ans';
+                } else if (method === 'rpc_s_buy_coin_shop_item') {
+                    id = Number(params.sale_id); num = Number(params.buy_num);
+                    cfg = data.itemshop_coin[id];
+                    if (!cfg || !(cfg.price_num > 0) || !data.item[cfg.item_id] ||
+                        !(num > 0) || num % 1 || num > LocalNative.shopPolicy.maxBatch)
+                        throw new Error('Invalid trader coin purchase');
+                    LocalNative.traderCheckItemDebit(before, level, LocalNative.traderPolicy.coin, cfg.price_num * num);
+                    items = LocalNative.traderEventItems(level, cfg, num);
+                    ans = 'rpc_c_buy_coin_shop_item_ans';
+                } else throw new Error('Unsupported trader request');
+                LocalNative.writeRaw(store);
+                committed = true;
+                try {
+                    if (ans && typeof player[ans] === 'function')
+                        player[ans]({succeed: true, items: items, num: num || 1, buy_num: num || 1});
+                } finally { LocalNative.syncTrader(player, level); }
+                LocalNative.writeStatus({step: 'trader-rpc', method: method, sale: params.sale_id,
+                    items: items.length, ok: true});
+                return true;
+            } catch (eTrader) {
+                LocalNative.syncTrader(player, LocalNative.readRaw().level);
+                LocalNative.writeStatus({step: 'trader-rpc-ERR', method: method,
+                    committed: committed, error: String(eTrader)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(eTrader));
+                return false;
+            }
+        };
+
+        LocalNative.repairPromotionCounter = function(level) {
+            if (level.localPromotionCounterV1) return;
+            var logs = LocalNative.legacyPromotionLog || [], seen = {}, count = 0;
+            for (var i = 0; i < logs.length; i++) {
+                var entry = logs[i];
+                if (entry.step !== 'hero-promote-saved' || !entry.sid || !entry.t) continue;
+                var key = entry.sid + ':' + entry.typeid + ':' + entry.t;
+                if (seen[key]) continue;
+                for (var h = 0; h < (level.heros || []).length; h++) {
+                    var hero = level.heros[h];
+                    if (String(hero.sid) !== String(entry.sid)) continue;
+                    var id = Number(entry.typeid), visited = {};
+                    while (id && !visited[id]) {
+                        visited[id] = true;
+                        if (id === Number(hero.typeid)) { seen[key] = true; count++; break; }
+                        var cfg = data.unit_main[id];
+                        id = cfg && Number(cfg.upgrade_target);
+                    }
+                    break;
+                }
+            }
+            var stats = level.player.achieve_raw || (level.player.achieve_raw = {});
+            stats.hero_reborn_times = Math.max(Number(stats.hero_reborn_times) || 0, count);
+            level.localPromotionCounterV1 = true;
+        };
+
+        LocalNative.handleHeroReincarnate = function(player, params) {
+            var committed = false;
+            try {
+                var unit = G_UnitManager.getUnitBySID(params.sid);
+                var exp = unit && unit.getComponent('ExpBar');
+                var target = Number(params.targetTypeid), cfg = data.hero_evolve[target];
+                var from = unit && Number(unit.typeid), battle = data.unit_battle[from];
+                var rein = battle && (Number(battle.reborn_times) || 0);
+                var condition = typeof REINCARNATE_CONDITION !== 'undefined' && REINCARNATE_CONDITION[rein];
+                if (!unit || !exp || !cfg || !battle || !condition ||
+                    Math.floor(from / 100) !== Math.floor(target / 100) ||
+                    target !== Math.floor(from / 100) * 100 + Number(condition[2]) ||
+                    from < Number(cfg.type_required) || from >= target ||
+                    exp.growthLv < Number(cfg.level_required) || exp.growthLv < Number(condition[0]) ||
+                    Number(battle.hero_card_color) < Number(condition[1]) ||
+                    !data.unit_main[target] || !data.unit_main[target].is_hero)
+                    throw new Error('Invalid hero reincarnation target');
+                var store = LocalNative.shopTransaction(player), level = store.level, hero = null;
+                for (var h = 0; h < level.heros.length; h++)
+                    if (String(level.heros[h].sid) === String(params.sid)) hero = level.heros[h];
+                if (!hero || Number(hero.typeid) !== from)
+                    throw new Error('Hero reincarnation already applied or stale');
+                var recipe = cfg.item_composition, inputs = params.mtr_list;
+                if (!recipe || !recipe.length || !Array.isArray(inputs) || inputs.length !== recipe.length)
+                    throw new Error('Invalid reincarnation materials');
+                var needs = {}, supplied = {};
+                for (var i = 0; i < recipe.length; i++) {
+                    var type = Number(recipe[i][0]), num = Number(recipe[i][1]);
+                    if (!data.item[type] || !(num > 0) || num % 1)
+                        throw new Error('Invalid reincarnation recipe');
+                    needs[type] = (needs[type] || 0) + num;
+                    var input = inputs[i], amount = input && Number(input.num);
+                    if (!input || !(amount > 0) || !isFinite(amount) || amount % 1)
+                        throw new Error('Invalid reincarnation quantity');
+                    supplied[input.typeid] = (supplied[input.typeid] || 0) + amount;
+                }
+                if (Object.keys(needs).length !== Object.keys(supplied).length)
+                    throw new Error('Invalid reincarnation material types');
+                for (var k in needs) if (needs[k] !== supplied[k])
+                    throw new Error('Reincarnation recipe mismatch');
+                var scroll = params.scroll == null ? -1 : Number(params.scroll), afterLevel = 1;
+                if (scroll !== -1) {
+                    var optional = cfg.item_composition_optional || [], scrollCfg = data.item[scroll];
+                    if (optional.indexOf(scroll) < 0 || !scrollCfg ||
+                        !(Number(scrollCfg.item_scroll_level) > 0) ||
+                        Number(scrollCfg.item_scroll_level) > exp.growthLv)
+                        throw new Error('Invalid reincarnation scroll');
+                    afterLevel = Number(scrollCfg.item_scroll_level);
+                    needs[scroll] = (needs[scroll] || 0) + 1;
+                }
+                var names = ['material', 'based_prop', 'advanced_prop', 'formula'];
+                for (var key in needs) {
+                    var remaining = needs[key];
+                    for (var p = 0; p < names.length; p++) {
+                        var bag = level.player['package'] && level.player['package'][names[p]];
+                        if (!bag) continue;
+                        for (var oid in bag.item_dict) {
+                            var item = bag.item_dict[oid];
+                            if (Number(item.typeid) !== Number(key)) continue;
+                            var take = Math.min(remaining, Number(item.num));
+                            item.num -= take; remaining -= take;
+                            if (!item.num) delete bag.item_dict[oid];
+                            if (!remaining) break;
+                        }
+                        bag.new_items = 0;
+                        for (var left in bag.item_dict) if (bag.item_dict[left].is_new) bag.new_items++;
+                        if (!remaining) break;
+                    }
+                    if (remaining) throw new Error('Insufficient reincarnation materials');
+                }
+                var pm = player.getComponent('PackageManager');
+                var retSpirit = Number(pm.getRebornSpirits(unit));
+                if (!isFinite(retSpirit) || retSpirit < 0 || retSpirit % 1)
+                    throw new Error('Invalid reincarnation spirit refund');
+                // No server rule for partially filled spirit was recovered. Preserve
+                // that balance on the hero rather than silently dropping it.
+                var live = unit.dumpParams();
+                for (var attr in live) if (Object.prototype.hasOwnProperty.call(live, attr)) hero[attr] = live[attr];
+                hero.sid = hero.id = params.sid;
+                hero.typeid = hero.hero_id = target;
+                hero.unit_type = Math.floor(target / 100); hero.unit_level = target % 100;
+                hero.lv = hero.level = afterLevel; hero.xp = 0;
+                LocalNative.ensureHeroSkill(hero);
+                level.player.spirit += retSpirit;
+                LocalNative.writeRaw(store);
+                committed = true;
+                try {
+                    pm.init({'package': JSON.parse(JSON.stringify(level.player['package']))});
+                    player.rpc_c_reincarnate_ans2({mtr_ans: [], ret_spirit: retSpirit});
+                    // Reuse stock full hero/model reconstruction and hero-card refresh.
+                    // demote suppresses promotion quests for this form/rank reset.
+                    player.rpc_c_promote({id: params.sid, success: true, demote: true,
+                        hero: JSON.parse(JSON.stringify(hero))});
+                } finally { LocalNative.shopSync(player, level); }
+                LocalNative.writeStatus({step: 'hero-reincarnate-saved', sid: params.sid,
+                    from: from, typeid: target, lv: afterLevel, scroll: scroll, ret_spirit: retSpirit});
+                return true;
+            } catch (e) {
+                LocalNative.shopSync(player, LocalNative.readRaw().level);
+                if (typeof G_UIManager !== 'undefined' && typeof UI !== 'undefined' &&
+                    UI.HeroReincarnation && G_UIManager.isUIOpen(UI.HeroReincarnation.UIID)) {
+                    var ui = G_UIManager.get_ui(UI.HeroReincarnation.UIID);
+                    ui.playing = false;
+                    ui.refreshButtonState();
+                }
+                LocalNative.writeStatus({step: 'hero-reincarnate-ERR', committed: committed, error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        LocalNative.probeHeroSwallowContract = function() {
+            // Read-only native-bytecode probe: no live hero or wallet is changed.
+            try {
+                var sample = Object.create(Comp.HeroGift.prototype);
+                sample.gift = {lv: 0, exp: 0, attrs: []};
+                sample.addExp(SWALLOW_SAME_HERO_EXP);
+                var absent = G_UnitManager.getUnitBySID('__local_swallow_absent_probe__');
+                LocalNative.writeStatus({step: 'hero-swallow-native-contract',
+                    sameHeroExp: SWALLOW_SAME_HERO_EXP, giftAfterOne: sample.gift,
+                    nextExp: sample.getNextLevelExp(), missingLookupSid: absent && absent.sid});
+            } catch (e) {
+                LocalNative.writeStatus({step: 'hero-swallow-native-contract-ERR', error: String(e)});
+            }
+        };
+
+        LocalNative.handleHeroSwallow = function(player, params) {
+            var committed = false;
+            try {
+                if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) return false;
+                var sid = params && params.swallower, ids = params && params.swallow_list;
+                if (sid == null || !Array.isArray(ids) || !ids.length)
+                    throw new Error('Invalid swallow request');
+                var consumed = {}, count = 0;
+                for (var i = 0; i < ids.length; i++) {
+                    var key = String(ids[i]);
+                    if (ids[i] == null || key === String(sid) || consumed[key])
+                        throw new Error('Invalid swallowed hero');
+                    consumed[key] = true;
+                    // Missing SIDs can resolve to units.undefined (the player).
+                    // Only a matching SID proves that this material is still live.
+                    var material = G_UnitManager.getUnitBySID(ids[i]);
+                    if (material && String(material.sid) === key)
+                        throw new Error('Swallowed hero is still live');
+                }
+                var store = LocalNative.shopTransaction(player), level = store.level, hero = null;
+                for (var j = 0; j < level.heros.length; j++) {
+                    var savedHero = level.heros[j];
+                    if (String(savedHero.sid) === String(sid)) hero = savedHero;
+                    if (consumed[String(savedHero.sid)]) count++;
+                }
+                if (!hero) throw new Error('Unknown swallower');
+                // A repeated request must not recapture a later wallet or apply XP twice.
+                if (count === 0) {
+                    var receipt = level.player.local_hero_swallow_receipt;
+                    if (receipt && String(receipt.sid) === String(sid) &&
+                        JSON.stringify(receipt.ids) === JSON.stringify(Object.keys(consumed).sort())) return true;
+                    throw new Error('Unknown swallowed heroes');
+                }
+                if (count !== ids.length) throw new Error('Incomplete swallow roster');
+                var unit = G_UnitManager.getUnitBySID(sid);
+                var exp = unit && unit.getComponent('ExpBar');
+                var gift = unit && unit.getComponent('HeroGift');
+                if (!unit || String(unit.sid) !== String(sid) || !exp || !gift ||
+                    !isFinite(exp.growthLv) || exp.growthLv < 1 ||
+                    !isFinite(exp.growthXp) || exp.growthXp < 0)
+                    throw new Error('Missing swallow progression');
+                // Persist the stock calculation, including same-species gift XP.
+                exp.dump(hero);
+                gift.dump(hero);
+                hero.level = hero.lv;
+                level.heros = level.heros.filter(function(h) {return !consumed[String(h.sid)];});
+                level.player.local_hero_swallow_receipt = {sid: sid, ids: Object.keys(consumed).sort()};
+                LocalNative.writeRaw(store);
+                committed = true;
+                // No additional server reward table has been recovered.
+                player.rpc_c_swallow_hero_ans({rewards: null});
+                LocalNative.writeStatus({step: 'hero-swallow-saved', sid: sid, consumed: ids,
+                    lv: hero.lv, xp: hero.xp, gift: hero.gift});
+                return true;
+            } catch (e) {
+                LocalNative.writeStatus({step: 'hero-swallow-ERR', committed: committed, error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        LocalNative.handleHeroPromote = function(player, params) {
+            var unit = G_UnitManager.getUnitBySID(params && params.uid);
+            var exp = unit && unit.getComponent('ExpBar');
+            if (!unit || !exp || !exp.promoting) return false;
+            var committed = false;
+            try {
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var hero = null;
+                for (var i = 0; i < level.heros.length; i++)
+                    if (String(level.heros[i].sid) === String(params.uid)) hero = level.heros[i];
+                var cfg = data.unit_main[unit.typeid];
+                var target = cfg && Number(cfg.upgrade_target);
+                if (!hero || Number(hero.typeid) !== Number(unit.typeid) || !target ||
+                    !data.unit_main[target] || !data.unit_main[target].is_hero)
+                    throw new Error('Invalid hero promotion target');
+                // The stock button already paid. Capture its current wallet and
+                // live hero progression; apply only the configured rank transition.
+                var live = unit.dumpParams();
+                for (var key in live) if (Object.prototype.hasOwnProperty.call(live, key)) hero[key] = live[key];
+                hero.sid = hero.id = params.uid;
+                hero.typeid = hero.hero_id = target;
+                hero.unit_type = Math.floor(target / 100); hero.unit_level = target % 100;
+                hero.lv = hero.level = exp.growthLv;
+                hero.xp = exp.growthXp;
+                hero.spirit = 0;
+                LocalNative.ensureHeroSkill(hero);
+                level.player.rookie_promote_hero = 0;
+                var stats = level.player.achieve_raw || (level.player.achieve_raw = {});
+                stats.hero_reborn_times = (Number(stats.hero_reborn_times) || 0) + 1;
+                LocalNative.writeRaw(store);
+                committed = true;
+                player.achieve_raw = stats;
+                var recorder = player.getComponent('AchievementRecorder');
+                if (recorder) recorder.achieve_raw = stats;
+                player.rpc_c_promote({id: params.uid, success: true, hero: JSON.parse(JSON.stringify(hero))});
+                LocalNative.writeStatus({step: 'hero-promote-saved', sid: params.uid, typeid: target});
+                return true;
+            } catch (e) {
+                if (!committed) LocalNative.syncSavedHomeWallet(LocalNative.readRaw().level);
+                exp.promoting = false;
+                LocalNative.writeStatus({step: 'hero-promote-ERR', committed: committed, error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        LocalNative.handlePveMapEgg = function(player, params) {
+            var original = LocalNative.readRaw();
+            try {
+                var index = Number(params && params.index);
+                var cfg = data.pve_stage && data.pve_stage[index];
+                var progress = original.level.player.availableStages && original.level.player.availableStages[index];
+                if (!isFinite(index) || index % 1 || !cfg || !cfg.pve_tresure || !progress ||
+                    !(Number(progress[2]) > 0)) throw new Error('PVE egg is not unlocked');
+                var boxes = original.level.player.pve_awardBox || {};
+                if (Object.prototype.hasOwnProperty.call(boxes, index)) {
+                    player.pve_awardBox = JSON.parse(JSON.stringify(boxes));
+                    return false;
+                }
+                var event = data.input_event_client && data.input_event_client[cfg.pve_tresure];
+                var items = event && event.putin_event_item || [];
+                if (!items.length || event.putin_event_next ||
+                    (event.putin_event_hero || []).length || (event.putin_event_resource || []).length ||
+                    (event.putin_event_skill || []).length || (event.putin_event_exp || []).length ||
+                    (event.putin_event_slot || []).length) throw new Error('Unsupported PVE egg event');
+                var store = JSON.parse(JSON.stringify(original)), level = store.level;
+                var pm = player.getComponent('PackageManager');
+                if (pm && pm['package']) level.player['package'] = JSON.parse(JSON.stringify(pm['package']));
+                for (var i = 0; i < items.length; i++) {
+                    var reward = data.item_input && data.item_input[items[i]];
+                    if (!reward || Number(reward.item_id) !== 1124 || Number(reward.item_num) !== 1 ||
+                        (reward.item_random_chance || []).length) throw new Error('Unsupported PVE egg reward');
+                    LocalNative.shopAddItem(level, Number(reward.item_id), Number(reward.item_num));
+                }
+                if (!level.player.pve_awardBox) level.player.pve_awardBox = {};
+                level.player.pve_awardBox[index] = 1;
+                // Persist inventory and receipt together before updating the stock UI.
+                LocalNative.writeRaw(store);
+                player.pve_awardBox = JSON.parse(JSON.stringify(level.player.pve_awardBox));
+                if (pm) pm.init({'package': JSON.parse(JSON.stringify(level.player['package']))});
+                LocalNative.writeStatus({step: 'pve-map-egg-claimed', index: index, count: items.length});
+                return true;
+            } catch (e) {
+                var saved = LocalNative.readRaw() || original;
+                player.pve_awardBox = JSON.parse(JSON.stringify(saved.level.player.pve_awardBox || {}));
+                LocalNative.writeStatus({step: 'pve-map-egg-ERR', error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        // Wild Adventure (荒野探险). Stock AdventureSearch.onShow waits for both the
+        // "search" animation and rpc_c_enter_dice_event_ans; missing the answer freezes
+        // on the map with no UI. Capture branch is local-complete; PVE battle load is not.
+        LocalNative.adventurePolicy = {
+            entryPeriodId: 1000,
+            resetPeriodId: 1001,
+            unfortunatePeriodId: 62,
+            statusIdle: 0,
+            statusPve: 1,
+            statusCapture: 2,
+            startEventId: 8000,
+            runEventId: 8012,
+            tortureCostBase: 50
+        };
+
+        // User-authorized local loot. Client has no official drop table; rates follow
+        // public player notes (~5% primary fruit, ~30-run pity, 10:1 compose).
+        LocalNative.adventureLootPolicy = {
+            primaryFruitId: 210021,
+            advancedFruitId: 210022,
+            primaryFruitRate: 0.05,
+            advancedFruitRate: 0.005,
+            paidFruitBonus: 0.03,
+            pityAtCount: 29,
+            goldMin: 600, goldMax: 2200,
+            woodMin: 600, woodMax: 2200,
+            diamondMin: 8, diamondMax: 45,
+            heroExpMin: 40, heroExpMax: 120
+        };
+
+        LocalNative.adventureCostFor = function(eventId) {
+            var cfg = data.dice_event2_client && data.dice_event2_client[eventId];
+            if (!cfg || !cfg.resource_type) return 0;
+            var tier = Math.max(0, Number(eventId) - LocalNative.adventurePolicy.startEventId);
+            return LocalNative.adventurePolicy.tortureCostBase * (1 + Math.floor(tier / 3));
+        };
+
+        LocalNative.readAdventureState = function(level) {
+            var p = level && level.player || {};
+            return {
+                adventure_status: Number(p.adventure_status) || 0,
+                dice_event2_id: Number(p.dice_event2_id) || 0,
+                dice_event2_cost: Number(p.dice_event2_cost) || 0
+            };
+        };
+
+        LocalNative.writeAdventureState = function(level, state) {
+            level.player.adventure_status = Number(state.adventure_status) || 0;
+            level.player.dice_event2_id = Number(state.dice_event2_id) || 0;
+            level.player.dice_event2_cost = Number(state.dice_event2_cost) || 0;
+        };
+
+        LocalNative.syncAdventureManager = function(player, state) {
+            var am = player && player.getComponent && player.getComponent('AdventureManager');
+            if (!am) return null;
+            am.adventure_status = Number(state.adventure_status) || 0;
+            am.dice_event2_id = Number(state.dice_event2_id) || 0;
+            am.dice_event2_cost = Number(state.dice_event2_cost) || 0;
+            return am;
+        };
+
+        LocalNative.consumeAdventureEntry = function(level) {
+            return LocalNative.consumePveSweepPeriod(level, LocalNative.adventurePolicy.entryPeriodId);
+        };
+
+        LocalNative.resetAdventureEntryCount = function(level) {
+            var periodId = LocalNative.adventurePolicy.entryPeriodId;
+            var period = data.period_control && data.period_control[periodId];
+            if (!period) return;
+            var ptype = Number(period.period_type) || 1;
+            var counters = level.player.event_counters || (level.player.event_counters = {});
+            var group = counters[ptype] || (counters[ptype] = {});
+            group[periodId] = {c: 0, t: Math.floor(Date.now() / 1000),
+                clientData: {_eventCount: 0}};
+            LocalNative.consumePveSweepPeriod(level, LocalNative.adventurePolicy.resetPeriodId);
+        };
+
+        LocalNative.clearAdventureInterval = function(level) {
+            var periodId = LocalNative.adventurePolicy.entryPeriodId;
+            var period = data.period_control && data.period_control[periodId];
+            if (!period) return;
+            var ptype = Number(period.period_type) || 1;
+            var counters = level.player.event_counters || (level.player.event_counters = {});
+            var group = counters[ptype] || (counters[ptype] = {});
+            var counter = group[periodId] || {c: 0};
+            var count = Math.max(Number(counter.c) || 0,
+                Number(counter.clientData && counter.clientData._eventCount) || 0);
+            // Stamp older than period.interval so isEventIntervalDeny clears.
+            var ago = (Number(period.interval) || 360) + 5;
+            group[periodId] = {c: count, t: Math.floor(Date.now() / 1000) - ago,
+                clientData: {_eventCount: count}};
+        };
+
+        LocalNative.adventureRandInt = function(min, max) {
+            min = Math.floor(Number(min) || 0);
+            max = Math.floor(Number(max) || 0);
+            if (max < min) max = min;
+            return min + Math.floor(Math.random() * (max - min + 1));
+        };
+
+        LocalNative.readAdventureUnfortunateCount = function(level) {
+            var periodId = LocalNative.adventurePolicy.unfortunatePeriodId;
+            var period = data.period_control && data.period_control[periodId];
+            var ptype = period ? Number(period.period_type) || 1 : 5;
+            var counters = level.player.event_counters || {};
+            var group = counters[ptype] || {};
+            var counter = group[periodId] || {};
+            return Math.max(Number(counter.c) || 0,
+                Number(counter.clientData && counter.clientData._eventCount) || 0);
+        };
+
+        LocalNative.writeAdventureUnfortunateCount = function(level, count) {
+            var periodId = LocalNative.adventurePolicy.unfortunatePeriodId;
+            var period = data.period_control && data.period_control[periodId];
+            var ptype = period ? Number(period.period_type) || 1 : 5;
+            var counters = level.player.event_counters || (level.player.event_counters = {});
+            var group = counters[ptype] || (counters[ptype] = {});
+            count = Math.max(0, Number(count) || 0);
+            group[periodId] = {c: count, t: Math.floor(Date.now() / 1000),
+                clientData: {_eventCount: count}};
+        };
+
+        LocalNative.applyAdventureCaptureLoot = function(player, level) {
+            var policy = LocalNative.adventureLootPolicy;
+            var paid = !!level.player.localAdventureNextPaidBonus;
+            level.player.localAdventureNextPaidBonus = false;
+            var gold = LocalNative.adventureRandInt(policy.goldMin, policy.goldMax);
+            var wood = LocalNative.adventureRandInt(policy.woodMin, policy.woodMax);
+            var diamond = LocalNative.adventureRandInt(policy.diamondMin, policy.diamondMax);
+            var heroExp = LocalNative.adventureRandInt(policy.heroExpMin, policy.heroExpMax);
+            var loot = LocalNative.grantPveLoot(gold, wood, level);
+            level.player.diamond = (Number(level.player.diamond) || 0) + diamond;
+            var unfortunate = LocalNative.readAdventureUnfortunateCount(level);
+            var pity = unfortunate >= policy.pityAtCount;
+            var primaryRate = policy.primaryFruitRate + (paid ? policy.paidFruitBonus : 0);
+            var gotPrimary = pity || Math.random() < primaryRate;
+            var gotAdvanced = !gotPrimary && Math.random() < policy.advancedFruitRate;
+            var fruits = [];
+            if (gotPrimary) {
+                LocalNative.shopAddItem(level, policy.primaryFruitId, 1);
+                fruits.push(policy.primaryFruitId);
+                LocalNative.writeAdventureUnfortunateCount(level, 0);
+            } else if (gotAdvanced) {
+                LocalNative.shopAddItem(level, policy.advancedFruitId, 1);
+                fruits.push(policy.advancedFruitId);
+                LocalNative.writeAdventureUnfortunateCount(level, 0);
+            } else {
+                LocalNative.writeAdventureUnfortunateCount(level, unfortunate + 1);
+            }
+            var expTargets = [];
+            if (typeof data !== 'undefined' && data.hero_lv_data) {
+                for (var i = 0; i < (level.heros || []).length; i++) {
+                    var hero = level.heros[i];
+                    if (Number(hero.state) !== 1) continue;
+                    try {
+                        LocalNative.normalizeHeroExperience(level, hero, heroExp);
+                        expTargets.push(hero.sid || hero.id);
+                    } catch (eExp) {}
+                }
+            }
+            return {
+                gold: loot.gold, wood: loot.wood, diamond: diamond, heroExp: heroExp,
+                fruits: fruits, pity: pity, paid: paid,
+                unfortunate: LocalNative.readAdventureUnfortunateCount(level),
+                expTargets: expTargets
+            };
+        };
+
+        LocalNative.handleEnterDiceEvent = function(player) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            try {
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var cur = LocalNative.readAdventureState(level);
+                var policy = LocalNative.adventurePolicy;
+                var state = cur;
+                if (cur.adventure_status === policy.statusIdle) {
+                    if (!LocalNative.consumeAdventureEntry(level))
+                        throw new Error('Adventure daily entries exhausted');
+                    // Stock flow: enter → PVE → win → home afterInitWorld → capture.
+                    // Pre-seed capture event ids; status flips to CAPTURE only after a win.
+                    var startId = policy.startEventId;
+                    if (!data.dice_event2_client || !data.dice_event2_client[startId])
+                        throw new Error('Missing dice_event2_client start row');
+                    state = {
+                        adventure_status: policy.statusPve,
+                        dice_event2_id: startId,
+                        dice_event2_cost: LocalNative.adventureCostFor(startId)
+                    };
+                    LocalNative.writeAdventureState(level, state);
+                }
+                LocalNative.writeRaw(store);
+                LocalNative.shopSync(player, level);
+                LocalNative.syncAdventureManager(player, state);
+                if (typeof player.rpc_c_enter_dice_event_ans === 'function')
+                    player.rpc_c_enter_dice_event_ans({
+                        adventure_status: state.adventure_status,
+                        dice_event2_id: state.dice_event2_id,
+                        dice_event2_cost: state.dice_event2_cost
+                    });
+                LocalNative.writeStatus({step: 'adventure-enter-ans', status: state.adventure_status,
+                    event: state.dice_event2_id, cost: state.dice_event2_cost});
+                return true;
+            } catch (e) {
+                LocalNative.writeStatus({step: 'adventure-enter-ERR', error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        LocalNative.handleResetDiceEvent1 = function(player) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            try {
+                // Stock UI already paid period_control[1000].add_resource_num diamonds.
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                LocalNative.resetAdventureEntryCount(level);
+                // Network notes say paid refreshes roll fruit more often; local bonus flag.
+                level.player.localAdventureNextPaidBonus = true;
+                LocalNative.writeRaw(store);
+                LocalNative.shopSync(player, level);
+                LocalNative.syncPveSweepPeriod(player, level, LocalNative.adventurePolicy.entryPeriodId);
+                LocalNative.writeStatus({step: 'adventure-reset-entries', paidBonus: true});
+                return true;
+            } catch (e) {
+                LocalNative.writeStatus({step: 'adventure-reset-ERR', error: String(e)});
+                return false;
+            }
+        };
+
+        LocalNative.handleClearDiceEvent1Interval = function(player) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            try {
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                LocalNative.clearAdventureInterval(level);
+                LocalNative.writeRaw(store);
+                LocalNative.shopSync(player, level);
+                LocalNative.syncPveSweepPeriod(player, level, LocalNative.adventurePolicy.entryPeriodId);
+                LocalNative.writeStatus({step: 'adventure-clear-interval'});
+                return true;
+            } catch (e) {
+                LocalNative.writeStatus({step: 'adventure-clear-interval-ERR', error: String(e)});
+                return false;
+            }
+        };
+
+        LocalNative.adventureCaptureAnswer = function(player, mode) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            var policy = LocalNative.adventurePolicy;
+            try {
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var cur = LocalNative.readAdventureState(level);
+                if (cur.adventure_status !== policy.statusCapture)
+                    throw new Error('Not in adventure capture');
+                var eventId = cur.dice_event2_id;
+                if (!data.dice_event2_client || !data.dice_event2_client[eventId])
+                    throw new Error('Invalid dice_event2_id');
+                var nextId = eventId;
+                var endMode = null;
+                if (mode === 'release') {
+                    nextId = policy.runEventId;
+                    endMode = 'finish';
+                } else if (mode === 'torture') {
+                    if (eventId >= 8009) {
+                        endMode = (Math.random() < 0.5) ? 'dead' : 'finish';
+                        if (endMode === 'finish') nextId = policy.runEventId;
+                    } else {
+                        nextId = Math.min(eventId + 1, 8011);
+                        if (nextId >= policy.runEventId) {
+                            nextId = policy.runEventId;
+                            endMode = 'finish';
+                        }
+                    }
+                } else throw new Error('Unsupported capture mode');
+
+                // Null award skips AdventureCapture.addAward (and its inputAward).
+                // Loot is persisted below; reward cards remain a follow-up.
+                var award = null;
+                var awardGet = null;
+                var state;
+                if (endMode) {
+                    var loot = LocalNative.applyAdventureCaptureLoot(player, level);
+                    // Stock diceEvent2Finish/Dead require CAPTURE and then set IDLE themselves.
+                    // Persist IDLE on disk first, but keep live manager CAPTURE until the callback.
+                    state = {adventure_status: policy.statusIdle, dice_event2_id: nextId,
+                        dice_event2_cost: 0};
+                    LocalNative.writeAdventureState(level, state);
+                    LocalNative.writeRaw(store);
+                    LocalNative.shopSync(player, level);
+                    var amLive = LocalNative.syncAdventureManager(player, {
+                        adventure_status: policy.statusCapture,
+                        dice_event2_id: cur.dice_event2_id,
+                        dice_event2_cost: cur.dice_event2_cost
+                    });
+                    var finishDict = {dice_event2_id: nextId, award: award, award_get: awardGet};
+                    if (endMode === 'dead' && typeof player.rpc_c_dice_event2_dead === 'function')
+                        player.rpc_c_dice_event2_dead(finishDict);
+                    else if (typeof player.rpc_c_dice_event2_finish === 'function')
+                        player.rpc_c_dice_event2_finish(finishDict);
+                    if (amLive && amLive.adventure_status !== policy.statusIdle)
+                        LocalNative.syncAdventureManager(player, state);
+                    LocalNative.writeStatus({step: 'adventure-capture-' + endMode, event: nextId,
+                        loot: loot});
+                } else {
+                    state = {
+                        adventure_status: policy.statusCapture,
+                        dice_event2_id: nextId,
+                        dice_event2_cost: LocalNative.adventureCostFor(nextId)
+                    };
+                    LocalNative.writeAdventureState(level, state);
+                    LocalNative.writeRaw(store);
+                    LocalNative.shopSync(player, level);
+                    LocalNative.syncAdventureManager(player, state);
+                    if (typeof player.rpc_c_dice_event2_next === 'function')
+                        player.rpc_c_dice_event2_next({
+                            dice_event2_id: state.dice_event2_id,
+                            dice_event2_cost: state.dice_event2_cost,
+                            award: award,
+                            award_get: awardGet
+                        });
+                    LocalNative.writeStatus({step: 'adventure-capture-next', event: nextId,
+                        cost: state.dice_event2_cost});
+                }
+                return true;
+            } catch (e) {
+                LocalNative.writeStatus({step: 'adventure-capture-ERR', mode: mode, error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        LocalNative.handleDiceEvent2Torture = function(player) {
+            return LocalNative.adventureCaptureAnswer(player, 'torture');
+        };
+
+        LocalNative.handleDiceEvent2Release = function(player) {
+            return LocalNative.adventureCaptureAnswer(player, 'release');
+        };
+
+        LocalNative.markAdventureCaptureAfterPveWin = function(player, level) {
+            var policy = LocalNative.adventurePolicy;
+            var startId = policy.startEventId;
+            if (!data.dice_event2_client || !data.dice_event2_client[startId])
+                throw new Error('Missing dice_event2_client start row');
+            var state = {
+                adventure_status: policy.statusCapture,
+                dice_event2_id: startId,
+                dice_event2_cost: LocalNative.adventureCostFor(startId)
+            };
+            LocalNative.writeAdventureState(level, state);
+            if (player) {
+                player.adventure_status = state.adventure_status;
+                player.dice_event2_id = state.dice_event2_id;
+                player.dice_event2_cost = state.dice_event2_cost;
+                LocalNative.syncAdventureManager(player, state);
+            }
+            return state;
+        };
+
+        LocalNative.clearAdventureProgress = function(player, level) {
+            var state = {adventure_status: 0, dice_event2_id: 0, dice_event2_cost: 0};
+            LocalNative.writeAdventureState(level, state);
+            if (player) {
+                player.adventure_status = 0;
+                player.dice_event2_id = 0;
+                player.dice_event2_cost = 0;
+                LocalNative.syncAdventureManager(player, state);
+            }
+            return state;
+        };
+
+        // Stock wanted tables supply target weights, rewards, prices and triggers.
+        // Only the retired server's village payload remains a compatible fallback.
+        LocalNative.wantedCounter = function(level, id) {
+            var cfg = data.period_control[id];
+            if (!cfg) throw new Error('Missing wanted period ' + id);
+            var counters = level.player.event_counters || (level.player.event_counters = {});
+            var group = counters[cfg.period_type] || (counters[cfg.period_type] = {});
+            return group[id] || (group[id] = {c: 0, t: 0, d: {}, clientData: {_eventCount: 0}});
+        };
+
+        LocalNative.wantedPeriod = function(level, id, consume) {
+            var cfg = data.period_control[id], counter = LocalNative.wantedCounter(level, id);
+            var now = Math.floor(Date.now() / 1000);
+            // Daily boundaries follow the device's local calendar, as the offline client does.
+            if (Number(cfg.period_type) === 1 && counter.t &&
+                new Date(counter.t * 1000).toDateString() !== new Date(now * 1000).toDateString()) {
+                counter.c = 0;
+                counter.clientData = {_eventCount: 0};
+                counter.t = 0;
+            }
+            var count = Math.max(Number(counter.c) || 0,
+                Number(counter.clientData && counter.clientData._eventCount) || 0);
+            if ((cfg.num_limit && count >= Number(cfg.num_limit)) ||
+                (cfg.interval && counter.t && now < Number(counter.t) + Number(cfg.interval))) return false;
+            if (consume) {
+                counter.c = count + 1;
+                counter.t = now;
+                counter.clientData = {_eventCount: counter.c};
+            }
+            return true;
+        };
+
+        LocalNative.wantedPick = function(level, order) {
+            var info = data.wanted['player_lv_info' + order], lv = Number(level.player.level) || 1;
+            if (!info) throw new Error('Missing wanted target pool');
+            var band = null;
+            for (var i = 0; i < info.order_array.length; i++)
+                if (Number(info.order_array[i]) <= lv) band = info.player_lv_info[info.order_array[i]];
+            if (!band) throw new Error('Missing wanted level band');
+            var candidates = [], total = 0;
+            for (var j = 0; j < band.targets.length; j++) {
+                var target = band.targets[j];
+                if (!(Number(target.probability) > 0) || !data.wanted[target.wanted_id]) continue;
+                candidates.push(target); total += Number(target.probability);
+            }
+            if (!total) throw new Error('Empty wanted pool');
+            var roll = Math.random() * total, chosen = candidates[candidates.length - 1];
+            for (var k = 0; k < candidates.length; k++) {
+                roll -= Number(candidates[k].probability);
+                if (roll < 0) { chosen = candidates[k]; break; }
+            }
+            var cfg = data.wanted[chosen.wanted_id];
+            if (!cfg.cost || cfg.cost.length !== 1) throw new Error('Unknown wanted cost formula');
+            return {wanted_id: Number(chosen.wanted_id), cost: Number(cfg.cost[0])};
+        };
+
+        LocalNative.ensureWantedCards = function(level) {
+            var counter = LocalNative.wantedCounter(level, 1020);
+            var cards = counter.d || (counter.d = {});
+            for (var order = 1; order <= 3; order++)
+                if (!cards['wanted' + order] || !data.wanted[cards['wanted' + order].wanted_id])
+                    cards['wanted' + order] = LocalNative.wantedPick(level, order);
+            return cards;
+        };
+
+        LocalNative.syncWanted = function(player, level) {
+            LocalNative.syncQuestEventRecorder(player, level);
+            // Only this data event refreshes card contents; broadcasting every DER
+            // counter can recursively re-enter unrelated quest refresh handlers.
+            if (player && player.rpc_c_refresh_daily_event)
+                player.rpc_c_refresh_daily_event({event_id: 1020,
+                    last_update_time: Math.floor(Date.now() / 1000),
+                    event_counter: JSON.parse(JSON.stringify(LocalNative.wantedCounter(level, 1020)))});
+        };
+
+        LocalNative.installWantedAwardDisplay = function() {
+            if (typeof Comp === 'undefined' || !Comp.HunterManager) return;
+            var proto = Comp.HunterManager.prototype;
+            if (proto._localWantedAward) return;
+            var original = proto.getWantedReward;
+            proto.getWantedReward = function(rewardGet, reward) {
+                var em = typeof G_EventManager !== 'undefined' ? G_EventManager : null;
+                var input = em && em.inputAward;
+                try {
+                    // Reward was committed before the home transition. Preserve the
+                    // original speaker and Award UI without applying it twice.
+                    if (em) em.inputAward = function() {};
+                    return original.call(this, rewardGet, reward);
+                } finally {
+                    if (em) em.inputAward = input;
+                    LocalNative.syncQuestPackageAndWallet(this.master, LocalNative.readRaw().level);
+                }
+            };
+            proto._localWantedAward = true;
+        };
+
+        LocalNative.buildWantedEquipment = function(order) {
+            var count = [0, 0, 2, 5][order], eqp = [null, null, null, null, null];
+            if (!count) return eqp;
+            var keys = [], key, types = ['t', 'x', 'y'];
+            if (order === 3) {
+                // Randomize among valid full five-rune words, guaranteeing the
+                // stock HeroEquipment component activates a five-rune skill.
+                for (key in data.rune_order)
+                    if (key.length === 5 && /^[txy]+$/.test(key)) keys.push(key);
+                keys.sort();
+                if (!keys.length) throw new Error('Missing wanted five-rune orders');
+                key = keys[Math.floor(Math.random() * keys.length)];
+            } else {
+                key = '';
+                for (var i = 0; i < count; i++) key += types[Math.floor(Math.random() * types.length)];
+            }
+            for (var slot = 0; slot < count; slot++) {
+                var candidates = [];
+                for (var id in data.item) {
+                    var item = data.item[id];
+                    if (Number(item.item_form) === slot + 3 && Number(item.item_level) === 2 &&
+                        item.rune_type === key.charAt(slot)) candidates.push(Number(id));
+                }
+                if (candidates.length !== 1) throw new Error('Ambiguous wanted rune slot ' + slot);
+                var rune = {typeid: candidates[0], hero_attr: 0};
+                var layers = {base_attr: 'att_basic_color', two_attr: 'att_evolve2_color', three_attr: 'att_evolve3_color'};
+                for (var layer in layers) {
+                    var pool = [];
+                    for (var aid in data.equipment_attribute) {
+                        var attr = data.equipment_attribute[aid];
+                        if (attr.attr_name && Number(attr[layers[layer]]) > 0) pool.push(Number(aid));
+                    }
+                    if (!pool.length) throw new Error('Missing wanted rune attribute pool');
+                    rune[layer] = [pool[Math.floor(Math.random() * pool.length)]];
+                }
+                eqp[slot] = rune;
+            }
+            return eqp;
+        };
+
+        LocalNative.runWantedTargetTrigger = function(player, gc, payload) {
+            // The stock trigger does not forward eqp. Supply it before original
+            // component initialization so both attributes and rune skills apply.
+            var create = gc.createUnit, ownCreate = Object.prototype.hasOwnProperty.call(gc, 'createUnit');
+            if (typeof create !== 'function') throw new Error('Missing wanted unit factory');
+            gc.createUnit = function(params) {
+                var typeid = Number(params.typeid) || Number(params.unit_type) * 100 + Number(params.unit_level);
+                if (typeid === Number(payload.config.trigger_unit) &&
+                    Number(params.faction) === Number(payload.config.trigger_target_camp)) {
+                    params.eqp = JSON.parse(JSON.stringify(payload.config.localWantedEquipment));
+                }
+                return create.apply(this, arguments);
+            };
+            try {
+                return player.rpc_c_run_trigger(payload);
+            } finally {
+                if (ownCreate) gc.createUnit = create;
+                else delete gc.createUnit;
+            }
+        };
+
+        LocalNative.buildWantedTargetTrigger = function(wantedId) {
+            var wanted = data.wanted[wantedId];
+            if (!wanted || !data.pve_trigger_server_to_client ||
+                !data.pve_trigger_server_to_client[wanted.server_trigger_id])
+                throw new Error('Missing wanted server trigger metadata');
+            var typeid = Number(wanted.speaker_id) || Number(wantedId);
+            if (!data.unit_main || !data.unit_main[typeid])
+                throw new Error('Missing wanted target unit ' + typeid);
+            var family = Math.floor(typeid / 100), count = Number(wanted.card_order);
+            // reborn_times only strengthens a form: 10402/03/04 all use 10401.ccbi.
+            // The user means the three visible evolution forms. Resolve those
+            // via hero_evolve and origin_typeid, not the enhancement chain.
+            typeid = family * 100 + 1;
+            for (var form = 1; form < count; form++) {
+                var next = 0;
+                for (var evolveId in data.hero_evolve) {
+                    var targetId = Number(evolveId), evolve = data.hero_evolve[evolveId];
+                    var required = data.unit_main[evolve.type_required];
+                    if (Math.floor(targetId / 100) !== family || !required ||
+                        Number(required.origin_typeid) !== typeid) continue;
+                    if (next) throw new Error('Ambiguous wanted evolution ' + typeid);
+                    next = targetId;
+                }
+                if (!next || !data.unit_main[next] ||
+                    data.unit_main[next].battle_res === data.unit_main[typeid].battle_res)
+                    throw new Error('Missing wanted evolution form ' + family + '/' + (form + 1));
+                typeid = next;
+            }
+            if (!(count >= 1 && count <= 3) || !data.unit_main[typeid])
+                throw new Error('Invalid wanted evolution form');
+            var formTypeid = typeid, promotion = [0, 5, 10, 15][count];
+            for (var rank = 1; rank < promotion; rank++) {
+                var promoted = Number(data.unit_main[typeid].upgrade_target);
+                if (!data.unit_main[promoted] ||
+                    data.unit_main[promoted].battle_res !== data.unit_main[formTypeid].battle_res)
+                    throw new Error('Missing wanted promotion ' + typeid);
+                typeid = promoted;
+            }
+            // Server configs were NOT shipped. pve_trigger is a different local
+            // tutorial ID space (2500 creates an allied actor and pauses combat).
+            // User difficulty: 20/40/60 with 1/2/3 random full-level learnable
+            // skills. Keep the stock basic attack, exclude tutorial/summon skills.
+            var candidates = data.hero_to_skill && data.hero_to_skill[family];
+            var ids = candidates && candidates.skill_id || [], pool = [], seen = {};
+            for (var i = 0; i < ids.length; i++) {
+                var sid = Number(ids[i]), row = data.skill_to_hero && data.skill_to_hero[sid];
+                var skill = data.skill_data && data.skill_data[sid * 100 + 10];
+                if (seen[sid] || !row || Number(row.to_hero_id) !== family || !skill) continue;
+                if (!(Number(row.skill_weight_1) > 0 || Number(row.skill_weight_2) > 0 ||
+                    Number(row.skill_weight_3) > 0)) continue;
+                seen[sid] = true;
+                pool.push(sid);
+            }
+            if (!(count >= 1 && count <= 3) || pool.length < count)
+                throw new Error('Not enough wanted advanced skills for ' + typeid);
+            var slots = [];
+            for (var s = 0; s < count; s++) {
+                var pick = Math.floor(Math.random() * pool.length);
+                slots.push({sid: pool.splice(pick, 1)[0], lv: 10});
+            }
+            var hero = LocalNative.prepareHeroBattleSkills({typeid: typeid, unit_mutateid: 0,
+                skill_slots: slots});
+            return {trigger_unit: typeid, trigger_unit_lv: [0, 20, 40, 60][wanted.card_order],
+                trigger_unit_num: 1, trigger_unit_skill: hero.skills,
+                trigger_target_camp: 2, trigger_pos_type: 2, trigger_pos: [0, 0],
+                localWantedEquipment: LocalNative.buildWantedEquipment(count),
+                trigger_times: 1};
+        };
+
+        LocalNative.castWantedGroundAndAirField = function(mfid, faction, casterMir, targetID, pos, dir) {
+            var manager = MagicField.MagicFieldManager.getInstance();
+            var handle = manager.handleMagicField(mfid, faction, casterMir, targetID, pos.x, pos.y, dir);
+            var field = manager.MagicFieldObjects[handle];
+            if (!field || !field.config) throw new Error('Missing wanted attack field ' + mfid);
+            // The stock normal-attack field can independently reject air units
+            // (10801/10901 air_land=2). Widen this instance before it runs.
+            field.config = JSON.parse(JSON.stringify(field.config));
+            field.config.air_land = 0;
+            manager.runMagicField(handle);
+        };
+
+        LocalNative.allowWantedTargetGroundAndAir = function(unit) {
+            var bc = unit && unit.getComponent && unit.getComponent('BattleController');
+            var skill = bc && bc.skillManager && bc.skillManager.getDefaultSkill();
+            if (!skill || !skill.config) return false;
+            // Per-instance copy: never widen data.skill_data or another unit.
+            skill.setTargetAirAvailable();
+            skill.config.target_ground = 1;
+            if (skill.config.magic_field1 || skill.config.magic_field2)
+                skill._castMagicField = LocalNative.castWantedGroundAndAirField;
+            return true;
+        };
+
+        LocalNative.applyWantedTargetBuff = function(unit, session) {
+            if (!session || Number(session.cardOrder) !== 3) return 0;
+            var bc = unit && unit.getComponent && unit.getComponent('BattleController');
+            if (!bc || Number(unit.faction) !== 2 || !bc.getCasterMir ||
+                typeof Buff === 'undefined' || !Buff.BuffManager ||
+                !data.buff_data || !data.buff_data[899801])
+                throw new Error('Missing advanced wanted buff dependencies');
+            if (bc._localWantedBuff899801) return bc._localWantedBuff899801;
+            var manager = Buff.BuffManager.getInstance();
+            var handle = manager.handleBuff(899801, unit.faction, bc.getCasterMir(), unit.cid);
+            manager.runBuff(handle);
+            bc._localWantedBuff899801 = handle;
+            return handle;
+        };
+
+        LocalNative.handleWantedRpc = function(player, method, params) {
+            params = params || {};
+            LocalNative.installWantedAwardDisplay();
+            try {
+                if (method === 'rpc_s_run_server_trigger') {
+                    var session = LocalNative.pveSession, gc = LocalNative.getBattleController();
+                    if (!session || !session.localNativeWanted || session.completed || session.closed ||
+                        session.triggered || !gc || gc.wantedResideUnit !== params.cid ||
+                        Number(params.trigger_id) !== Number(data.wanted[session.wantedId].server_trigger_id)) return false;
+                    var trigger = session.wantedTrigger ||
+                        (session.wantedTrigger = LocalNative.buildWantedTargetTrigger(session.wantedId));
+                    if (!player.rpc_c_run_trigger) throw new Error('Missing rpc_c_run_trigger');
+                    LocalNative.runWantedTargetTrigger(player, gc, {trigger_id: Number(params.trigger_id), cid: params.cid,
+                        config: JSON.parse(JSON.stringify(trigger)), args: {residerDead: 1,
+                            bossMark: data.wanted[session.wantedId].boss_mark}});
+                    // A failed spawn remains retryable; do not consume this before ACK.
+                    session.triggered = !!gc.wantedTarget;
+                    var spawned = typeof G_UnitManager !== 'undefined' && G_UnitManager.getUnit
+                        ? G_UnitManager.getUnit(gc.wantedTarget) : null;
+                    var allTroops = LocalNative.allowWantedTargetGroundAndAir(spawned);
+                    var buffHandle = LocalNative.applyWantedTargetBuff(spawned, session);
+                    var equipment = spawned && spawned.getComponent && spawned.getComponent('HeroEquipment');
+                    LocalNative.writeStatus({step: 'wanted-target-spawn', wantedId: session.wantedId,
+                        target: gc.wantedTarget || null, typeid: trigger.trigger_unit,
+                        actualTypeid: spawned && spawned.typeid, groundAndAir: allTroops,
+                        buff899801Handle: buffHandle,
+                        equipment: trigger.localWantedEquipment,
+                        actualEquipment: equipment && equipment.eqp,
+                        runeSkill: equipment && equipment.getExtraKeySkill ? equipment.getExtraKeySkill() : null,
+                        promotion: data.unit_main[trigger.trigger_unit].sub_name,
+                        form: session.cardOrder,
+                        battleRes: data.unit_main[trigger.trigger_unit].battle_res,
+                        reborn: data.unit_main[trigger.trigger_unit].reborn_times,
+                        lv: trigger.trigger_unit_lv, camp: trigger.trigger_target_camp,
+                        skills: trigger.trigger_unit_skill});
+                    if (!session.triggered) throw new Error('Wanted target was not created');
+                    return true;
+                }
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var cards = LocalNative.ensureWantedCards(level);
+                if (method === 'rpc_s_get_reward_after_hunter_pve') {
+                    var pending = level.localWantedReward;
+                    if (!pending) return false;
+                    var hunter = player.getComponent('HunterManager');
+                    hunter.wanted_id = pending.wantedId;
+                    hunter.wanted_reward = pending.reward;
+                    hunter.hunter_win = pending.win;
+                    delete level.localWantedReward;
+                    level.player.wanted_id = 0;
+                    level.player.wanted_reward = null;
+                    level.player.hunter_win = false;
+                    LocalNative.writeRaw(store);
+                    LocalNative.syncQuestPackageAndWallet(player, level);
+                    player.rpc_c_get_reward_after_hunter_pve_ans({reward_get: pending.reward});
+                    return true;
+                }
+                if (method === 'rpc_s_refresh_wanted') {
+                    LocalNative.writeRaw(store);
+                    LocalNative.syncWanted(player, level);
+                    return true;
+                }
+                var order = Number(params.card_order), control = data.wanted_control[order];
+                // The shipped WantedCard/Info buttons do not gate on open_level.
+                // Preserve their accessible cards; that legacy field alone does
+                // not prove a server-side player-level prerequisite.
+                if (!(order >= 1 && order <= 3 && order === Math.floor(order)) || !control)
+                    throw new Error('Invalid wanted card');
+                var card = cards['wanted' + order], cfg = data.wanted[card.wanted_id];
+                if (method === 'rpc_s_reset_wanted_time') {
+                    if (params.res_type !== 'diamond' && params.res_type !== 'item')
+                        throw new Error('Invalid wanted reset resource');
+                    // Dispatch runs on the next tick: item button subtracts its
+                    // ticket just AFTER callServer, diamond button pays before it.
+                    var counter = LocalNative.wantedCounter(level, control.normal_id);
+                    counter.c = 0; counter.t = 0; counter.clientData = {_eventCount: 0};
+                    if (params.res_type === 'diamond')
+                        LocalNative.wantedPeriod(level, control.diamond_refresh, true);
+                    else {
+                        var item = data.item[control.update_items];
+                        if (!item) throw new Error('Missing wanted ticket');
+                        var itemPeriod = LocalNative.wantedPeriod(level, item.item_freeEvent, false)
+                            ? item.item_freeEvent : item.item_paidEvent;
+                        if (!LocalNative.wantedPeriod(level, itemPeriod, true))
+                            throw new Error('Wanted ticket limit reached');
+                    }
+                } else if (method === 'rpc_s_reset_wanted') {
+                    if (!LocalNative.wantedPeriod(level, control.normal_id, false) ||
+                        !LocalNative.wantedPeriod(level, control.change_target, true))
+                        throw new Error('Wanted refresh is cooling down');
+                    cards['wanted' + order] = LocalNative.wantedPick(level, order);
+                } else if (method === 'rpc_s_load_hunter_pve' || method === 'rpc_s_get_help_for_wanted') {
+                    var wantedTrigger = method === 'rpc_s_load_hunter_pve'
+                        ? LocalNative.buildWantedTargetTrigger(card.wanted_id) : null;
+                    if (level.localWantedReward || (LocalNative.pveSession &&
+                        LocalNative.pveSession.localNativeWanted && !LocalNative.pveSession.closed &&
+                        !LocalNative.pveSession.returning)) throw new Error('Wanted battle or reward is pending');
+                    if (!LocalNative.wantedPeriod(level, control.normal_id, true))
+                        throw new Error('Wanted battle is cooling down');
+                    if (method === 'rpc_s_get_help_for_wanted') {
+                        var reward = LocalNative.collectQuestPutinRewards(level, cfg.putin_win,
+                            Number(level.player.level) || 1);
+                        cards['wanted' + order] = LocalNative.wantedPick(level, order);
+                        LocalNative.writeRaw(store);
+                        LocalNative.syncWanted(player, level);
+                        LocalNative.syncQuestPackageAndWallet(player, level);
+                        player.rpc_c_get_help_for_wanted_ans({wanted_id: card.wanted_id,
+                            reward: reward, reward_get: reward});
+                        return true;
+                    }
+                    LocalNative.writeRaw(store);
+                    LocalNative.syncQuestEventRecorder(player, level);
+                    var stages = cfg.stage || [], total = 0, stage = 0;
+                    for (var si = 0; si < stages.length; si++) total += Number(stages[si][1]) || 0;
+                    var pick = Math.random() * total;
+                    for (var sj = 0; sj < stages.length; sj++) {
+                        pick -= Number(stages[sj][1]) || 0;
+                        if (pick < 0) { stage = Number(stages[sj][0]); break; }
+                    }
+                    if (!stage) throw new Error('Missing wanted stage');
+                    var dict = LocalNative.buildPveBattleDict(stage);
+                    dict.pve_mode = dict.oppo.player.pve_mode = 3;
+                    dict.oppo.player.wanted_id = card.wanted_id;
+                    dict.localNativeWanted = true;
+                    dict.source = 'stock-wanted-with-compatible-server-village';
+                    LocalNative.pveSession = {stage: stage, wantedId: card.wanted_id, cardOrder: order,
+                        wantedTrigger: wantedTrigger, localNativeWanted: true,
+                        completed: false, closed: false, returning: false};
+                    LocalNative.writeStatus({step: 'wanted-battle-enter', wantedId: card.wanted_id,
+                        stage: stage, order: order, source: dict.source});
+                    player.rpc_c_enter_battle(dict);
+                    return true;
+                } else throw new Error('Unsupported wanted RPC ' + method);
+                LocalNative.writeRaw(store);
+                LocalNative.syncWanted(player, level);
+                if (method === 'rpc_s_reset_wanted' && player.rpc_c_reset_wanted_ans)
+                    player.rpc_c_reset_wanted_ans({card_order: order});
+                return true;
+            } catch (e) {
+                LocalNative.writeStatus({step: 'wanted-rpc-ERR', method: method,
+                    cardOrder: params.card_order, playerLevel: player && player.level, error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        LocalNative.completeWantedBattle = function(player, params) {
+            var session = LocalNative.pveSession;
+            if (!session || session.completed || session.closed) return false;
+            var gc = LocalNative.getBattleController();
+            var win = !!(gc && gc.battleResult && gc.battleResult.pve_dict &&
+                gc.battleResult.pve_dict.wantedDead === 1);
+            var store = JSON.parse(JSON.stringify(LocalNative.readRaw())), level = store.level;
+            var cfg = data.wanted[session.wantedId];
+            var reward = LocalNative.collectQuestPutinRewards(level,
+                win ? cfg.putin_win : cfg.putin_lose, Number(level.player.level) || 1);
+            level.localWantedReward = {wantedId: session.wantedId, win: win, reward: reward};
+            level.player.wanted_id = session.wantedId;
+            level.player.wanted_reward = reward;
+            level.player.hunter_win = win;
+            LocalNative.ensureWantedCards(level)['wanted' + session.cardOrder] =
+                LocalNative.wantedPick(level, session.cardOrder);
+            LocalNative.writeRaw(store);
+            session.completed = true;
+            session.starNum = win ? 3 : 0;
+            LocalNative.writeStatus({step: 'wanted-battle-result', wantedId: session.wantedId,
+                win: win, reward: reward});
+            var result = LocalNative.buildPveBattleResultDict(gc, session.stage);
+            result.win_gold = result.win_wood = 0;
+            result.starNum = session.starNum;
+            result.isWinner = win;
+            result.input_gains = [];
+            player.rpc_c_battle_result(result);
+            return true;
+        };
+
+        LocalNative.handleLoadDiceEvent1Pve = function(player) {
+            player = player || (typeof G_Player !== 'undefined' ? G_Player : null);
+            try {
+                var store = LocalNative.readRaw();
+                var level = store && store.level;
+                var cur = LocalNative.readAdventureState(level);
+                if (cur.adventure_status !== LocalNative.adventurePolicy.statusPve)
+                    throw new Error('Adventure PVE is not pending');
+                // Compatible village stub with stock PVE_BATTLE_MODE_DICE_EVENT1.
+                var dict = LocalNative.buildPveBattleDict(1);
+                var mode = (typeof PVE_BATTLE_MODE_DICE_EVENT1 !== 'undefined')
+                    ? PVE_BATTLE_MODE_DICE_EVENT1 : 2;
+                dict.pve_mode = mode;
+                if (dict.oppo && dict.oppo.player) dict.oppo.player.pve_mode = mode;
+                dict.localNativeAdventure = true;
+                dict.source = 'local-inferred-compatible-adventure-pve';
+                LocalNative.pveSession = {
+                    stage: 1,
+                    returning: false,
+                    closed: false,
+                    completed: false,
+                    starNum: 0,
+                    winGold: 0,
+                    winWood: 0,
+                    localNativeAdventure: true
+                };
+                LocalNative.writeStatus({step: 'adventure-pve-enter', mode: mode});
+                if (player && typeof player.rpc_c_enter_battle === 'function')
+                    player.rpc_c_enter_battle(dict);
+                else throw new Error('Missing rpc_c_enter_battle');
+                return true;
+            } catch (e) {
+                if (LocalNative.pveSession) LocalNative.pveSession.closed = true;
+                LocalNative.writeStatus({step: 'adventure-pve-enter-ERR', error: String(e)});
+                if (typeof G_MainController !== 'undefined') G_MainController.setNotice(String(e));
+                return false;
+            }
+        };
+
+        LocalNative.handleTutorialEggDraw = function(player, params) {
+            if (!params || Number(params.buy_id) !== 100 || params.free !== true) {
+                LocalNative.writeStatus({step: 'drawcard-unsupported', buy_id: params && params.buy_id});
+                return false;
+            }
+            var store = LocalNative.readRaw();
+            var level = store.level;
+            var receipt = level.localTutorialEgg;
+            if (receipt && receipt.claimed) return false;
+            if (!receipt) {
+                var hero = {
+                    id: 'tutorial_free_egg_1', sid: 'tutorial_free_egg_1',
+                    hero_id: 11501, typeid: 11501, unit_type: 115, unit_level: 1,
+                    lv: 30, level: 30, xp: 0, state: 0, aidx: -1,
+                    unit_mutateid: 0, mutateid: 0,
+                    rct: Math.floor(Date.now() / 1000), aht: Math.floor(Date.now() / 1000),
+                    skill_id: 26701, skill_slots: [{sid: 267, lv: 1, exp: 0}], gift: 0,
+                    source: 'user-authorized-tutorial-egg-fallback'
+                };
+                receipt = level.localTutorialEgg = {claimed: false, hero: hero};
+            }
+            // Shop has already started its stock cooldown optimistically.
+            var daily = player.getComponent && player.getComponent('DailyEventRecorder');
+            if (daily && daily.event_counters) {
+                level.player.event_counters = JSON.parse(JSON.stringify(daily.event_counters));
+                level.player.last_update_time = daily.last_update_time || Math.floor(Date.now() / 1000);
+            }
+            LocalNative.writeRaw(store);
+            player.rpc_c_draw_card({ans: [[29, receipt.hero]]});
+            LocalNative.writeStatus({step: 'tutorial-egg-draw-ok', typeid: receipt.hero.typeid, lv: receipt.hero.lv});
+            return true;
+        };
+        LocalNative.handleTutorialEggGain = function(player) {
+            var store = LocalNative.readRaw();
+            var level = store && store.level;
+            var receipt = level && level.localTutorialEgg;
+            if (!receipt || receipt.claimed) return false;
+            var hero = receipt.hero;
+            LocalNative.ensureHeroSkill(hero);
+            var roster = level.heros || (level.heros = []);
+            for (var i = 0; i < roster.length; i++) {
+                if (roster[i].sid === hero.sid) return false;
+            }
+            var hm = player.getComponent('HeroManager');
+            var oldCapacity = hm.getHeroCapacity();
+            hero.hero_slot = Math.max(0, roster.length + 1 - oldCapacity);
+            // Stock inputAward -> onGetCapsule creates the hero and extends slots.
+            player.rpc_c_gain_drawcard({ans: [[29, hero]]});
+            roster.push(JSON.parse(JSON.stringify(hero)));
+            level.player.hero_slot_num = Math.max(oldCapacity, roster.length);
+            LocalNative.ensurePlayerSocialFields(level.player);
+            var stats = level.player.achieve_raw;
+            stats.hero_times = (Number(stats.hero_times) || 0) + 1;
+            var recorder = player.getComponent('AchievementRecorder');
+            if (recorder) recorder.achieve_raw = stats;
+            player.achieve_raw = stats;
+            receipt.claimed = true;
+            LocalNative.writeRaw(store);
+            LocalNative.writeStatus({step: 'tutorial-egg-gain-ok', sid: hero.sid,
+                typeid: hero.typeid, lv: hero.lv, hero_times: stats.hero_times});
+            return true;
+        };
+
+        // Daily/main quest claim: finishDailyQuest clears UI then waits for
+        // rpc_c_finish_*_quest_ans({reward, root_quest_id, current}).
+        LocalNative.questPlayerLevel = function(level, player) {
+            var live = Number(player && player.level);
+            if (live > 0) return live;
+            return Math.max(1, Number(level && level.player && level.player.level) || 1);
+        };
+
+        LocalNative.questScaledResAmount = function(resCfg, playerLevel) {
+            var amount = Number(resCfg && resCfg.putin_num) || 0;
+            var factor = Number(resCfg && resCfg.putin_factor) || 0;
+            var type = Number(resCfg && resCfg.putin_resource_type);
+            if (factor > 0 && (type === 1 || type === 2))
+                amount = Math.floor(amount * (1 + playerLevel * factor));
+            return amount;
+        };
+
+        LocalNative.collectQuestPutinRewards = function(level, putinId, playerLevel) {
+            var ans = [], seen = {}, id = putinId;
+            while (id) {
+                if (seen[id]) throw new Error('Cyclic quest putin ' + id);
+                seen[id] = true;
+                var event = data.input_event_client && data.input_event_client[id];
+                if (!event) throw new Error('Missing quest putin event ' + id);
+                var resources = event.putin_event_resource || [];
+                for (var r = 0; r < resources.length; r++) {
+                    var res = data.resource_input && data.resource_input[resources[r]];
+                    if (!res) throw new Error('Missing quest resource ' + resources[r]);
+                    var amount = LocalNative.questScaledResAmount(res, playerLevel);
+                    var type = Number(res.putin_resource_type);
+                    if (!(amount > 0)) continue;
+                    if (type === 1 || type === 2) {
+                        var gained = LocalNative.grantPveLoot(type === 2 ? amount : 0,
+                            type === 1 ? amount : 0, level);
+                        var actual = type === 2 ? gained.gold : gained.wood;
+                        if (actual) ans.push([type === 2 ? 3 : 2, actual]);
+                    } else if (type === 3 || type === 4) {
+                        level.player[type === 3 ? 'diamond' : 'spirit'] =
+                            (Number(level.player[type === 3 ? 'diamond' : 'spirit']) || 0) + amount;
+                        ans.push([type === 3 ? 4 : 11, amount]);
+                    } else throw new Error('Unsupported quest resource ' + type);
+                }
+                var items = event.putin_event_item || [];
+                for (var i = 0; i < items.length; i++)
+                    ans = ans.concat(LocalNative.shopRollItemEvent(level, items[i]));
+                if ((event.putin_event_hero || []).length || (event.putin_event_skill || []).length ||
+                    (event.putin_event_exp || []).length || (event.putin_event_slot || []).length)
+                    throw new Error('Unsupported quest reward branch ' + id);
+                id = event.putin_event_next;
+            }
+            return ans;
+        };
+
+        // Read-only list payload: AwardBase expects [inputType, amount/item], while
+        // claim handlers above also mutate wallets, packages and random counters.
+        LocalNative.previewQuestRewards = function(putinId, playerLevel) {
+            var out = [], seen = {}, id = putinId;
+            var resourceTypes = {1: 2, 2: 3, 3: 4, 4: 11};
+            while (id && !seen[id]) {
+                seen[id] = true;
+                var event = data.input_event_client && data.input_event_client[id];
+                if (!event) break;
+                var resources = event.putin_event_resource || [];
+                for (var r = 0; r < resources.length; r++) {
+                    var res = data.resource_input && data.resource_input[resources[r]];
+                    var type = res && resourceTypes[res.putin_resource_type];
+                    var amount = LocalNative.questScaledResAmount(res, playerLevel);
+                    if (type && amount > 0) out.push([type, amount]);
+                }
+                var items = event.putin_event_item || [];
+                for (var i = 0; i < items.length; i++) {
+                    var item = data.item_input && data.item_input[items[i]];
+                    // All original daily quest item events are fixed, not rolled.
+                    if (item && Number(item.item_id) > 0 && Number(item.item_num) > 0)
+                        out.push([19, {typeid: Number(item.item_id), num: Number(item.item_num)}]);
+                }
+                id = event.putin_event_next;
+            }
+            return out;
+        };
+
+        LocalNative.ensureQuestRewardPreviews = function(player) {
+            var changed = false, lv = LocalNative.questPlayerLevel({player: player});
+            function fill(current, table) {
+                if (!current || !table) return;
+                for (var id in current) {
+                    if (!Object.prototype.hasOwnProperty.call(current, id) || !table[id] ||
+                        !current[id] || typeof current[id] !== 'object') continue;
+                    var rewards = LocalNative.previewQuestRewards(table[id].mt_putin, lv);
+                    // The stock client uses zero for these targets until the server
+                    // supplies current[id].max. Preserve any existing server target.
+                    var row = current[id], fields = ['mt_coin', 'mt_solar'];
+                    for (var f = 0; f < fields.length; f++) {
+                        var field = fields[f];
+                        if (!(Number(table[id][field]) > 0)) continue;
+                        if (!row.max) row.max = {};
+                        if (!(Number(row.max[field]) > 0)) {
+                            row.max[field] = Number(table[id][field]);
+                            changed = true;
+                        }
+                    }
+                    if (JSON.stringify(current[id].reward) !== JSON.stringify(rewards)) {
+                        current[id].reward = rewards;
+                        changed = true;
+                    }
+                }
+            }
+            var counters = player.event_counters || {};
+            for (var group in counters) {
+                for (var period in counters[group]) {
+                    var bucket = counters[group][period];
+                    fill(bucket && bucket.d && bucket.d.current, data.daily_task);
+                }
+            }
+            var main = player.main_quest || {};
+            for (var root in main) fill(main[root] && main[root].current, data.main_task);
+            return changed;
+        };
+
+        LocalNative.ensureDailyQuestBucket = function(level, rootQuestId) {
+            var cfg = data.daily_task && data.daily_task[rootQuestId];
+            var periodId = cfg && Number(cfg.reset_period);
+            var periodCfg = periodId && data.period_control && data.period_control[periodId];
+            if (!cfg || !periodId || !periodCfg) throw new Error('Missing daily quest period');
+            var ptype = Number(periodCfg.period_type) || 1;
+            var counters = level.player.event_counters || (level.player.event_counters = {});
+            var group = counters[ptype] || (counters[ptype] = {});
+            var entry = group[periodId] || (group[periodId] = {c: 0, t: Math.floor(Date.now() / 1000)});
+            if (!entry.d || typeof entry.d !== 'object') entry.d = {};
+            if (!entry.d.current || typeof entry.d.current !== 'object') entry.d.current = {};
+            if (!entry.clientData || typeof entry.clientData !== 'object') entry.clientData = {};
+            return {periodId: periodId, ptype: ptype, entry: entry, cfg: cfg};
+        };
+
+        // Stock server seeds DER.current / main_quest on login. Offline saves had
+        // empty maps, so GameEventsLayer.refreshDailyQuest painted an empty list.
+        LocalNative.seedDailyQuestRoots = function(player) {
+            var roots = data.daily_task && data.daily_task.game_event_roots &&
+                data.daily_task.game_event_roots.game_event_roots;
+            if (!player || !roots || !data.period_control) return false;
+            var changed = false, now = Math.floor(Date.now() / 1000), i;
+            if (!(Number(player.last_update_time) > 0)) {
+                player.last_update_time = now;
+                changed = true;
+            }
+            for (i = 0; i < roots.length; i++) {
+                var rootId = roots[i], cfg = data.daily_task[rootId];
+                var periodId = cfg && Number(cfg.reset_period);
+                var periodCfg = periodId && data.period_control[periodId];
+                if (!cfg || !periodCfg) continue;
+                var ptype = Number(periodCfg.period_type) || 1;
+                var counters = player.event_counters || (player.event_counters = {});
+                var group = counters[ptype] || (counters[ptype] = {});
+                var entry = group[periodId];
+                if (!entry) {
+                    entry = group[periodId] = {c: 0, t: now, d: {current: {}}, clientData: {}};
+                    changed = true;
+                }
+                if (!entry.d || typeof entry.d !== 'object') {
+                    entry.d = {};
+                    changed = true;
+                }
+                if (!entry.d.current || typeof entry.d.current !== 'object') {
+                    entry.d.current = {};
+                    changed = true;
+                }
+                // Finished today → last set and current cleared; do not re-seed.
+                if (!Object.keys(entry.d.current).length && !entry.d.last) {
+                    entry.d.current[rootId] = {};
+                    entry.t = now;
+                    changed = true;
+                }
+            }
+            return changed;
+        };
+
+        LocalNative.seedMainQuestRoots = function(player) {
+            if (!player || !data.main_task) return false;
+            var roots = data.main_task.game_event_roots &&
+                data.main_task.game_event_roots.game_event_roots;
+            if (!roots || !roots.length) roots = [300201];
+            var changed = false, i;
+            if (!player.main_quest || typeof player.main_quest !== 'object') {
+                player.main_quest = {};
+                changed = true;
+            }
+            if (player.finish_main_quest_timestamp == null) {
+                player.finish_main_quest_timestamp = 0;
+                changed = true;
+            }
+            for (i = 0; i < roots.length; i++) {
+                var rootId = roots[i];
+                if (!data.main_task[rootId]) continue;
+                var slot = player.main_quest[rootId];
+                if (!slot || typeof slot !== 'object') {
+                    player.main_quest[rootId] = {current: {}};
+                    player.main_quest[rootId].current[rootId] = {};
+                    changed = true;
+                    continue;
+                }
+                if (!slot.current || typeof slot.current !== 'object') {
+                    slot.current = {};
+                    changed = true;
+                }
+                if (!Object.keys(slot.current).length && !slot.last) {
+                    slot.current[rootId] = {};
+                    changed = true;
+                }
+            }
+            return changed;
+        };
+
+        LocalNative.ensureQuestProgressSeeded = function(levelOrPlayer) {
+            var player = levelOrPlayer && levelOrPlayer.player ? levelOrPlayer.player : levelOrPlayer;
+            if (!player) return false;
+            var daily = LocalNative.seedDailyQuestRoots(player);
+            var main = LocalNative.seedMainQuestRoots(player);
+            var rewards = LocalNative.ensureQuestRewardPreviews(player);
+            return daily || main || rewards;
+        };
+
+        LocalNative.applyQuestSeedToLive = function(player, level) {
+            if (!player || !level || !level.player) return false;
+            var der = player.getComponent && player.getComponent('DailyEventRecorder');
+            if (der && level.player.event_counters) {
+                der.event_counters = JSON.parse(JSON.stringify(level.player.event_counters));
+                der.last_update_time = level.player.last_update_time ||
+                    Math.floor(Date.now() / 1000);
+            }
+            var qm = player.getComponent && player.getComponent('QuestManager');
+            if (qm && level.player.main_quest) {
+                qm.main_quest = JSON.parse(JSON.stringify(level.player.main_quest));
+                qm.finish_main_quest_timestamp =
+                    level.player.finish_main_quest_timestamp || 0;
+            }
+            return true;
+        };
+
+        LocalNative.ensureLiveQuestSeed = function() {
+            try {
+                if (typeof G_Player !== 'undefined' &&
+                    LocalNative._questSeededPlayer === G_Player)
+                    LocalNative.saveLiveQuestProgress(G_Player);
+                var store = LocalNative.readRaw();
+                if (!store || !store.level || !store.level.player) return false;
+                var changed = LocalNative.ensureQuestProgressSeeded(store.level);
+                if (changed) LocalNative.writeRaw(store);
+                if (typeof G_Player !== 'undefined' && G_Player) {
+                    LocalNative.applyQuestSeedToLive(G_Player, store.level);
+                    LocalNative._questSeededPlayer = G_Player;
+                }
+                return changed;
+            } catch (eSeed) {
+                LocalNative.writeStatus({step: 'quest-seed-ERR', error: String(eSeed)});
+                return false;
+            }
+        };
+
+        LocalNative.saveLiveQuestProgress = function(player) {
+            var der = player && player.getComponent('DailyEventRecorder');
+            if (!der || !der.event_counters) return;
+            var store = LocalNative.readRaw();
+            if (!store || !store.level || !store.level.player) return;
+            store.level.player.event_counters = JSON.parse(JSON.stringify(der.event_counters));
+            store.level.player.last_update_time = der.last_update_time;
+            var qm = player.getComponent('QuestManager');
+            if (qm && qm.main_quest)
+                store.level.player.main_quest = JSON.parse(JSON.stringify(qm.main_quest));
+            LocalNative.ensureQuestRewardPreviews(store.level.player);
+            LocalNative.writeRaw(store);
+        };
+
+        LocalNative.installDailyQuestProgress = function(qm) {
+            if (!qm || qm.__localDailyProgress) return;
+            qm.__localDailyProgress = true;
+            var normal = qm._updateNormalField;
+            if (typeof normal === 'function') qm._updateNormalField = function(field, num, quest, cfg, type) {
+                if (type !== DAILY_QUEST) return normal.apply(this, arguments);
+                // Main counters are client-owned; daily counters were server-owned.
+                if (Number(num) > 0 && isFinite(Number(num)))
+                    quest[0][field] = (Number(quest[0][field]) || 0) + Number(num);
+            };
+            var warrior = qm._update_mt_warrior_cb;
+            if (typeof warrior === 'function') qm._update_mt_warrior_cb = function(soldier, num, quest, cfg, type) {
+                // Reuse stock total/type-specific accumulation, which otherwise
+                // runs only for MAIN_QUEST. The outer update still owns UI type.
+                return warrior.call(this, soldier, num, quest, cfg,
+                    type === DAILY_QUEST ? MAIN_QUEST : type);
+            };
+            function refresh(manager, field) {
+                var ids = data.daily_task[field] && data.daily_task[field].ids || [];
+                for (var i = 0; i < ids.length; i++)
+                    manager._checkAndSetDailyQuestFinishStatus(ids[i]);
+            }
+            ['updateCurrent', 'update_mt_warrior'].forEach(function(name) {
+                var original = qm[name];
+                if (typeof original !== 'function') return;
+                qm[name] = function() {
+                    try {
+                        var result = original.apply(this, arguments);
+                        refresh(this, name === 'updateCurrent' ? arguments[0] : 'mt_warrior');
+                        return result;
+                    } finally {
+                        LocalNative.saveLiveQuestProgress(G_Player);
+                    }
+                };
+            });
+            var finish = qm.finishDailyQuest;
+            if (typeof finish === 'function') qm.finishDailyQuest = function(id) {
+                var quest = this.getDailyQuest(id);
+                if (!quest || !this._canFinish(quest, data.daily_task[id])) return false;
+                // Stock clears DER before calling the RPC. Save the verified row
+                // first so the local server can validate and reject repeat claims.
+                LocalNative.saveLiveQuestProgress(G_Player);
+                return finish.apply(this, arguments);
+            };
+            var ids = data.daily_task.game_event_roots.game_event_roots || [];
+            for (var i = 0; i < ids.length; i++) {
+                var q = qm.getDailyQuest && qm.getDailyQuest(ids[i]);
+                if (q && q[1]) delete q[1].canFinish;
+            }
+        };
+
+        // Quiet DER write only. Never broadcast rpc_c_refresh_daily_event for every
+        // quest period: that invokes refreshDailyQuest → rpc_s_refresh_daily_quest
+        // → this path again and freezes the client.
+        LocalNative.syncQuestEventRecorder = function(player, level) {
+            var der = player && player.getComponent && player.getComponent('DailyEventRecorder');
+            if (!der || !level || !level.player || !level.player.event_counters) return;
+            der.event_counters = JSON.parse(JSON.stringify(level.player.event_counters));
+            if (level.player.last_update_time != null)
+                der.last_update_time = level.player.last_update_time;
+            else der.last_update_time = Math.floor(Date.now() / 1000);
+        };
+
+        LocalNative.nextDailyQuestIds = function(questId) {
+            var show = data.daily_task && data.daily_task.show_tasks &&
+                data.daily_task.show_tasks.show_tasks;
+            var next = show && show[questId];
+            return next && next.length ? next.slice() : [];
+        };
+
+        LocalNative.bumpDailyTasknum = function(level) {
+            var ids = data.daily_task && data.daily_task.mt_tasknum && data.daily_task.mt_tasknum.ids;
+            if (!ids || !ids.length) return;
+            for (var i = 0; i < ids.length; i++) {
+                var qid = ids[i];
+                var cfg = data.daily_task[qid];
+                if (!cfg) continue;
+                var bucket = LocalNative.ensureDailyQuestBucket(level, cfg.root_id || qid);
+                var cur = bucket.entry.d.current[qid];
+                if (!cur) continue;
+                cur.mt_tasknum = (Number(cur.mt_tasknum) || 0) + 1;
+            }
+        };
+
+        LocalNative.advanceDailyQuestCounter = function(level, field, amount) {
+            var ids = data.daily_task && data.daily_task[field] && data.daily_task[field].ids || [];
+            for (var i = 0; i < ids.length; i++) {
+                var cfg = data.daily_task[ids[i]];
+                if (!cfg) continue;
+                var bucket = LocalNative.ensureDailyQuestBucket(level, cfg.root_id || ids[i]);
+                var row = bucket.entry.d.current[ids[i]];
+                // Never resurrect claimed quests or create a future tier here.
+                if (!row) continue;
+                row[field] = (Number(row[field]) || 0) + amount;
+                var cache = bucket.entry.clientData.current;
+                if (cache && cache[ids[i]]) delete cache[ids[i]].canFinish;
+            }
+        };
+
+        LocalNative.syncQuestPackageAndWallet = function(player, level) {
+            LocalNative.syncSavedHomeWallet(level);
+            var pm = player && player.getComponent && player.getComponent('PackageManager');
+            if (pm && level.player['package'])
+                pm.init({'package': JSON.parse(JSON.stringify(level.player['package']))});
+        };
+
+        LocalNative.handleRefreshDailyQuest = function(player, params) {
+            if (LocalNative._questRpcBusy) return false;
+            LocalNative._questRpcBusy = true;
+            try {
+                var rootId = Number(params && params.root_quest_id);
+                if (!(rootId > 0) || !data.daily_task || !data.daily_task[rootId])
+                    throw new Error('Invalid daily quest root');
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var bucket = LocalNative.ensureDailyQuestBucket(level, rootId);
+                // Re-seed only when never finished today (empty current, no last).
+                if (!Object.keys(bucket.entry.d.current).length && !bucket.entry.d.last)
+                    bucket.entry.d.current[rootId] = {};
+                LocalNative.ensureQuestRewardPreviews(level.player);
+                bucket.entry.t = Math.floor(Date.now() / 1000);
+                LocalNative.writeRaw(store);
+                LocalNative.syncQuestEventRecorder(player, level);
+                player.rpc_c_refresh_daily_quest_ans({root_quest_id: rootId});
+                LocalNative.writeStatus({step: 'daily-quest-refresh', root: rootId});
+                return true;
+            } finally {
+                LocalNative._questRpcBusy = false;
+            }
+        };
+
+        LocalNative.handleFinishDailyQuest = function(player, params) {
+            if (LocalNative._questRpcBusy) return false;
+            LocalNative._questRpcBusy = true;
+            try {
+                var questId = Number(params && params.quest_id);
+                var cfg = data.daily_task && data.daily_task[questId];
+                if (!(questId > 0) || !cfg) throw new Error('Invalid daily quest');
+                var rootId = Number(cfg.root_id) || questId;
+                var savedStore = LocalNative.readRaw();
+                var savedBucket = LocalNative.ensureDailyQuestBucket(savedStore.level, rootId);
+                var savedQuest = savedBucket.entry.d.current[questId];
+                var manager = player.getComponent && player.getComponent('QuestManager');
+                if (!savedQuest || (manager && manager._canFinish &&
+                    !manager._canFinish([savedQuest, {}], cfg))) return false;
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var bucket = LocalNative.ensureDailyQuestBucket(level, rootId);
+                // Stock finishDailyQuest already deleted the finished id from live DER.
+                delete bucket.entry.d.current[questId];
+                bucket.entry.d.last = questId;
+                bucket.entry.t = Math.floor(Date.now() / 1000);
+                // Next show-task ids are separate roots with their own reset_period;
+                // seed each into its own DER bucket (not the finished root's current).
+                var nextIds = LocalNative.nextDailyQuestIds(questId), ansCurrent = {}, n;
+                for (n = 0; n < nextIds.length; n++) {
+                    var nextId = nextIds[n], nextCfg = data.daily_task[nextId];
+                    if (!nextCfg) continue;
+                    var nextRoot = Number(nextCfg.root_id) || nextId;
+                    var nextBucket = LocalNative.ensureDailyQuestBucket(level, nextRoot);
+                    nextBucket.entry.d.current[nextId] = {reward: LocalNative.previewQuestRewards(
+                        nextCfg.mt_putin, LocalNative.questPlayerLevel(level, player))};
+                    nextBucket.entry.t = Math.floor(Date.now() / 1000);
+                    ansCurrent[nextId] = nextBucket.entry.d.current[nextId];
+                }
+                LocalNative.bumpDailyTasknum(level);
+                var reward = LocalNative.collectQuestPutinRewards(level, cfg.mt_putin,
+                    LocalNative.questPlayerLevel(level, player));
+                LocalNative.ensureQuestRewardPreviews(level.player);
+                LocalNative.writeRaw(store);
+                LocalNative.syncQuestEventRecorder(player, level);
+                player.rpc_c_finish_daily_quest_ans({
+                    reward: reward,
+                    root_quest_id: rootId,
+                    current: ansCurrent
+                });
+                // The local server advanced mt_tasknum; ask stock notification/UI
+                // code to re-evaluate its cached state without adding another count.
+                if (manager && manager.updateCurrent) manager.updateCurrent('mt_tasknum', 0);
+                LocalNative.syncQuestPackageAndWallet(player, level);
+                LocalNative.writeStatus({
+                    step: 'daily-quest-finish', quest: questId, root: rootId,
+                    next: nextIds, rewardTypes: reward.map(function(row) { return row[0]; })
+                });
+                return true;
+            } finally {
+                LocalNative._questRpcBusy = false;
+            }
+        };
+
+        LocalNative.handleFinishMainQuest = function(player, params) {
+            if (LocalNative._questRpcBusy) return false;
+            LocalNative._questRpcBusy = true;
+            try {
+                var questId = Number(params && params.quest_id);
+                var cfg = data.main_task && data.main_task[questId];
+                if (!(questId > 0) || !cfg) throw new Error('Invalid main quest');
+                var rootId = Number(cfg.root_id) || questId;
+                var store = LocalNative.shopTransaction(player), level = store.level;
+                var qmLive = player.getComponent && player.getComponent('QuestManager');
+                // Stock finishMainQuest already cleared the live QM entry; prefer it.
+                if (qmLive && qmLive.main_quest)
+                    level.player.main_quest = JSON.parse(JSON.stringify(qmLive.main_quest));
+                if (!level.player.main_quest) level.player.main_quest = {};
+                var slot = level.player.main_quest[rootId] ||
+                    (level.player.main_quest[rootId] = {current: {}});
+                if (!slot.current || typeof slot.current !== 'object') slot.current = {};
+                delete slot.current[questId];
+                slot.last = questId;
+                // main_task.show_tasks is empty in stock data; chain is cfg.mt_next.
+                var nextIds = (cfg.mt_next && cfg.mt_next.length) ? cfg.mt_next.slice() : [], n;
+                for (n = 0; n < nextIds.length; n++) {
+                    if (data.main_task[nextIds[n]]) slot.current[nextIds[n]] = {
+                        reward: LocalNative.previewQuestRewards(data.main_task[nextIds[n]].mt_putin,
+                            LocalNative.questPlayerLevel(level, player))};
+                }
+                var reward = [];
+                if (cfg.mt_putin)
+                    reward = LocalNative.collectQuestPutinRewards(level, cfg.mt_putin,
+                        LocalNative.questPlayerLevel(level, player));
+                level.player.finish_main_quest_timestamp =
+                    Math.floor(Date.now() / 1000);
+                LocalNative.writeRaw(store);
+                var qm = player.getComponent && player.getComponent('QuestManager');
+                if (qm) {
+                    qm.main_quest = JSON.parse(JSON.stringify(level.player.main_quest));
+                    qm.finish_main_quest_timestamp = level.player.finish_main_quest_timestamp;
+                }
+                player.rpc_c_finish_main_quest_ans({
+                    reward: reward,
+                    root_quest_id: rootId,
+                    current: JSON.parse(JSON.stringify(slot.current))
+                });
+                LocalNative.syncQuestPackageAndWallet(player, level);
+                LocalNative.writeStatus({step: 'main-quest-finish', quest: questId, root: rootId});
+                return true;
+            } finally {
+                LocalNative._questRpcBusy = false;
+            }
+        };
+
+        LocalNative.handleChangeNickname = function(player, params) {
+            var nickname = params && params.nickname;
+            var store = LocalNative.readRaw();
+            if (!store || !store.level || !store.level.player ||
+                typeof nickname !== 'string' || !nickname.replace(/\s/g, '').length) {
+                player.rpc_c_change_nickname_failed({msg: 'nickname_null'});
+                return false;
+            }
+            // The stock Rename UI already validates length and allowed characters.
+            var saved = store.level.player;
+            var free = Number(saved.nickname_free) || 0;
+            // Same request may be delivered again; never charge twice.
+            if (saved.nickname !== nickname || free > 0) {
+                if (free > 0) free--;
+                else {
+                    var rm = LocalNative.getResourceManager();
+                    if (typeof NICKNAME_CHANGE_COST === 'undefined' || !rm ||
+                        !rm.useRes(NICKNAME_CHANGE_COST, RES_TYPE_DIAMOND)) {
+                        player.rpc_c_change_nickname_failed({msg: 'notice_1'});
+                        return false;
+                    }
+                    if (rm.Res) saved.diamond = rm.Res[RES_TYPE_DIAMOND];
+                }
+                saved.nickname = nickname;
+                saved.nickname_free = free;
+                LocalNative.writeRaw(store);
+            }
+            player.rpc_c_change_nickname_ans({nickname: saved.nickname, nickname_free: saved.nickname_free});
+            LocalNative.writeStatus({step: 'change-nickname-ok', nickname: saved.nickname,
+                nickname_free: saved.nickname_free});
+            return true;
+        };
+
         LocalNative.installCallServer = function(player) {
             if (!player || player.__localNativeCallServer) return;
             var orig = player.callServer ? player.callServer.bind(player) : null;
@@ -3853,6 +9850,197 @@
                 } catch (e) {}
                 LocalNative.callLog.push(entry);
                 if (LocalNative.callLog.length > 80) LocalNative.callLog.shift();
+
+                if (methodName === 'rpc_s_dispatch_soldier')
+                    return LocalNative.handleDispatchSoldier(params || {});
+
+                if (methodName === 'rpc_s_enter_arena_battle' || methodName === 'rpc_s_gain_arena_rewards') {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleArenaRpc(player, methodName);
+                    }, 0);
+                    return true;
+                }
+                if (LocalNative.arenaSession && !LocalNative.arenaSession.closed) {
+                    if (methodName === 'rpc_s_complete_battle' || methodName === 'rpc_s_complete_pve_battle') {
+                        LocalNative.scheduleOnRoot(function() {
+                            LocalNative.completeArenaBattle(player, false);
+                        }, 0);
+                        return true;
+                    }
+                    if (methodName === 'rpc_s_battle_to_home' || methodName === 'rpc_s_leave_battle') {
+                        LocalNative.scheduleOnRoot(function() {
+                            LocalNative.arenaBattleToHome(player, methodName === 'rpc_s_leave_battle');
+                        }, 0);
+                        return true;
+                    }
+                    if (methodName === 'rpc_s_pve_battle_start' ||
+                        methodName === 'rpc_s_set_intermediate_battle_result') return true;
+                }
+
+                if (methodName === 'rpc_s_refresh_sign_rewards' || methodName === 'rpc_s_set_sign_show_times' ||
+                    methodName === 'rpc_s_get_sign_reward' || methodName === 'rpc_s_retroactive_sign_reward') {
+                    LocalNative.scheduleOnRoot(function() {
+                        try {
+                            if (methodName === 'rpc_s_get_sign_reward')
+                                LocalNative.handleMonthlySignReward(player, params || {});
+                            else {
+                                LocalNative.refreshMonthlySign(player, methodName === 'rpc_s_set_sign_show_times');
+                                if (methodName === 'rpc_s_retroactive_sign_reward' && UI.Waiting)
+                                    UI.Waiting.getInstance().cancelWait('rpc_s_retroactive_sign_reward', true);
+                            }
+                        } catch (eMonthly) {
+                            LocalNative.syncMonthlySign(player, LocalNative.readRaw().level);
+                            LocalNative.writeStatus({step: 'monthly-sign-ERR', error: String(eMonthly)});
+                        }
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_get_rookie_sign_reward') {
+                    LocalNative.scheduleOnRoot(function() {
+                        try { LocalNative.handleRookieSignReward(player); }
+                        catch (eSign) {
+                            LocalNative.syncRookieSign(player, LocalNative.readRaw().level);
+                            LocalNative.writeStatus({step: 'rookie-sign-claim-ERR', error: String(eSign)});
+                        }
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_request_chat_and_letter') {
+                    LocalNative.scheduleOnRoot(function() {
+                        var letterStore = LocalNative.readRaw();
+                        LocalNative.ensureWelcomeLetter(letterStore.level.player);
+                        LocalNative.writeRaw(letterStore);
+                        player.rpc_c_load_letter({letters: letterStore.level.player.letters || [],
+                            sys_letters: letterStore.level.player.sys_letters || []});
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_gain_letter_reward' && params &&
+                    params.letter_id === 'local_goddess_newbie_gift') {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleWelcomeLetterReward(player, params);
+                    }, 0);
+                    return true;
+                }
+
+                if (methodName === 'rpc_s_refresh_trader' || methodName === 'rpc_s_reset_trader' ||
+                    methodName === 'rpc_s_trader_buy' || methodName === 'rpc_s_coin_exchange' ||
+                    methodName === 'rpc_s_buy_coin_shop_item') {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.runTraderRequest(player, methodName, params || {});
+                    }, 0);
+                    return true;
+                }
+
+                if (methodName === 'rpc_s_drawcard' || methodName === 'rpc_s_gain_drawcard' ||
+                    methodName === 'rpc_s_dismiss_drawcard' || methodName === 'rpc_s_buy_package' ||
+                    methodName === 'rpc_s_use_item' || methodName === 'rpc_s_compose_item_inputevent' ||
+                    methodName === 'rpc_s_buy_package_slot' || methodName === 'rpc_s_compose_equipment') {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.runShopRequest(player, methodName, params || {});
+                    }, 0);
+                    return true;
+                }
+
+                if (methodName === 'rpc_s_change_nickname') {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleChangeNickname(player, params || {});
+                    }, 0);
+                    return true;
+                }
+
+                if (methodName === 'rpc_s_finish_daily_quest' ||
+                    methodName === 'rpc_s_refresh_daily_quest' ||
+                    methodName === 'rpc_s_finish_main_quest') {
+                    LocalNative.scheduleOnRoot(function() {
+                        try {
+                            if (methodName === 'rpc_s_finish_daily_quest')
+                                LocalNative.handleFinishDailyQuest(player, params || {});
+                            else if (methodName === 'rpc_s_refresh_daily_quest')
+                                LocalNative.handleRefreshDailyQuest(player, params || {});
+                            else LocalNative.handleFinishMainQuest(player, params || {});
+                        } catch (eQuest) {
+                            LocalNative.shopSync(player, LocalNative.readRaw().level);
+                            LocalNative.writeStatus({
+                                step: 'quest-rpc-ERR', method: methodName, error: String(eQuest)
+                            });
+                            if (typeof G_MainController !== 'undefined')
+                                G_MainController.setNotice(String(eQuest));
+                        }
+                    }, 0);
+                    return true;
+                }
+
+                if (methodName === 'rpc_s_enter_battle' || methodName === 'rpc_s_enter_next_battle') {
+                    LocalNative.writeStatus({step: 'callServer-' + methodName});
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleEnterPvpBattle(player);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_complete_battle' && LocalNative.pvpSession &&
+                    !LocalNative.pvpSession.closed) {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleCompletePvpBattle(player);
+                    }, 0);
+                    return true;
+                }
+                if ((methodName === 'rpc_s_battle_to_home' || methodName === 'rpc_s_leave_battle') &&
+                    LocalNative.pvpSession && !LocalNative.pvpSession.closed) {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handlePvpBattleToHome(player);
+                    }, 0);
+                    return true;
+                }
+
+                // Stock state/index updates are optimistic; replace only their
+                // server persistence and never finish Rookie processes manually.
+                if (methodName === 'rpc_s_reincarnate_hero') {
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleHeroReincarnate(player, params || {});
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_swallow_heros')
+                    return LocalNative.handleHeroSwallow(player, params || {});
+                if (methodName === 'rpc_s_promote') {
+                    var promoteParams = params || {};
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleHeroPromote(player, promoteParams);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_train_tech' || methodName === 'rpc_s_finish_training_now') {
+                    var techParams = params || {}, techMethod = methodName;
+                    LocalNative.scheduleOnRoot(function() {
+                        if (techMethod === 'rpc_s_train_tech') LocalNative.handleTrainTech(player, techParams);
+                        else LocalNative.finishResearch(player, techParams.tech_id);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_put_on_equipment' || methodName === 'rpc_s_take_off_equipment' ||
+                    methodName === 'rpc_s_replace_equipment')
+                    return LocalNative.persistHeroEquipment(params || {});
+                if (methodName === 'rpc_s_set_hero_defense')
+                    return LocalNative.applyHeroDefense(params || {});
+                if (methodName === 'rpc_s_set_hero_state' || methodName === 'rpc_s_set_attack_index') {
+                    var heroStore = LocalNative.readRaw();
+                    var heroParams = params || {};
+                    var roster = heroStore && heroStore.level && heroStore.level.heros || [];
+                    for (var hr = 0; hr < roster.length; hr++) {
+                        if (String(roster[hr].sid) !== String(heroParams.uid)) continue;
+                        if (methodName === 'rpc_s_set_hero_state') {
+                            roster[hr].state = heroParams.heroState;
+                            if (heroParams.heroState !== 1) roster[hr].aidx = -1;
+                        } else roster[hr].aidx = heroParams.attack_index;
+                        LocalNative.writeRaw(heroStore);
+                        LocalNative.writeStatus({step: 'hero-assignment-saved', sid: roster[hr].sid,
+                            state: roster[hr].state, aidx: roster[hr].aidx});
+                        return true;
+                    }
+                    LocalNative.writeStatus({step: 'hero-assignment-missing', uid: heroParams.uid});
+                    return false;
+                }
 
                 if (methodName === 'rpc_s_set_user_config') {
                     var patch = params;
@@ -3892,14 +10080,17 @@
                     });
                     LocalNative.scheduleOnRoot(function() {
                         try {
-                            var pending = LocalNative.findPendingBuildUnit();
+                            // The request CID identifies the purchase. activeBuilder can
+                            // change before this scheduled response and may be an old unit.
+                            var pending = pB.cid != null ? G_UnitManager.getUnit(pB.cid) :
+                                LocalNative.findPendingBuildUnit();
+                            var purchaseBuilder = LocalNative.getBuildingBuilder(pending);
+                            if (!purchaseBuilder || purchaseBuilder.state !== BUILD_STATE_BUILDING ||
+                                (pB.typeid != null && Number(pending.typeid) !== Number(pB.typeid)))
+                                throw new Error('Purchase target missing or mismatched CID: ' + pB.cid);
                             var cid = pB.cid != null ? pB.cid :
                                 (pending && (pending.cid != null ? pending.cid :
                                     (pending.getCID ? pending.getCID() : null)));
-                            if (!pending && cid != null && typeof G_UnitManager !== 'undefined' &&
-                                G_UnitManager && typeof G_UnitManager.getUnit === 'function') {
-                                try { pending = G_UnitManager.getUnit(cid); } catch (eGu) {}
-                            }
                             var sid = (pB.sid != null ? pB.sid :
                                 (pB.unit != null && typeof pB.unit === 'number' ? pB.unit : null));
                             if (sid == null) sid = LocalNative.allocateSid();
@@ -3912,6 +10103,7 @@
                                 // Stock: GETCGC / getUnit(cid) → setSid(dict.unit). unit = server sid.
                                 selfB.rpc_c_ans_build({
                                     success: true,
+                                    id: sid,
                                     unit: sid,
                                     cid: cid,
                                     typeid: typeid
@@ -3974,6 +10166,14 @@
                     return true;
                 }
 
+                if (methodName === 'rpc_s_upgrade_walls') {
+                    var wallRowPlayer = player, wallRowParams = params;
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleUpgradeWalls(wallRowPlayer, wallRowParams);
+                    }, 0);
+                    return true;
+                }
+
                 // Upgrade start (original rpc_s_build_update) / legacy aliases.
                 if (methodName === 'rpc_s_build_update' || methodName === 'rpc_s_upgrade' ||
                     methodName === 'rpc_s_building_upgrade') {
@@ -3986,15 +10186,22 @@
                     });
                     LocalNative.scheduleOnRoot(function() {
                         try {
-                            var sidU = pU.sid != null ? pU.sid :
-                                (pU.unit != null && typeof pU.unit === 'number' ? pU.unit : null);
-                            if (sidU == null && LocalNative.activeBuilder && LocalNative.activeBuilder.master)
-                                sidU = LocalNative.activeBuilder.master.sid;
-                            if (typeof selfU.rpc_c_ans_building_upgrade === 'function') {
-                                selfU.rpc_c_ans_building_upgrade({success: true, unit: sidU});
+                            var targetU = LocalNative.resolveBuildTarget(pU);
+                            var sidU = targetU.sid;
+                            var pendingU = targetU.unit;
+                            if (!pendingU || sidU == null) throw new Error('Upgrade building not found');
+                            var upgradeTicket = {
+                                sid: sidU, cid: targetU.cid,
+                                targetType: Number(pendingU.typeid) + 1
+                            };
+                            if (!LocalNative.lookupUnitMain(upgradeTicket.targetType))
+                                throw new Error('Missing upgrade configuration ' + upgradeTicket.targetType);
+                            LocalNative.pendingBuilds[sidU] = upgradeTicket;
+                            LocalNative.completedSids[sidU] = false;
+                            if (typeof selfU.rpc_c_ans_building_upgrade === 'function' && pendingU) {
+                                selfU.rpc_c_ans_building_upgrade({success: true,
+                                    cid: targetU.cid, id: sidU});
                             }
-                            var pendingU = sidU != null && G_UnitManager && G_UnitManager.getUnitBySID
-                                ? G_UnitManager.getUnitBySID(sidU) : LocalNative.findPendingBuildUnit();
                             var buildTimeU = LocalNative.resolveBuildTime(
                                 pU.typeid || (pendingU && pendingU.typeid), pendingU);
                             LocalNative.writeStatus({
@@ -4008,6 +10215,7 @@
                                     LocalNative.ackBuildComplete(selfU, sidU, 'upgrade-immediate');
                                 } else {
                                     LocalNative.scheduleOnRoot(function() {
+                                        if (LocalNative.pendingBuilds[sidU] !== upgradeTicket) return;
                                         LocalNative.ackBuildComplete(selfU, sidU, 'upgrade-timer');
                                     }, buildTimeU);
                                 }
@@ -4077,6 +10285,52 @@
                 // Network tick / logout etc.: ignore offline.
                 if (methodName === 'rpc_s_network_tick' || methodName === 'rpc_s_logout')
                     return true;
+
+                // Little Green Dragon Invasion (小绿龙入侵).
+                if (methodName === 'rpc_s_enter_invasion') {
+                    var selfInv = player;
+                    LocalNative.writeStatus({step: 'callServer-rpc_s_enter_invasion'});
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleEnterInvasion(selfInv, {});
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_invasion_wave_ready') {
+                    var selfWr = player;
+                    LocalNative.writeStatus({step: 'callServer-rpc_s_invasion_wave_ready'});
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleInvasionWaveReady(selfWr, {});
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_invasion_wave_start') {
+                    LocalNative.writeStatus({step: 'callServer-rpc_s_invasion_wave_start'});
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleInvasionWaveStart(player, params || {});
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_invasion_wave_end') {
+                    var selfWe = player;
+                    var pWe = params || {};
+                    LocalNative.writeStatus({
+                        step: 'callServer-rpc_s_invasion_wave_end',
+                        succeed: !!(pWe && pWe.succeed)
+                    });
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleInvasionWaveEnd(selfWe, pWe);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_leave_invasion' ||
+                    methodName === 'rpc_s_invasion_to_home') {
+                    var selfIh = player;
+                    LocalNative.writeStatus({step: 'callServer-' + methodName});
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleInvasionToHome(selfIh, {});
+                    }, 0);
+                    return true;
+                }
 
                 // Rookie story after first bunker: start_replay_pve → enemy attack replay (stage 20001).
                 if (methodName === 'rpc_s_enter_enemy_attack_replay') {
@@ -4190,6 +10444,24 @@
                 }
 
                 // Campaign chapter map → PVEInfo 进击.
+                if (methodName === 'rpc_s_get_pve_egg') {
+                    return LocalNative.handlePveMapEgg(player, params || {});
+                }
+                if (methodName === 'rpc_s_pve_sweep') {
+                    var selfSweep = player;
+                    var pSweep = params || {};
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handlePveSweep(selfSweep, pSweep);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_refresh_sweepinfo') {
+                    var selfRefSweep = player;
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleRefreshSweepInfo(selfRefSweep);
+                    }, 0);
+                    return true;
+                }
                 if (methodName === 'rpc_s_enter_pve_battle') {
                     var selfPve = player;
                     var pPve = params || {};
@@ -4201,6 +10473,53 @@
                     });
                     LocalNative.scheduleOnRoot(function() {
                         LocalNative.handleEnterPveBattle(selfPve, pPve);
+                    }, 0);
+                    return true;
+                }
+
+                // Wild Adventure (荒野探险): search animation waits on enter ans.
+                if (methodName === 'rpc_s_enter_dice_event') {
+                    var selfAdv = player;
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleEnterDiceEvent(selfAdv);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_reset_dice_event1') {
+                    return LocalNative.handleResetDiceEvent1(player);
+                }
+                if (methodName === 'rpc_s_clear_dice_event1_interval') {
+                    return LocalNative.handleClearDiceEvent1Interval(player);
+                }
+                if (methodName === 'rpc_s_dice_event2_do_torture') {
+                    var selfTor = player;
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleDiceEvent2Torture(selfTor);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_dice_event2_do_release') {
+                    var selfRel = player;
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleDiceEvent2Release(selfRel);
+                    }, 0);
+                    return true;
+                }
+                if (methodName === 'rpc_s_load_dice_event1_pve') {
+                    return LocalNative.handleLoadDiceEvent1Pve(player);
+                }
+                if (methodName === 'rpc_s_refresh_wanted' || methodName === 'rpc_s_reset_wanted' ||
+                    methodName === 'rpc_s_reset_wanted_time' || methodName === 'rpc_s_load_hunter_pve' ||
+                    methodName === 'rpc_s_get_help_for_wanted' ||
+                    methodName === 'rpc_s_get_reward_after_hunter_pve' ||
+                    (methodName === 'rpc_s_run_server_trigger' && LocalNative.pveSession &&
+                        LocalNative.pveSession.localNativeWanted))
+                {
+                    if (methodName === 'rpc_s_run_server_trigger')
+                        return LocalNative.handleWantedRpc(player, methodName, params);
+                    var wantedMethod = methodName, wantedParams = params, wantedPlayer = player;
+                    LocalNative.scheduleOnRoot(function() {
+                        LocalNative.handleWantedRpc(wantedPlayer, wantedMethod, wantedParams);
                     }, 0);
                     return true;
                 }
@@ -4307,7 +10626,8 @@
                 'diamond', 'spirit', 'league_points', 'christmas_points', 'frozen_d', 'unfrozen_t',
                 'exp', 'experience', 'new_message', 'login_warn_attack_num', 'unlooked_attack_num',
                 'letters', 'sys_letters', 'letter_paper_num', 'last_send_letter_time',
-                'update_info', 'battle_recorders'
+                'update_info', 'battle_recorders', 'main_quest', 'finish_main_quest_timestamp',
+                'hero_slot_num', 'hero_slot_buy_num', 'achieve_raw', 'gained_achieve'
             ];
             for (var i = 0; i < keys.length; i++) {
                 var k = keys[i];
@@ -4407,6 +10727,30 @@
                     }
                 }
             } catch (eBR) {}
+            try {
+                LocalNative.ensureQuestManagerSafe();
+                LocalNative.ensureLiveQuestSeed();
+            } catch (eQuest) {
+                LocalNative.writeStatus({step: 'quest-component-seed-ERR', error: String(eQuest)});
+            }
+            try {
+                var am = player.getComponent('AdventureManager');
+                if (am) {
+                    var savedAdv = null;
+                    try {
+                        var rawAdv = LocalNative.readRaw();
+                        savedAdv = rawAdv && rawAdv.level && LocalNative.readAdventureState(rawAdv.level);
+                    } catch (eReadAdv) {}
+                    if (am.adventure_status == null)
+                        am.adventure_status = savedAdv ? savedAdv.adventure_status : 0;
+                    if (am.dice_event2_id == null)
+                        am.dice_event2_id = savedAdv ? savedAdv.dice_event2_id : 0;
+                    if (am.dice_event2_cost == null)
+                        am.dice_event2_cost = savedAdv ? savedAdv.dice_event2_cost : 0;
+                }
+            } catch (eAdv) {
+                LocalNative.writeStatus({step: 'adventure-component-seed-ERR', error: String(eAdv)});
+            }
         };
 
         LocalNative.lastBuildingCount = 0;
@@ -4753,6 +11097,15 @@
                 // The response crosses scenes; an old-root close timer may be
                 // removed during the transition. Confirm closure on the new home.
                 LocalNative.closeLocalRaidSessionOnHome(gc);
+                LocalNative.scheduleOnRoot(function() {
+                    if (GS_CURRENT_STAGE === GS_STAGE_BUILD) {
+                        var signStore = LocalNative.readRaw();
+                        LocalNative.syncRookieSign(G_Player, signStore.level);
+                        LocalNative.syncMonthlySign(G_Player, signStore.level);
+                        LocalNative.writeRaw(signStore);
+                        LocalNative.startRookieSignClock(gc);
+                    }
+                }, 1);
                 try { LocalNative.refreshHud(); } catch (eHud) {}
                 try { LocalNative.maybeRetestEnemyAttack(); } catch (eRetest) {}
                 try {
@@ -4767,7 +11120,35 @@
                     LocalNative.writeStatus({step: 'seed-starter-res-throw', error: String(eSeed2)});
                 }
                 try { LocalNative.resumeConstructions(G_Player); } catch (eResu) {}
+                try { LocalNative.startResearchClock(); } catch (eTechClock) {}
+                // Earlier request may arrive before BUILD; stock load ACK ignores
+                // that stage. Supply letters again only after home initialization.
+                LocalNative.scheduleOnRoot(function() {
+                    if (GS_CURRENT_STAGE !== GS_STAGE_BUILD) return;
+                    var mailStore = LocalNative.readRaw();
+                    LocalNative.ensureWelcomeLetter(mailStore.level.player);
+                    LocalNative.writeRaw(mailStore);
+                    if (mailStore.level.player.localWelcomeGiftClaimed &&
+                        !mailStore.level.player.localWelcomeGiftReceiptV2) {
+                        LocalNative.handleWelcomeLetterReward(G_Player, {letter_id:'local_goddess_newbie_gift'});
+                        mailStore = LocalNative.readRaw();
+                    }
+                    G_Player.rpc_c_load_letter({letters: mailStore.level.player.letters || [],
+                        sys_letters: mailStore.level.player.sys_letters || []});
+                    LocalNative.writeStatus({step: 'home-letters-loaded',
+                        count: mailStore.level.player.sys_letters.length});
+                }, 1);
+
                 try { LocalNative.tryDumpAndSave(); } catch (eDump) {}
+                // Resume an opened-but-unclaimed tutorial egg after restart.
+                LocalNative.scheduleOnRoot(function() {
+                    var eggStore = LocalNative.readRaw();
+                    var egg = eggStore && eggStore.level && eggStore.level.localTutorialEgg;
+                    if (egg && !egg.claimed && GS_CURRENT_STAGE === GS_STAGE_BUILD)
+                        LocalNative.handleTutorialEggDraw(G_Player, {buy_id: 100, free: true});
+                    else if (eggStore && GS_CURRENT_STAGE === GS_STAGE_BUILD)
+                        LocalNative.shopShowPending(G_Player, eggStore.level);
+                }, 1);
                 try {
                     var rootN = LocalNative.getScheduleRoot() ||
                         (gc && gc.menu && gc.menu.rootNode) ||
@@ -4885,7 +11266,12 @@
         };
 
         LocalNative.installEngineGuards = function() {
-            quietSound();
+            protectSound();
+            LocalNative.installBattleLifeBarColors();
+            LocalNative.installManualHeroSkillGuard();
+            LocalNative.installActiveSkillSeekFix();
+            LocalNative.installRookieSignHooks();
+            LocalNative.installSkillReplaceCostFix();
             LocalNative.writeStatus({step: 'installEngineGuards'});
             // Force a real TMX when mapConfig.tile is missing (native crash / empty map).
             try {
@@ -4922,6 +11308,7 @@
             try {
                 if (ClientPlayer && ClientPlayer.prototype) {
                     var cpp = ClientPlayer.prototype;
+                    LocalNative.installAccountProgressPersistence(cpp);
                     if (typeof cpp.initByServer === 'function' && !cpp.initByServer.__localNativePatched) {
                         var origIBS = cpp.initByServer;
                         cpp.initByServer = function(dict) {
@@ -5010,6 +11397,7 @@
                     if (typeof bp.initLevelFromData === 'function' && !bp.initLevelFromData.__localNativePatched) {
                         var origILD = bp.initLevelFromData;
                         bp.initLevelFromData = function(dict) {
+                            LocalNative.restoreHomeClock();
                             LocalNative.writeStatus({
                                 step: 'initLevelFromData-enter',
                                 keys: dict ? Object.keys(dict) : null,
@@ -5115,6 +11503,23 @@
                                     finishedN: finished ? finished.length : null,
                                     unfinishedN: unfinished ? unfinished.length : null
                                 });
+                                // Already played invasion but unlock pid never persisted → stop NewUnlocked replay.
+                                try {
+                                    var invPid = String(LocalNative.INVASION_UNLOCK_ROOKIE_PID || 2065);
+                                    var needInvUnlock = unfinished && unfinished.indexOf(invPid) >= 0;
+                                    if (needInvUnlock) {
+                                        var invStore = LocalNative.readRaw();
+                                        var invClaims = invStore && invStore.level &&
+                                            invStore.level.localInvasionFirstWaves;
+                                        var playedInv = invClaims && Object.keys(invClaims).length > 0;
+                                        if (playedInv &&
+                                            typeof LocalNative.finishInvasionUnlockGuide === 'function') {
+                                            LocalNative.finishInvasionUnlockGuide('migrate-played');
+                                            if (typeof this.finishRookie === 'function')
+                                                this.finishRookie(Number(invPid));
+                                        }
+                                    }
+                                } catch (eInvMig) {}
                                 return rrk;
                             } catch (eRookie) {
                                 LocalNative.writeStatus({
@@ -5227,6 +11632,9 @@
                         var origCreateBattleUnit = btp._createBattleUnitWhenInit;
                         btp._createBattleUnitWhenInit = function(unitDict, client) {
                             var data = unitDict;
+                            // Original ILD assigns array indexes to id; this village uses
+                            // stable server IDs for the hero's reference to its flag.
+                            if (data && data.localNativeStableSid) data.id = data.sid;
                             var passClient = client;
                             try {
                                 // Enemy-attack ILD can pass Enemy as positional client while
@@ -5299,6 +11707,11 @@
                         var origStartBattle = btp.startBattle;
                         btp.startBattle = function() {
                             var retSb = origStartBattle.apply(this, arguments);
+                            LocalNative.handleStartPvpBattle(this);
+                            try { LocalNative.traceArenaBattleStart(this); }
+                            catch (eArenaStart) {
+                                LocalNative.writeStatus({step: 'arena-native-start-ERR', error: String(eArenaStart)});
+                            }
                             try {
                                 if (this && (this.isEnterEnemyAttackReplay ||
                                     (this.level_data && this.level_data.isEnterEnemyAttackReplay) ||
@@ -5488,6 +11901,10 @@
                                 this.__localRaidSession = LocalNative.replaySession;
                                 LocalNative.raidController = this;
                             }
+                            this.__localPvpSession = dict && dict.localNativePvp ?
+                                LocalNative.pvpSession : null;
+                            this.__localArenaSession = dict && dict.localNativeArena ?
+                                LocalNative.arenaSession : null;
                             // Fresh battle: drop skip-dup marks from a prior raid/PVE on a
                             // reused controller so remapped units are not all skipped.
                             try {
@@ -5507,6 +11924,10 @@
                             });
                             try {
                                 var retB = origBattleILD.call(this, dict);
+                                try { LocalNative.traceArenaInit(this); }
+                                catch (eArenaInit) {
+                                    LocalNative.writeStatus({step: 'arena-native-init-ERR', error: String(eArenaInit)});
+                                }
                                 try {
                                     if (this && !this.battleLogItem)
                                         this.battleLogItem = (dict && dict.battleLogItem) ||
@@ -5655,6 +12076,8 @@
                     if (typeof mbp.onBattleTimeout === 'function' && !mbp.onBattleTimeout.__localNativePatched) {
                         var origTimeout = mbp.onBattleTimeout;
                         mbp.onBattleTimeout = function() {
+                            if (this.logic && this.logic.__localArenaSession)
+                                return origTimeout.apply(this, arguments);
                             LocalNative.writeStatus({step: 'battle-onBattleTimeout'});
                             try {
                                 var logic = this.logic || (typeof GETCGC === 'function' && GETCGC());
@@ -5679,6 +12102,10 @@
                         !mbp.onBattlePrepareTimeout.__localNativePatched) {
                         var origPrepTo = mbp.onBattlePrepareTimeout;
                         mbp.onBattlePrepareTimeout = function() {
+                            // Empty arena units are deliberate. The old raid
+                            // recovery would otherwise inject the saved city.
+                            if (this.logic && this.logic.__localArenaSession)
+                                return origPrepTo.apply(this, arguments);
                             LocalNative.writeStatus({step: 'battle-onBattlePrepareTimeout'});
                             try {
                                 var logicP = this.logic || (typeof GETCGC === 'function' && GETCGC());
@@ -6223,14 +12650,6 @@
             return null;
         };
 
-        LocalNative.resetCorruptStore = function() {
-            try { sys.localStorage.removeItem(STORE_KEY); } catch (e1) {}
-            try { sys.localStorage.removeItem('dino.local.native.status'); } catch (e2) {}
-            LocalNative.completedSids = {};
-            LocalNative.pendingBuilds = {};
-            LocalNative.nextSid = 100;
-        };
-
         LocalNative.startGame = function() {
             if (entering) {
                 // Auto-unlock if a previous click hung without reaching city.
@@ -6248,7 +12667,7 @@
             setCaption('\u6b63\u5728\u542f\u52a8\u539f\u4e3b\u57ce\u521d\u59cb\u5316\u2026');
             try {
                 try { G_Director.resume(); G_Director.startAnimation(); } catch (eDir) {}
-                quietSound();
+                protectSound();
                 forceLegalAgreed();
                 DA.SynServerTime(Date.now() / 1000);
                 GS_CURRENT_STAGE = GS_STAGE_NONE;
@@ -6267,17 +12686,25 @@
                     loaded = LocalNative.loadOrCreate();
                     levelDict = loaded.store.level;
                 } catch (eLoad) {
-                    LocalNative.writeStatus({step: 'store-reset', error: String(eLoad)});
-                    LocalNative.resetCorruptStore();
-                    loaded = LocalNative.loadOrCreate();
-                    levelDict = loaded.store.level;
+                    LocalNative.writeStatus({step: 'store-load-failed-preserved', error: String(eLoad)});
+                    LocalNative.unlockEnter();
+                    throw eLoad;
                 }
                 LocalNative.ensurePlayerSocialFields(levelDict.player);
+                LocalNative.ensurePackageSlotMetadata(levelDict);
+                LocalNative.ensureArenaState(levelDict);
+                LocalNative.arenaAttackCounter(levelDict);
+                LocalNative.installTraderPolicy();
+                LocalNative.ensureTrader(levelDict, false);
+                LocalNative.writeRaw(loaded.store);
                 // Keep saved first_movie_played. New store defaults to 0 so opening story can run.
                 if (levelDict.player.first_movie_played == null)
                     levelDict.player.first_movie_played = loaded.created ? 0 : 1;
                 if (!levelDict.user_config || typeof levelDict.user_config !== 'object')
                     levelDict.user_config = {};
+                if (LocalNative.ensureQuestProgressSeeded(levelDict)) {
+                    try { LocalNative.saveLevel(levelDict); } catch (eQuestSeed) {}
+                }
                 LocalNative.ensureStarterHeros(levelDict);
                 LocalNative.syncNextSid(levelDict.units);
                 if (loaded.created) {
@@ -6337,22 +12764,9 @@
                             error: String(eKick),
                             stack: (eKick && eKick.stack) ? String(eKick.stack).split('\n').slice(0, 8) : null
                         });
-                        // One retry with fresh inferred city if continue-save blows up.
-                        try {
-                            LocalNative.resetCorruptStore();
-                            var fresh = LocalNative.loadOrCreate();
-                            LocalNative.ensurePlayerSocialFields(fresh.store.level.player);
-                            // Retry is a brand-new seed → keep first_movie_played=0 for guide.
-                            GS_CURRENT_STAGE = GS_STAGE_NONE;
-                            player.rpc_c_start_game(fresh.store.level);
-                            loaded = fresh;
-                            levelDict = fresh.store.level;
-                            setCaption('\u5b58\u6863\u91cd\u7f6e\u540e\u91cd\u8bd5\u65b0\u8d26\u53f7\u5f15\u5bfc');
-                        } catch (eRetry) {
-                            LocalNative.unlockEnter();
-                            setCaption('\u542f\u52a8\u5931\u8d25: ' + eRetry);
-                            throw eRetry;
-                        }
+                        LocalNative.unlockEnter();
+                        setCaption('\u542f\u52a8\u5931\u8d25\uff0c\u5b58\u6863\u5df2\u4fdd\u7559: ' + eKick);
+                        throw eKick;
                     }
                 };
                 kickStart();
@@ -6386,6 +12800,7 @@
                         try { G_MainController.setNotice(msg); } catch (eN) {}
                         LocalNative.unlockEnter();
                         LocalNative.writeStatus({step: 'startGame-done', info: diag, dumped: !!dumped});
+                        LocalNative.probeHeroSwallowContract();
                     }
                 };
                 saverBound = true;
@@ -6408,7 +12823,7 @@
         };
 
         var startWrapped = function() {
-            quietSound();
+            protectSound();
             forceLegalAgreed();
             try { G_Director.resume(); G_Director.startAnimation(); } catch (eW) {}
             setCaption('\u5df2\u70b9\u51fb\u8fdb\u5165\u2026');
@@ -6438,7 +12853,7 @@
                     var origLc = lc[name];
                     lc[name] = function() {
                         forceLegalAgreed();
-                        quietSound();
+                        protectSound();
                         try {
                             if (name === 'autoLogin') return;
                             // Prefer local start over original network login UI.
@@ -6488,34 +12903,6 @@
             menu.rootNode.schedule(legalKeep, 0.5);
         } catch (eKeep) {}
 
-        // Large bottom-center hit zone + label (MenuItemFont alone is easy to miss on phone).
-        try {
-            var zoneH = 110;
-            var zoneW = Math.min(520, size.width * 0.55);
-            var zone = cc.LayerColor.create({r: 40, g: 28, b: 10, a: 160}, zoneW, zoneH);
-            zone.setPosition((size.width - zoneW) / 2, 8);
-            menu.rootNode.addChild(zone, 100000);
-            var zoneLabel = cc.LabelTTF.create('\u3010\u672c\u5730\u8fdb\u5165\u3011', 'Arial', 26);
-            try { zoneLabel.setColor({r: 255, g: 230, b: 120}); } catch (eZL) {}
-            zoneLabel.setPosition(zoneW / 2, zoneH / 2);
-            zone.addChild(zoneLabel, 1);
-            var enterTouch = new UI.Touchable();
-            enterTouch.rootNode = zone;
-            enterTouch.onTouchesBegan = function() { return true; };
-            enterTouch.onTouchesMoved = function() {};
-            enterTouch.onTouchesEnded = function() {
-                LocalNative.writeStatus({step: 'backup-enter'});
-                startWrapped();
-            };
-            enterTouch.onTouchesCancelled = function() {};
-            enterTouch.initEventWithMultiTouch();
-            if (enterTouch.__touch_layer && !enterTouch.__touch_layer.getParent())
-                zone.addChild(enterTouch.__touch_layer, 2);
-            enterTouch.enableTouchEvent();
-        } catch (eMenu) {
-            cc.log('DinoLocal native backup enter failed: ' + eMenu);
-        }
-
         // Also intercept MainMenu green EffectButton handlers if present.
         try {
             ['onPressStartGame', 'onPressEnterGame', 'onPressLogin', 'onLogin',
@@ -6524,7 +12911,7 @@
                 var orig = menu[name];
                 menu[name] = function() {
                     forceLegalAgreed();
-                    quietSound();
+                    protectSound();
                     LocalNative.writeStatus({step: 'MainMenu.' + name});
                     startWrapped();
                 };
@@ -6537,7 +12924,7 @@
         G_Director.resume();
         G_Director.startAnimation();
         forceLegalAgreed();
-        setCaption('\u539f\u6d41\u7a0b\u672c\u5730\u9002\u914d \u00b7\u5df2\u52fe\u9009\u534f\u8bae\u00b7\u70b9\u7eff\u94ae\u6216\u3010\u672c\u5730\u8fdb\u5165\u3011');
+        setCaption('\u539f\u6d41\u7a0b\u672c\u5730\u9002\u914d \u00b7\u5df2\u52fe\u9009\u534f\u8bae\u00b7\u70b9\u7eff\u94ae');
         cc.log('DinoLocal: native adapter entry ready');
         return JSON.stringify({
             status: 'native-adapter-ready',

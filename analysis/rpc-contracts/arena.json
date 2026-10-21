@@ -1,0 +1,134 @@
+{
+  "status": "mirror battle, native loss settlement, return-home and restart observed; promotion and reward chains checked offline; remaining rules incomplete",
+  "scope": "Original hero arena client with local server replacement; opponent mirrors saved attacking roster",
+  "source": [
+    "Client/Components/Arena.jsc",
+    "Client/UI/Arena.jsc",
+    "Client/GlobalDefine.jsc",
+    "Client/GameControllerBattle.jsc",
+    "Client/MenuControllerBattle.jsc",
+    "Client/ClientUnits/ClientPlayer.jsc"
+  ],
+  "initialization": {
+    "consumer": "ArenaComponent.init",
+    "field": "params.arena_state",
+    "state_fields_observed": [
+      "rewards",
+      "season.season_num",
+      "season.round_num",
+      "season.group",
+      "season.score",
+      "season.qualifying_atk_cnt",
+      "season.qualifying_win_cnt",
+      "season.phase"
+    ]
+  },
+  "requests": [
+    {
+      "name": "rpc_s_enter_arena_battle",
+      "params_observed": {},
+      "reply": "rpc_c_enter_arena_battle_ans",
+      "reply_fields_observed": ["state"],
+      "note": "Reply cancels waiting and optionally updates state; it does not itself enter the battle scene."
+    },
+    {
+      "name": "rpc_s_gain_arena_rewards",
+      "params_observed": {},
+      "reply": "rpc_c_gain_arena_rewards_ans",
+      "reply_fields_observed": ["state", "input_data"]
+    },
+    {
+      "name": "rpc_s_refresh_trader",
+      "params_observed": {"trader_id": "TRADER_PAGE_ARENA"},
+      "note": "Shared RPC; existing trader support does not prove arena shop support."
+    }
+  ],
+  "push": {
+    "name": "rpc_c_sync_arena_state",
+    "fields_observed": ["state"]
+  },
+  "battle": {
+    "mode": "PVE_BATTLE_MODE_ARENA",
+    "fields_observed": [
+      "arena.hero_positions.attacker",
+      "arena.hero_positions.defender",
+      "arena.self.heros",
+      "arena.oppo.heros",
+      "oppo.player.pve_mode",
+      "self",
+      "oppo.player",
+      "oppo.units"
+    ],
+    "start_request": "rpc_s_pve_battle_start",
+    "start_params_observed": {},
+    "result_reply": "rpc_c_battle_result",
+    "result_ui": "UI.Arena.BattleEnd",
+    "result_fields_observed": ["star_num", "arena_state", "arena_state.season.group"],
+    "note": "Generic battle envelope and reward fields remain incomplete. Completion RPC depends on stage-client pveStage; confirm using the actual arena level data."
+  },
+  "constants": {
+    "minimum_home_base_level": 5,
+    "attack_max_count": 10,
+    "attack_recover_period_seconds": 3600,
+    "attack_period_id": 8592,
+    "top_group": 11,
+    "rounds_per_season": 4,
+    "round_period_seconds": 604800,
+    "qualifying_max_attack_count": 5,
+    "score_item_id": 1134,
+    "battle_prepare_seconds": 5,
+    "battle_duration_seconds": 90
+  },
+  "local_implementation": {
+    "entry_handler": "handleArenaRpc",
+    "result_handler": "completeArenaBattle",
+    "home_handler": "arenaBattleToHome",
+    "formation": "state == HERO_STATE_ATTACK; ordered by aidx; deep copy before native faction/cid mutation",
+    "skills": "original unit_battle basic attacks plus persisted skill_slots via prepareHeroBattleSkills",
+    "preserved_fields": ["typeid", "lv", "skill_slots", "skills", "eqp", "gift", "unit_mutateid"],
+    "placement_metadata": "independent battle SIDs; remove old cid/id; clear did and defense_id only in battle copies",
+    "stage": 3000000,
+    "stage_evidence": "Existing empty pve_stage row enables stock usePVEUI and five-second arena start. Original server arena stage is unknown.",
+    "positions": {
+      "indexing": "zero-based; confirmed native dispatch, not the misleading pseudo-JS ++idx output",
+      "attacker": "[24, 26 + slot]",
+      "defender": "[36, 26 + slot]",
+      "status": "local server coordinates on original map; original server deployment coordinates unknown"
+    },
+    "regular_score": {"win": 10, "loss": 5, "source": "string_new.arena_normal_intro.Chinese"},
+    "promotion": {
+      "threshold": 100,
+      "max_battles": 5,
+      "wins_required": 3,
+      "source": "string_new.arena_intro_content, arena_score_intro, arena_rise_intro",
+      "success": "advance group, clear score and qualifying counters; client help confirms advancement, exact server reset behavior inferred",
+      "failure": "preserve score and localArenaPromotionFailure; reject further entry until deduction is resolved; no numeric deduction invented"
+    },
+    "persistence": [
+      "player.arena_state",
+      "player.arena_score",
+      "player.event_counters[period_type][8592].d.attack_count",
+      "player.event_counters[period_type][8592].d.ltt",
+      "localArenaSequence",
+      "localArenaBattle",
+      "localArenaPromotionFailure"
+    ],
+    "settlement": "strict session/controller identity, battleFinished gate, persistent completed receipt, save before ACK",
+    "generic_save": "saveLevel preserves server arena state, metadata and event 8592 against stale home dumps",
+    "early_return": "records loss on explicit early return; uncompleted battle across process death retains consumed attempt, no invented restart result",
+    "rewards": "weekly and season group reward IDs from original tables, using complete input event chains; single atomic claim",
+    "round_rollover": "weekly reward when a round changes, plus season reward and reset at season change; no fabricated historical rank or missed-week rewards",
+    "guards": "arena bypasses old onBattlePrepareTimeout city-fill and onBattleTimeout raid recovery",
+    "native_evidence": ".local/arena-audit/dispatch-native/summary.json; mirror-outcome/; mirror-returned/; restart-loaded/",
+    "checks": ["node analysis/check_native_arena.cjs", "python analysis/check_native_arena_device.py --label <new-label>"]
+  },
+  "pending": [
+    "Original server arena stage and deployment coordinates; current coordinates are local",
+    "Exact promotion-failure deduction; user does not remember",
+    "Original per-battle rewards beyond the help-confirmed score",
+    "Arena shop stock, refresh, purchase and persistence",
+    "Real global rank service and top-50 extra rewards",
+    "Native win, timeout, promotion and weekly/season reward UI verification",
+    "Process-death behavior during an unfinished arena fight"
+  ]
+}

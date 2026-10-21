@@ -1,0 +1,4 @@
+.wall-settings{padding-bottom:var(--s4);margin-bottom:var(--s4);border-bottom:1px solid var(--line)}
+.wall-settings>.full:first-of-type{margin-top:0}.wall-settings>.active{background:var(--brand-soft);border-color:var(--brand);color:var(--brand)}
+.wall-settings .property-field{margin-top:var(--s2)}.wall-settings .small-note{font-size:11px}.wall-instructions{font-size:13px;line-height:1.8}
+@media(max-width:560px){.wall-settings{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2);margin-bottom:var(--s3);padding-bottom:var(--s3)}.wall-settings .panel-heading{display:flex;grid-column:1/-1;margin-bottom:0}.wall-settings .property-field{margin:0}.wall-settings>.full{margin:0;align-self:end}.wall-settings .small-note{grid-column:1/-1;margin:0}.wall-settings #wallPaletteButton{grid-column:1/-1}}

@@ -1,0 +1,14 @@
+{
+  "scope": "User-requested local probability change for rune unlock stone fragments in trader page 1",
+  "itemId": 7221,
+  "saleId": 131,
+  "originalWeight": 3000,
+  "weightMultiplier": 3,
+  "effectiveWeight": 9000,
+  "selection": "Existing weighted sampling without replacement, eight distinct offers. Apply multiplier only while constructing the pool.",
+  "preserved": {"priceDiamonds": 800, "itemCount": 1, "refreshDiamonds": 80, "automaticRefreshSeconds": 28800},
+  "activation": "Next paid or automatic refresh. Login does not reroll current offers or clear sold status.",
+  "estimate": {"seed": 7241, "trials": 10000, "baselinePerRefresh": 0.1883, "boostedPerRefresh": 0.4565, "meaning": "Seeded simulation of the actual selection code, not an exact probability or an official rate."},
+  "handler": "ensureTrader",
+  "check": "node analysis/check_native_trader_rune.cjs"
+}

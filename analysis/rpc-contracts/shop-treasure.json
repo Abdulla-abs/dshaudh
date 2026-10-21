@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "status": "user-authorized-local-policy-not-official",
+  "source": "native_boot.js shopPolicy and original Data tables",
+  "dragonEgg": {
+    "buyIds": [100, 101],
+    "originalPrices": [488, 1288],
+    "count": [1, 3],
+    "cardColors": [2, 3, 4],
+    "weights": [70, 25, 5],
+    "withinTier": "uniform among first matching color on each original hero upgrade chain",
+    "eligibleBaseIds": [10401,10501,10601,10701,10801,10901,11001,11101,11201,11301,11501,13101,13201,13301],
+    "heroLevel": 1,
+    "rarePity": 20,
+    "pityScope": "all non-tutorial shop and inventory egg draws; counts persist when dismissed",
+    "tripleGuarantee": "if first two and third rolls are lowest tier, upgrade third to middle tier",
+    "free": {"buyId":100,"periodId":8033,"originalIntervalSeconds":165600},
+    "tutorial": "preserve prior one-time user-authorized level-30 elf",
+    "dismissSpiritByTier": [10,30,100],
+    "rpc_s_drawcard": {"request":{"buy_id":"100|101","free":"boolean"},"response":"rpc_c_draw_card({ans:[[29,hero],...]})"},
+    "rpc_s_gain_drawcard": {"request":{},"response":"rpc_c_gain_drawcard({ans:[[29,hero],...]})"},
+    "rpc_s_dismiss_drawcard": {"request":{"index":"zero-based visible card index"},"response":"stock UI closes dismissed card; local wallet synchronized"}
+  },
+  "treasure": {
+    "shopIds": [89,90,91,92,93,94,95,96,97],
+    "itemIds": [1501,1502,1503,1504,1505,1506,1507,1508,1509],
+    "content": "original item_getAfterUse -> input_event_client -> resource_input / item_input; rebirth overrides in rebirth-treasure.json; hero treasure overrides in hero-treasure.json",
+    "heroBalance": "hero-treasure.json; item 1501/1502/1503 only; fragment quantities doubled; wanted/crystal stages use independent fixed probabilities instead of original window/cap/security",
+    "rebirthBalance": "rebirth-treasure.json; item 1504/1505/1506 only; overrides stageSelection and quantity at named fragment/blueprint stages",
+    "stageSelection": "one resource alternative and one item alternative per chain node, uniform when no stage weights exist",
+    "itemWeights": "normalize original item_random_chance weights; do not treat raw weights as percentages",
+    "quantity": "fixed item_num or inclusive uniform original item_random_numRange",
+    "emptyNode": "item_id=0 and empty random pool yields no item",
+    "limitPolicy": "interpret item_random_useLimit=[window,cap] as per-event attempt window; base success cap/window; at most cap wins in window",
+    "securityPolicy": "item_random_security-th consecutive attempt guarantees success if window cap allows; counters persist",
+    "dailyLimit": "original circle_round period_control.num_limit",
+    "batchMax": 100,
+    "rpc_s_buy_package": {"request":{"typeid":"89..97","num":"1..100 integer"},"response":"rpc_c_buy_package_ans({success:true,items:[itemDelta,...]})"},
+    "rpc_s_use_item": {"request":{"pkgid":"0..3","oid":"owned item object ID","params":{},"num":"1..100 integer"},"response":"rpc_c_use_item_ans({item:{pkgid,oid,num},ans:[reward,...]})"},
+    "inventoryEgg": "item 1124 consumes one item, opens same persistent dragon egg session"
+  },
+  "persistence": {
+    "key": "dino.local.native.v1",
+    "state": "level.localShop",
+    "payment": "snapshot ResourceManager after stock useRes; no second debit",
+    "commit": "detached transaction writes payment/results/counters before stock callback",
+    "resume": "persist pending cards before display; re-open pending session without new payment",
+    "claim": "persist heroes and terminal card statuses before applying stock response; duplicate claim cannot grant twice",
+    "failure": "reject invalid/missing config, full bag or disk write; synchronize wallet/package/counters from last saved transaction",
+    "protected": "account XP, level, guide state, existing heroes, receipts, inventory"
+  },
+  "check": "python analysis/inspect_native_shop.py && node analysis/check_native_shop.cjs"
+}

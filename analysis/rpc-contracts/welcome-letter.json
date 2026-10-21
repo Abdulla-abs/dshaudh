@@ -1,0 +1,11 @@
+{
+  "source": "User-confirmed welcome gift; client letter workflow recovered",
+  "letter_id": "local_goddess_newbie_gift",
+  "title": "来自女神的信",
+  "gift": {"diamond":100,"gold":5000,"wood":5000,"spirit":50},
+  "load": {"request":"rpc_s_request_chat_and_letter","response":"rpc_c_load_letter {letters,sys_letters}"},
+  "claim": {"request":"rpc_s_gain_letter_reward {letter_id}","implementation":"stock addRes(amount,type), persist resource/component snapshot, mark letter is_gained"},
+  "receipt":"player.localWelcomeGiftClaimed",
+  "capacity":"Gold and wood obey stock storage limits",
+  "verification":"node analysis/check_native_letter_contract.cjs; runtime pending"
+}

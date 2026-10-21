@@ -1,0 +1,44 @@
+{
+  "scope": "User requested mutation fruits to occur as often as unlock fruit; use primary unlock fruit as stated in conversation.",
+  "itemIds": [
+    1119,
+    1120,
+    1121
+  ],
+  "saleIds": [
+    25,
+    26,
+    27
+  ],
+  "handler": "LocalNative.ensureTrader",
+  "activation": "Next paid or automatic refresh; current offers and sold status preserved",
+  "preserved": [
+    "Original prices and quantities",
+    "8 distinct offers",
+    "28800-second refresh interval",
+    "80-diamond paid refresh",
+    "Rune weight multiplier 3",
+    "Unseal fruit reference rules"
+  ],
+  "check": "node analysis/check_native_trader_mutant_fruits.cjs",
+  "device": {
+    "instance": 1,
+    "install": "Success",
+    "preservation": "All 12 database keys identical",
+    "backup": ".local/shop-treasure/mutant-parity-preinstall/",
+    "sha256": "057faa7308615b1de2f6d16f9c872c10b3854ea3765c0a583292300de7b2f198"
+  },
+  "algorithm": "Exclude sale IDs 25/26/27 from weighted baseline. Independently sample baseline rune inclusion p for each of all five fruits. Mutation fruits 25/26/27 and primary unlock fruit 134 gate at p/3; advanced 135 at p/6. Insert without replacing rune or previously accepted fruits. Eight distinct offers remain.",
+  "estimate": {
+    "trials": 20000,
+    "seed": 7,
+    "rates": {
+      "1119": 0.1512,
+      "1120": 0.15615,
+      "1121": 0.1499,
+      "210021": 0.1521,
+      "210022": 0.07615
+    },
+    "note": "Sample estimates; individual mutation fruits and primary unlock fruit share exactly the same marginal p/3 rule."
+  }
+}

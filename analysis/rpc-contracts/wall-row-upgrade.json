@@ -1,0 +1,26 @@
+{
+  "request": "rpc_s_upgrade_walls",
+  "params": {
+    "uids": "原版 WallRow.confirmUpgrade 收集的 SID 数组",
+    "res": "原客户端已扣的资源数量",
+    "diamond": "原客户端已扣的钻石数量"
+  },
+  "response": "rpc_c_wallrow_build_complete",
+  "payload": "以 SID 为键的对象，每段包含目标 typeid/unit_level 和原坐标；回执本身不再扣费",
+  "originalFunctions": [
+    "WallRow.upgradeWithDiamond",
+    "WallRow.confirmUpgrade",
+    "BuildingBuilder.upgradeInWallRow",
+    "ClientPlayer.rpc_c_wallrow_build_complete",
+    "Unit.onBuilderFinishBuilding"
+  ],
+  "rules": [
+    "只接受 uids 中正在施工的 211 系列城墙，按当前等级加一级",
+    "原界面跳过满级段；重复 SID 去重，已完工段不再升级",
+    "按原批量回执结束施工并刷新模型，不设置新倒计时",
+    "回执前保存扣费后的钱包和施工状态，回执后保存新等级和完工状态",
+    "无效 SID 或缺少配置时报错，不用 activeBuilder 代替目标"
+  ],
+  "check": "node analysis/check_native_wall_row.cjs",
+  "status": "离线通过；专用实例 1 已保留数据覆盖安装；整行实际画面待用户复测"
+}

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "status": "offline-checked-installed-device-playtest-pending",
+  "enter": {
+    "homeSource": "level.units[].sds[unit_type]",
+    "battleTarget": "self.soldiers[unit_type] = summed trained count; excludes queues and soldier_storage workers",
+    "originalReader": "GameControllerBattle.setUnitChoiceFromLevelData: choice.id = unit_type*100+1"
+  },
+  "dispatch": {
+    "request": "rpc_s_dispatch_soldier({soldier_type: full typeid, e.g. 11401})",
+    "originalSender": "UnitProxy.Operate, after successful sendUnitToMap and only outside replay",
+    "amount": 1,
+    "handler": "LocalNative.handleDispatchSoldier",
+    "persistence": "subtract one from first available camp sds and ep (elite then veteran); writeRaw before reducing battle budget",
+    "response": "no client ACK required by original sender",
+    "guards": "live battle stage, controller not replay/finished, valid full typeid, positive battle budget and saved camp stock",
+    "settlement": "no second consumption on win, defeat or return home"
+  },
+  "check": "node analysis/check_native_soldier.cjs",
+  "evidence": "analysis/evidence/dragon-soldier.md"
+}

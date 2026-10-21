@@ -1,0 +1,14 @@
+{
+  "rpc": "rpc_s_use_item",
+  "itemTypeid": 1101,
+  "request": {"pkgid": "0..3", "oid": "owned inventory object", "params": {}, "num": "integer 1..99999, at most owned stock"},
+  "originalEvidence": {
+    "request": "Client/UI/Package.jsc: AlchemyInterface.onPressUseItem opens quantity picker for 1101; onPressUseBatchItems passes num to PackageManager.useItem",
+    "reward": "item[1101].item_getAfterUse=[50801]; input_event_client[50801].putin_event_resource=[20501]; resource_input[20501]: putin_resource_type=4, putin_num=1",
+    "acknowledgement": "PackageManager.useItemAns subtracts stock and calls inputAward; INPUT_TYPE_SPIRIT=11 invokes onGetSpirit, addRes(amount, RES_TYPE_SPIRIT)"
+  },
+  "response": {"method": "rpc_c_use_item_ans", "payload": {"item": {"pkgid": "resolved bag", "oid": "request oid", "num": "request num"}, "ans": [[11, "request num"]]}},
+  "persistence": "Save inventory debit and spirit credit together before stock acknowledgement; synchronize saved wallet afterwards. Failed validation or write does not consume stock.",
+  "check": "node analysis/check_native_shop.cjs",
+  "status": "offline stock acknowledgement passed; installed instance 1; in-game use and restart awaiting user retest"
+}

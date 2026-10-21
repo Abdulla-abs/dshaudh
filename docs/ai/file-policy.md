@@ -37,3 +37,7 @@ Git 忽略规则负责筛选，不是安全沙箱。文件位置规则约束 AI 
 ## 换机器恢复
 
 本仓库提供维护源码和补丁，不提供完整原游戏或工具安装包。准备原 `koudaizhuluoji.apk`、Android SDK、Java 和 `tools/apktool.jar`；按技术笔记建立 `analysis/apk` 工作区，再覆盖版本管理中的 Manifest 和网易 smali 补丁。`analysis/decoded` 由解码脚本重新生成。构建前检查本机工具路径，签名密钥由本机另行准备。
+
+## 远程仓库
+
+2026-10-21：保留既有本地 Git 历史，关联 `origin` 到 `https://github.com/Abdulla-abs/dshaudh.git`，当前分支为 `master`。仅收维护源码、文档、契约与小型证据；APK、日志、缓存、存档和交付产物仍保留本机并忽略。提交前执行暂存区检查，单文件上限 1 MiB。

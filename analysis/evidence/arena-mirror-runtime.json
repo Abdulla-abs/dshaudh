@@ -1,0 +1,279 @@
+{
+  "status": "agent observed; user acceptance pending",
+  "native_start": {
+    "id": 4,
+    "mode": 10,
+    "arenaMenu": true,
+    "attackers": [
+      {
+        "cid": 176,
+        "typeid": 11306,
+        "lv": 13,
+        "skills": [
+          11301,
+          709301
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": {
+          "lv": 0,
+          "exp": 0,
+          "attrs": []
+        },
+        "mutate": 0,
+        "faction": 1
+      },
+      {
+        "cid": 177,
+        "typeid": 10655,
+        "lv": 61,
+        "skills": [
+          10601,
+          16510,
+          16310,
+          15910
+        ],
+        "eqp": [
+          {
+            "oid": "local_shop_261",
+            "typeid": 7005,
+            "num": 1,
+            "is_new": true,
+            "hero_attr": 0,
+            "base_attr": [
+              4010
+            ],
+            "two_attr": [
+              1174
+            ],
+            "three_attr": [
+              1381
+            ],
+            "score": 37,
+            "slot": 0
+          },
+          null
+        ],
+        "gift": {
+          "lv": 1,
+          "exp": 0,
+          "attrs": []
+        },
+        "mutate": 8,
+        "faction": 1
+      },
+      {
+        "cid": 178,
+        "typeid": 11005,
+        "lv": 13,
+        "skills": [
+          11001,
+          21901
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": 0,
+        "mutate": 0,
+        "faction": 1
+      },
+      {
+        "cid": 179,
+        "typeid": 13210,
+        "lv": 1,
+        "skills": [
+          100101,
+          730401
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": 0,
+        "mutate": 0,
+        "faction": 1
+      },
+      {
+        "cid": 180,
+        "typeid": 10401,
+        "lv": 14,
+        "skills": [
+          10401,
+          12302
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": 0,
+        "mutate": 0,
+        "faction": 1
+      }
+    ],
+    "defenders": [
+      {
+        "cid": 171,
+        "typeid": 11306,
+        "lv": 13,
+        "skills": [
+          11301,
+          709301
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": {
+          "lv": 0,
+          "exp": 0,
+          "attrs": []
+        },
+        "mutate": 0,
+        "faction": 2
+      },
+      {
+        "cid": 172,
+        "typeid": 10655,
+        "lv": 61,
+        "skills": [
+          10601,
+          16510,
+          16310,
+          15910
+        ],
+        "eqp": [
+          {
+            "oid": "local_shop_261",
+            "typeid": 7005,
+            "num": 1,
+            "is_new": true,
+            "hero_attr": 0,
+            "base_attr": [
+              4010
+            ],
+            "two_attr": [
+              1174
+            ],
+            "three_attr": [
+              1381
+            ],
+            "score": 37,
+            "slot": 0
+          },
+          null
+        ],
+        "gift": {
+          "lv": 1,
+          "exp": 0,
+          "attrs": []
+        },
+        "mutate": 8,
+        "faction": 2
+      },
+      {
+        "cid": 173,
+        "typeid": 11005,
+        "lv": 13,
+        "skills": [
+          11001,
+          21901
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": 0,
+        "mutate": 0,
+        "faction": 2
+      },
+      {
+        "cid": 174,
+        "typeid": 13210,
+        "lv": 1,
+        "skills": [
+          100101,
+          730401
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": 0,
+        "mutate": 0,
+        "faction": 2
+      },
+      {
+        "cid": 175,
+        "typeid": 10401,
+        "lv": 14,
+        "skills": [
+          10401,
+          12302
+        ],
+        "eqp": [
+          null
+        ],
+        "gift": 0,
+        "mutate": 0,
+        "faction": 2
+      }
+    ]
+  },
+  "native_result": {
+    "id": 4,
+    "season": 151,
+    "round": 1,
+    "group": 1,
+    "phase": 1,
+    "completed": true,
+    "started": true,
+    "result": {
+      "star_num": 0,
+      "starNum": 0,
+      "isWinner": false,
+      "win_gold": 0,
+      "win_wood": 0,
+      "flower": 0,
+      "score": 5,
+      "input_gains": [],
+      "exp_add": {},
+      "enemy_id": "local-arena-opponent",
+      "arena_state": {
+        "season": {
+          "season_num": 151,
+          "round_num": 1,
+          "group": 1,
+          "score": 20,
+          "qualifying_atk_cnt": 0,
+          "qualifying_win_cnt": 0,
+          "phase": 1
+        },
+        "rewards": []
+      }
+    }
+  },
+  "after_restart": {
+    "arena_state": {
+      "season": {
+        "season_num": 151,
+        "round_num": 1,
+        "group": 1,
+        "score": 20,
+        "qualifying_atk_cnt": 0,
+        "qualifying_win_cnt": 0,
+        "phase": 1
+      },
+      "rewards": []
+    },
+    "attempt_counter": {
+      "attack_count": 6,
+      "ltt": 1792487989
+    }
+  },
+  "preservation": {
+    "all_hero_records_equal": true,
+    "buildings_equal_by_sid": true,
+    "pve_progress_equal": true,
+    "package_equal": true,
+    "diamond_equal": true,
+    "spirit_equal": true
+  },
+  "source": ".local/arena-audit/dispatch-native, mirror-outcome, mirror-returned, restart-loaded",
+  "note": "Four test entries, including three failed setup experiments; only battle 4 validates a complete native mirror fight."
+}

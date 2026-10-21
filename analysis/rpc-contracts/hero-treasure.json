@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "status": "user-requested-local-balance-not-official",
+  "scope": "hero treasure items 1501..1503 via existing rpc_s_use_item transaction",
+  "fragmentMultiplier": 2,
+  "quantityRule": "multiply each original fragment quantity roll by 2, preserving species weights and stage alternatives; e.g. original 4..5 yields 8 or 10",
+  "tiers": {
+    "1501": {"shopId": 89, "wantedChance": 0.4, "crystalChance": 0.4, "fragmentQuantities": [4, 6, 8], "wantedItems": [1116, 1117], "crystalItems": [1113]},
+    "1502": {"shopId": 90, "wantedChance": 0.6, "crystalChance": 0.6, "fragmentQuantities": [8, 10, 12, 16, 18], "wantedItems": [1116, 1117, 1118], "crystalItems": [1113, 1114]},
+    "1503": {"shopId": 91, "wantedChance": 0.8, "crystalChance": 0.8, "fragmentQuantities": [16, 18, 20, 24, 26, 36, 38, 40, 42, 44], "wantedItems": [1117, 1118], "crystalItems": [1114, 1115]}
+  },
+  "rolls": "wanted and crystal stages independently roll once per box; select one original candidate uniformly on success, quantity remains 1",
+  "limitOverride": "only wanted/crystal stages of 1501..1503 bypass old per-event attempt window, cap and security; old counters retained without changes; fixed per-box probability has no pity",
+  "preserved": ["original Data tables", "hero fragment candidate weights", "resource rewards", "prices", "purchase limits", "stock UI and acknowledgement", "transaction and rollback", "rebirth treasure balance", "other treasure types"],
+  "activation": "next opening after updated APK installation, including already-owned unopened treasure; prior rewards unchanged",
+  "check": "node analysis/check_hero_treasure.cjs && node analysis/check_native_shop.cjs && node analysis/check_rebirth_treasure.cjs"
+}

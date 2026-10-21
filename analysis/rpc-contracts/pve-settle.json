@@ -1,6 +1,6 @@
 {
   "request": "rpc-contract-pve-settle-2026-10-14",
-  "updated": "2026-10-14-pve-settle",
+  "updated": "2026-10-20-reward-event-chain",
   "scope": "Live campaign PVE finish → MatchEnd → battle_to_home → availableStages",
   "evidencePolicy": {
     "bytecode": "GameControllerBattle.sendBattleResult → rpc_s_complete_pve_battle(getBattleResultDict); ClientPlayer.rpc_c_battle_result → MatchEnd; MatchEnd.BackHome → rpc_s_battle_to_home; rpc_c_battle_to_home(level)",
@@ -37,11 +37,15 @@
   "localAdapter": {
     "rpc_s_complete_pve_battle": "handleCompletePveBattle → applyPveStageProgress + grant loot → rpc_c_battle_result",
     "rpc_s_battle_to_home / leave_battle": "route: raid session → enemy-attack finish; else PVE → handlePveBattleToHome",
-    "availableStages": "[goldLeft,woodLeft,maxStars,remain]; unlock pve_next_stage when starNum>=1"
+    "availableStages": "[goldLeft,woodLeft,maxStars,passTime]; stock QuestManager.get_mt_stage requires entry[3]>0; local wins set missing marker to 1, preserving existing positive values; unlock pve_next_stage when starNum>=1",
+    "legacyMigration": "ensureAvailableStages repairs entry[3] to 1 only when stored stars>0 and marker is not positive; exact historical count/time is unknown; no reward replay or quest claim",
+    "wallet": "Persist loot in home units[].sto with gold/wood capacity limits; battle self keeps own wallet",
+    "rewards": "applyPveBattleItemRewards follows input_event_client.putin_event_item/putin_event_next, using referenced item_input ids rather than event-id collisions. Fixed first-win prefix items are retained until the shared repeat chain. Shared repeat loot rolls once using the sweep policy: independent knowledge book 33%, unchanged skill odds and rare 8%. Only victories grant these items. Unambiguous hero rewards -> saved roster; sweep_hero_exp -> saved XP + exp_add",
+    "receipts": "localPveFirstRewards per stage; repeated completion for one session rejected"
   },
   "openGaps": [
-    "Official loot formula / first-clear reward item packs (pve_first_reward)",
-    "Daily period_num_limit / DailyEventRecorder counts",
-    "Hero exp (sweep_hero_exp) application"
+    "Official destruction-based loot formula",
+    "Daily period limits and arbitrary random reward pools",
+    "Historical lost exact balances and unrecorded rewards"
   ]
 }

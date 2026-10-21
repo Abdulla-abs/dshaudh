@@ -1,0 +1,26 @@
+{
+  "request": "rpc_s_compose_item_inputevent",
+  "handler": "LocalNative.handleComposeItem",
+  "params_example": {"product_id": 5101, "mtr_list": [{"typeid": 5001, "num": 80}]},
+  "response": {"method": "rpc_c_compose_item_ans2", "ans": [[29, {"id": "unique local_compose_hero SID", "sid": "same SID", "typeid": 10401, "lv": 1, "hero_slot": "missing capacity only", "skill_slots": "original initial skill"}]], "mtr_ans": []},
+  "fixed_recipes": [
+    [5101, 5001, 10401], [5102, 5006, 10501], [5103, 5011, 10601],
+    [5104, 5016, 10701], [5105, 5021, 10801], [5106, 5026, 10901],
+    [5107, 5031, 11001], [5108, 5036, 11101], [5109, 5041, 11201],
+    [5110, 5046, 11301], [5111, 5051, 11501], [5116, 5081, 13101],
+    [5117, 5091, 13201], [5118, 5096, 13301]
+  ],
+  "recipe_columns": ["product_id (recipe selector, never an inventory product)", "fragment_typeid (80 consumed)", "hero_typeid (one level-1 hero)"],
+  "stock_evidence": [
+    "Data/Common/item.jsc: item_composition and item_composition_get",
+    "Data/Client/input_event_client.jsc: putin_event_hero",
+    "Data/Client/hero_input_client.jsc: one putin_team1 entry, lv=1, putin_skill=0",
+    "Client/Components/InputEvent.jsc: inputAward -> onGetCapsule creates hero and applies hero_slot",
+    "Client/Components.jsc: PackageManager.composeItemAns2",
+    "Client/UI/Package.jsc: AlchemyCompound.onPressOK, afterReceComposeResult"
+  ],
+  "transaction": "Validate deterministic reward and exact recipe; consume cloned inventory; allocate distinct SID; initialize original hero skill; save hero, capacity, hero_times and fragments together before sending capsule award. Sync consumed package before stock callback. Failed validation/write sends no award and restores package/UI.",
+  "validation": ["node analysis/check_native_item_compose.cjs", "node analysis/check_native_shop.cjs", "node --check analysis/native_boot.js", "python analysis/build_native.py"],
+  "device": {"serial": "127.0.0.1:21513", "instance": 1, "install": "adb install -r: Success", "sha256": "ada35c25b4da3e39e910b11234b7c8561a6ccc4e666427e73a2e03f8f7a92650", "preservation": "All 12 database keys identical before/after installation", "backup": ".local/shop-treasure/hero-compose-preinstall/databases.tar"},
+  "acceptance": "Offline checks pass for all 14 recipes, skills, stock capsule callback, free/full capacity, insufficient materials, repeat requests, distinct repeated heroes and write failure. Installed and launched instance 1. Actual UI compose and restart persistence await user retest; no device fragments consumed."
+}

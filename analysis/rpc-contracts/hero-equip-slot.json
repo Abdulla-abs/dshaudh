@@ -1,0 +1,11 @@
+{
+  "request": "rpc_s_use_item",
+  "handler": "applyHeroFeedUse",
+  "items": {"7222": 1, "7223": 2, "7224": 3, "7225": 4},
+  "requestFields": ["pkgid", "oid", "num=1", "params.sid", "params.itemid"],
+  "answer": {"rpc": "rpc_c_use_item_ans", "ans": [[31, {"itemid": "item typeid", "hero_id": "hero sid", "slot": "items[typeid]"}]]},
+  "persistence": "hero.eqp array; require length == slot, then append null; consume one item atomically",
+  "stockEvidence": ["InputEvent.onGetHeroEquipSlot", "HeroEquipment.init", "HeroEquipment.dump", "HeroEquipment.addEquipSlot"],
+  "verification": "node analysis/check_native_hero_feed.cjs",
+  "status": "offline passed; installed on instance 1; in-game feeding pending"
+}

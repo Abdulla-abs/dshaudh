@@ -1,0 +1,40 @@
+{
+  "authorization": "User requested adding both unlock fruits; primary per-refresh occurrence p/3, advanced p/6; agent chooses prices.",
+  "offers": [
+    {
+      "saleId": 134,
+      "itemId": 210021,
+      "quantity": 1,
+      "diamondPrice": 1200,
+      "occurrence": "p/3"
+    },
+    {
+      "saleId": 135,
+      "itemId": 210022,
+      "quantity": 1,
+      "diamondPrice": 6000,
+      "occurrence": "p/6"
+    }
+  ],
+  "p": "Probability that rune fragment 7221 appears in the existing weighted eight-offer selection with its 3x weight multiplier.",
+  "algorithm": "Keep baseline selection including its rune occurrence. Independently sample the baseline selection for each fruit and gate reference rune inclusion by 1/3 or 1/6. Insert accepted fruits in non-rune, non-fruit slots. Each fruit occurs at most once. Thus marginal fruit probabilities are exactly p/3 and p/6, while rune occurrence is unchanged. Other goods can be displaced.",
+  "configuration": "installTraderPolicy adds zero-weight local rows 134/135; fruits enter through explicit ratio gates, not baseline weights. Stock item definitions supply names, icons and use/compose behavior. Fixed discount 1.",
+  "purchase": "Existing rpc_s_trader_buy -> runTraderRequest -> traderEventItems -> shopAddItem; no input_event means the configured item is granted directly. Original success answer and transaction rollback are retained.",
+  "activation": "Next automatic or paid refresh; current offers and sold flags are kept across login/install. No free reroll or inventory gift.",
+  "simulation": {
+    "seed": 210021,
+    "trials": 20000,
+    "rune": 0.45535,
+    "primary": 0.14695,
+    "advanced": 0.073,
+    "meaning": "Sample estimates, not exact percentages or official rates."
+  },
+  "checks": [
+    "node analysis/check_native_trader_fruits.cjs",
+    "node analysis/check_native_trader.cjs",
+    "node analysis/check_native_trader_rune.cjs",
+    "node analysis/check_native_shop.cjs"
+  ],
+  "deviceStatus": "Build and data-preserving instance 1 installation complete; real fruit refresh/purchase awaiting user retest.",
+  "mutationFruitParity": "Sale IDs 25/26/27 now excluded from baseline and independently use p/3 like primary unlock fruit; preserve all accepted fruits during insertion. See trader-mutant-fruits.json."
+}

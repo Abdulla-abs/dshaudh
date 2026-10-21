@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-19",
+  "scope": "Purchased building persistence and construction resume",
+  "request": "rpc_s_build",
+  "response": "rpc_c_ans_build",
+  "responseFields": {
+    "success": true,
+    "cid": "Original client unit ID",
+    "id": "Allocated server SID; stock calls getUnit(cid).setSid(id)",
+    "unit": "Legacy local alias for id"
+  },
+  "stockEvidence": [
+    "ClientPlayer.rpc_c_ans_build reads dict.id",
+    "GameControllerBuild.createUnit stores buildings[cid]=typeid",
+    "BuildingBuilder._update removes timer at expiry without completing construction"
+  ],
+  "persistence": {
+    "source": "Resolve gc.buildings CID keys via G_UnitManager.getUnit",
+    "include": "Existing records plus purchased buildings with assigned SID and state != 0",
+    "fields": ["sid", "typeid", "unit_type", "unit_level", "x", "y", "bs", "bt"],
+    "exclude": "Unconfirmed placement previews",
+    "resume": "Elapsed jobs receive completion; remaining jobs get a timer guarded by pending ticket identity"
+  },
+  "sidAllocation": "Count numeric and numeric-string SIDs; check durable records and pending tickets. Live lookup only reserves an exact SID match, because an unmapped SID can return units.undefined (player). See building-confirm-freeze.json.",
+  "purchaseTarget": "Use request cid before activeBuilder; validate construction state and matching typeid; missing or mismatched target must not reassign another unit",
+  "validation": ["node analysis/check_native_building_offline.cjs", "node analysis/check_native_building_sid.cjs"],
+  "runtime": "Instance 1: 85 buildings preserved; 8 existing construction walls completed on login; new purchase scenario awaits user retest"
+}

@@ -1,0 +1,27 @@
+{
+  "request": "rpc-contract-scout-loot-2026-10-20",
+  "scope": "Predefined random scouting only; original battle UI and hit accounting retained",
+  "policySource": "User requested full configured capacity, warehouse 20%, producer 80%; not an official server formula",
+  "buildings": {
+    "202": {"resource": "wood / sunshine / type 1", "capacity": "temp_storage", "share": 0.8, "stoPayload": "number"},
+    "203": {"resource": "wood / sunshine / type 1", "capacity": "wood_storage", "share": 0.2, "stoPayload": "resource map"},
+    "204": {"resource": "gold / coin / type 2", "capacity": "temp_storage", "share": 0.8, "stoPayload": "number"},
+    "205": {"resource": "gold / coin / type 2", "capacity": "gold_storage", "share": 0.2, "stoPayload": "resource map"}
+  },
+  "excluded": "Headquarters, non-resource buildings, guards, walls, traps and decorations",
+  "enter": "buildPvpBattleDict clones the selected layout, then fillScoutResourceLoot sets each resource building sto to floor(capacity * share); totals saved in pvpSession.scoutLoot",
+  "stockEvidence": "Components: BattleResourceStorage.init reads producer numeric sto or warehouse map sto; onHit records high-water losses and calls getStageClient().ResourceManager.onLostRes",
+  "complete": "rpc_s_complete_battle -> handleCompletePvpBattle -> readScoutBattleLoot reads defender ResourceManager.lostRes, clamps to session totals, floors per-resource aggregate -> grantPveLoot -> writeRaw -> rpc_c_battle_result",
+  "rules": [
+    "Each encounter restores the same configured full stock, independent of previous battles",
+    "Original hit progression is retained; full destruction yields the entire stealable share",
+    "No global destruction-percent multiplier and no victory requirement for resource loot",
+    "Home warehouse free capacity limits actual deposit; settlement displays earned battle loot",
+    "Scouting without starting cannot settle; duplicate completion cannot grant twice",
+    "Write failure leaves the session incomplete and sends no result; retry starts from saved inventory",
+    "Campaign loot, progression and first-win claims are unchanged"
+  ],
+  "example": {"typeid": 20509, "capacity": 1500000, "count": 2, "fullDestructionGold": 600000},
+  "checks": ["analysis/check_native_scout_loot.cjs", "analysis/check_native_scout_pool.cjs", "analysis/check_native_pvp_contract.cjs", "analysis/check_native_pvp_quest.cjs"],
+  "acceptance": "Offline and build checks passed. Installed and launched instance 1; all 9 save files unchanged across install. Actual scout resource UI, combat deposit and restart await user retest."
+}

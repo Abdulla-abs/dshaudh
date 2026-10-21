@@ -1,0 +1,51 @@
+{
+  "request": "rpc-contract-pve-sweep-2026-10-15",
+  "updated": "2026-10-20-independent-knowledge-book-33",
+  "scope": "Campaign chapter PVEInfo/PveSweepEnd sweep button",
+  "evidencePolicy": {
+    "bytecode": "UI.PVEInfo.pveSweep / UI.PveSweepEnd.pveSweep → rpc_s_pve_sweep({level}); ClientPlayer.rpc_c_pvesweep_result / rpc_c_pvesweep_fail / rpc_c_refresh_sweepinfo; Comp.PVESweepManager stamina only",
+    "runtime": "Pending device playtest",
+    "inferred": "Drop rates are user-authorized local policy; green_pro used as ordinary book rate when present"
+  },
+  "callChain": [
+    {
+      "fn": "UI.PVEInfo.onPressSweep → pveSweep",
+      "evidence": "bytecode",
+      "sends": "rpc_s_pve_sweep {level}",
+      "pre": "Client may useTili and/or ResourceManager.useRes before the RPC"
+    },
+    {
+      "fn": "rpc_c_pvesweep_result",
+      "evidence": "bytecode",
+      "expects": {
+        "stage": "stage id",
+        "score": "number (MatchEnd-compatible; local sends 0)",
+        "input_gains": "array; includes [5,[[heroSid,exp],...]] and optional [19,itemDeltas]"
+      },
+      "ui": "UI.PveSweepEnd.setRewards + displayAttackHero"
+    },
+    {
+      "fn": "rpc_s_refresh_sweepinfo",
+      "evidence": "bytecode",
+      "ack": "rpc_c_refresh_sweepinfo({pve_sweep_tili,pve_sweep_ltt})"
+    }
+  ],
+  "localAdapter": {
+    "rpc_s_pve_sweep": "LocalNative.handlePveSweep",
+    "rpc_s_refresh_sweepinfo": "LocalNative.handleRefreshSweepInfo",
+    "require": "availableStages[stage][2] >= 1",
+    "exp": "Always grant data.pve_stage.sweep_hero_exp to heroes with state===1",
+    "ordinaryDrop": "From stage 7; rate = green_pro if set else 1/3; retain the original combined ordinary pool and denominator, but grant only skill-book selections. Knowledge-book selections in this branch grant nothing, preserving each skill-book marginal probability (usually 17.5%).",
+    "knowledgeBookDrop": "Independent 0.33 per eligible sweep, selecting one 210000 entry from the stage repeat-event chain; currently 1 book per hit. Only stages that already contain the book qualify. Can coexist with skill and rare rewards.",
+    "rareDrop": "Independent roll at rareRate 0.08 among non-ordinary chain items (e.g. crystal)",
+    "period": "Consume period_control[period_num_limit]; exhausted counter treated as client-paid reset then one use",
+    "persist": "Package/exp/counters/tili written before UI; inputAward/addRes stubbed during rpc_c_pvesweep_result to avoid double grant",
+    "policyMark": "local-authorized-not-official"
+  },
+  "openGaps": [
+    "Official production drop table and historical rate changes",
+    "Exact diamond-reset vs period interaction on live servers",
+    "Whether sweep also grants stage coin/solar storage"
+  ],
+  "check": "node analysis/check_native_pve_sweep.cjs; node analysis/inspect_pve_book_drop.cjs"
+}

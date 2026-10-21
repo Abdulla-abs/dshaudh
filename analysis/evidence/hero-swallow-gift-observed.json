@@ -1,0 +1,38 @@
+{
+  "target": "local_shop_hero_33",
+  "before": {
+    "sid": "local_shop_hero_33",
+    "typeid": 10655,
+    "lv": 61,
+    "xp": 588,
+    "gift": {
+      "lv": 0,
+      "exp": 0,
+      "attrs": []
+    }
+  },
+  "after": {
+    "sid": "local_shop_hero_33",
+    "typeid": 10655,
+    "lv": 61,
+    "xp": 656,
+    "gift": {
+      "lv": 1,
+      "exp": 0,
+      "attrs": []
+    }
+  },
+  "removed": [
+    {
+      "sid": "local_shop_hero_142",
+      "typeid": 10602,
+      "lv": 1,
+      "xp": 0,
+      "gift": 0
+    }
+  ],
+  "counts": [
+    25,
+    24
+  ]
+}

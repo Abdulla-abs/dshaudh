@@ -1,0 +1,73 @@
+{
+  "schema": "dino-scout-pool/v1",
+  "policy": {
+    "mode": "all",
+    "headquartersDelta": 1
+  },
+  "levels": [
+    {
+      "id": "scout-7",
+      "layout": "scout-layouts/scout-7.json"
+    },
+    {
+      "id": "scout-16",
+      "layout": "scout-layouts/scout-16.json"
+    },
+    {
+      "id": "scout-39",
+      "layout": "scout-layouts/scout-39.json"
+    },
+    {
+      "id": "alley-cat",
+      "layout": "scout-layouts/alley-cat.json"
+    },
+    {
+      "id": "alley-cat-8",
+      "layout": "scout-layouts/alley-cat-8.json"
+    },
+    {
+      "id": "scout-custom-9",
+      "layout": "scout-layouts/scout-custom-9.json"
+    },
+    {
+      "id": "scout-custom-10",
+      "layout": "scout-layouts/scout-custom-10.json"
+    },
+    {
+      "id": "scout-custom-11",
+      "layout": "scout-layouts/scout-custom-11.json"
+    },
+    {
+      "id": "scout-custom-12",
+      "layout": "scout-layouts/scout-custom-12.json"
+    },
+    {
+      "id": "scout-custom-13",
+      "layout": "scout-layouts/scout-custom-13.json"
+    },
+    {
+      "id": "scout-custom-14",
+      "layout": "scout-layouts/scout-custom-14.json"
+    },
+    {
+      "id": "scout-custom-15",
+      "layout": "scout-layouts/scout-custom-15.json"
+    },
+    {
+      "id": "scout-custom-16",
+      "layout": "scout-layouts/scout-custom-16.json"
+    },
+    {
+      "id": "scout-custom-17",
+      "layout": "scout-layouts/scout-custom-17.json"
+    },
+    {
+      "id": "scout-custom-18",
+      "layout": "scout-layouts/scout-custom-18.json"
+    },
+    {
+      "id": "abbas",
+      "layout": "scout-layouts/abbas.json"
+    }
+  ]
+}

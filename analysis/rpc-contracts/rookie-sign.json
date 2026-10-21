@@ -1,0 +1,588 @@
+{
+  "request": {
+    "method": "rpc_s_get_rookie_sign_reward",
+    "params": {}
+  },
+  "response": {
+    "method": "rpc_c_get_rookie_sign_reward_ans",
+    "payload": {
+      "reward": "original typed award pairs"
+    }
+  },
+  "original_evidence": {
+    "configuration": "Data/Common/sevendays.jsc",
+    "component": "Client/Components/GameEventsComponent.jsc: SignReward",
+    "interface": "Client/UI/Reward.jsc: RookieSignBox.onPressGain",
+    "menu": "Client/UI/MainMenuButton.jsc: reward button opens RewardInterface",
+    "daily_counter": {
+      "event_id": 8301,
+      "period_type": 1,
+      "num_limit": 1
+    },
+    "unlock": "ROOKIE_CODE_SIGN_AWARD=1004 -> PID 2082; unlock record waits for mission 2031",
+    "caption_observed": "七日登陆奖励；累计登陆7天送 少尉三角龙"
+  },
+  "local_policy": {
+    "state": "level.localRookieSign",
+    "next_day": "claimedDays + 1; 8 means exhausted",
+    "calendar": "UTC date of validated DA.getSystemCurrentTimeSec; wall clock fallback before clock initialization",
+    "missed_login": "retain the next unclaimed reward; do not reset or skip",
+    "repeat": "reject if lastClaimDay >= current day or all seven rewards claimed",
+    "transaction": "resolve full original event chain on detached save, persist rewards and receipt before unchanged original response",
+    "automatic_prompt": "once per eligible date after sign unlock, in idle BUILD UI=1, with no visible guide/dialogue node",
+    "manual_entry": "original reward menu; refresh authoritative state before opening",
+    "runtime_sync": "original response applies award once; finally sync absolute saved wallet and package, restore authoritative rookie_days and counter"
+  },
+  "validation": {
+    "offline": "analysis/check_native_rookie_sign.cjs",
+    "device": "instance 1, 127.0.0.1:21513: automatic original interface, day 1 reward popup, 50 diamond + item 100101 x3 persisted",
+    "pending": "real next-date rollover and day 2/day 7 hero creation on device"
+  },
+  "original_tables": {
+    "sevendays": {
+      "1": {
+        "input_event": 55501,
+        "counter": 8301
+      },
+      "2": {
+        "input_event": 55511,
+        "counter": 8301
+      },
+      "3": {
+        "input_event": 55521,
+        "counter": 8301
+      },
+      "4": {
+        "input_event": 55531,
+        "counter": 8301
+      },
+      "5": {
+        "input_event": 55541,
+        "counter": 8301
+      },
+      "6": {
+        "input_event": 55551,
+        "counter": 8301
+      },
+      "7": {
+        "input_event": 55561,
+        "counter": 8301
+      }
+    },
+    "input_event_client": {
+      "55501": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21001
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55502,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55502": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 0,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15051
+        ]
+      },
+      "55511": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21002
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55512,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55512": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21011
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55513,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55513": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [
+          23001
+        ],
+        "putin_event_slot": [],
+        "putin_event_next": 55514,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55514": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 0,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15052
+        ]
+      },
+      "55521": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21003
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55522,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55522": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21012
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55523,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55523": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55524,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15010
+        ]
+      },
+      "55524": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 0,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15053
+        ]
+      },
+      "55531": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21004
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55532,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55532": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21013
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55533,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55533": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55534,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15042
+        ]
+      },
+      "55534": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 0,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15054
+        ]
+      },
+      "55541": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21005
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55542,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55542": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21014
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55543,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55543": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55544,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15043
+        ]
+      },
+      "55544": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 0,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15055
+        ]
+      },
+      "55551": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21006
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55552,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55552": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21015
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55553,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55553": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 0,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15056
+        ]
+      },
+      "55561": {
+        "putin_event_exp": [],
+        "putin_event_resource": [
+          21007
+        ],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55562,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55562": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 55563,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15031
+        ]
+      },
+      "55563": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [
+          23002
+        ],
+        "putin_event_slot": [],
+        "putin_event_next": 55564,
+        "putin_event_skill": [],
+        "putin_event_item": []
+      },
+      "55564": {
+        "putin_event_exp": [],
+        "putin_event_resource": [],
+        "putin_event_hero": [],
+        "putin_event_slot": [],
+        "putin_event_next": 0,
+        "putin_event_skill": [],
+        "putin_event_item": [
+          15057
+        ]
+      }
+    },
+    "resource_input": {
+      "21001": {
+        "putin_type": 6,
+        "putin_limit": 0,
+        "putin_num": 50,
+        "putin_resource_type": 3
+      },
+      "21002": {
+        "putin_type": 6,
+        "putin_limit": 0,
+        "putin_num": 30,
+        "putin_resource_type": 3
+      },
+      "21003": {
+        "putin_type": 6,
+        "putin_limit": 0,
+        "putin_num": 30,
+        "putin_resource_type": 3
+      },
+      "21004": {
+        "putin_type": 6,
+        "putin_limit": 0,
+        "putin_num": 30,
+        "putin_resource_type": 3
+      },
+      "21005": {
+        "putin_type": 6,
+        "putin_limit": 0,
+        "putin_num": 30,
+        "putin_resource_type": 3
+      },
+      "21006": {
+        "putin_type": 6,
+        "putin_limit": 0,
+        "putin_num": 30,
+        "putin_resource_type": 3
+      },
+      "21007": {
+        "putin_type": 6,
+        "putin_limit": 0,
+        "putin_num": 80,
+        "putin_resource_type": 3
+      },
+      "21011": {
+        "putin_type": 8,
+        "putin_limit": 0,
+        "putin_num": 50,
+        "putin_resource_type": 4
+      },
+      "21012": {
+        "putin_type": 8,
+        "putin_limit": 0,
+        "putin_num": 50,
+        "putin_resource_type": 4
+      },
+      "21013": {
+        "putin_type": 8,
+        "putin_limit": 0,
+        "putin_num": 50,
+        "putin_resource_type": 4
+      },
+      "21014": {
+        "putin_type": 8,
+        "putin_limit": 0,
+        "putin_num": 50,
+        "putin_resource_type": 4
+      },
+      "21015": {
+        "putin_type": 8,
+        "putin_limit": 0,
+        "putin_num": 50,
+        "putin_resource_type": 4
+      }
+    },
+    "item_input": {
+      "15010": {
+        "item_id": 1109,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15031": {
+        "item_id": 1119,
+        "item_num": 1,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15042": {
+        "item_id": 2301,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15043": {
+        "item_id": 2301,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15051": {
+        "item_id": 100101,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15052": {
+        "item_id": 100601,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15053": {
+        "item_id": 100401,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15054": {
+        "item_id": 100701,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15055": {
+        "item_id": 100502,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15056": {
+        "item_id": 100302,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      },
+      "15057": {
+        "item_id": 100802,
+        "item_num": 3,
+        "item_random_chance": [],
+        "item_random_useLimit": [],
+        "news_line_event": 0,
+        "item_random_numRange": [],
+        "item_random_security": 0
+      }
+    },
+    "item": {
+      "1109": {
+        "item_type": 0
+      },
+      "1119": {
+        "item_type": 0
+      },
+      "2301": {
+        "item_type": 0
+      },
+      "100101": {
+        "item_type": 0
+      },
+      "100302": {
+        "item_type": 0
+      },
+      "100401": {
+        "item_type": 0
+      },
+      "100502": {
+        "item_type": 0
+      },
+      "100601": {
+        "item_type": 0
+      },
+      "100701": {
+        "item_type": 0
+      },
+      "100802": {
+        "item_type": 0
+      }
+    },
+    "hero_input_client": {
+      "23001": {
+        "putin_team4": [],
+        "putin_team1": [
+          10801
+        ],
+        "putin_team3": [],
+        "putin_team2": [],
+        "lv": 1,
+        "lv_max": 80,
+        "putin_skill": 0
+      },
+      "23002": {
+        "putin_team4": [],
+        "putin_team1": [
+          10510
+        ],
+        "putin_team3": [],
+        "putin_team2": [],
+        "lv": 30,
+        "lv_max": 80,
+        "putin_skill": 0
+      }
+    },
+    "period_control": {
+      "8301": {
+        "num_limit": 1,
+        "build_show": 1,
+        "period_type": 1
+      }
+    }
+  }
+}

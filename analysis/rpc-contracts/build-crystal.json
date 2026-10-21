@@ -1,0 +1,25 @@
+{
+  "rpc": "rpc_s_use_item",
+  "scope": "building time items 1113, 1114, 1115",
+  "request": {"pkgid": 0, "oid": "inventory object ID", "num": 1, "params": {"sid": "selected building SID"}},
+  "source": {
+    "selection": "Client/UI/BuildingAction: SPEEDUP_BUILD_ITEMS and onPressSpeedupItem",
+    "inventory": "Comp.PackageManager._realUseItem and useItemAns",
+    "time": "Data/Common/item -> Data/Client/input_event_client -> Data/Common/resource_input",
+    "award": "InputEvent.EventManager.onGetBuildTime -> Comp.BuildingBuilder.reduceBuildTime"
+  },
+  "tiers": [
+    {"item": 1113, "event": 52801, "resource": 20601, "resource_type": 11, "seconds": 10800},
+    {"item": 1114, "event": 52802, "resource": 20602, "resource_type": 11, "seconds": 32400},
+    {"item": 1115, "event": 52803, "resource": 20603, "resource_type": 11, "seconds": 86400}
+  ],
+  "response": {
+    "method": "rpc_c_use_item_ans",
+    "item": {"pkgid": "actual bag index", "oid": "request oid", "num": "request num"},
+    "ans": [[23, {"reduce_time": "tier seconds * num", "sid": "target building SID", "itemid": "item typeid"}]]
+  },
+  "persistence": "Commit inventory debit and building bt/beginTime reduction together before response. Stock award updates live timer. Schedule the existing completion path at the reduced deadline, guarding cancelled or replaced upgrades.",
+  "reject": ["not home stage", "unknown building", "not building", "already elapsed", "invalid quantity", "insufficient items", "missing or invalid source time configuration"],
+  "verification": "node analysis/check_native_build_crystal.cjs",
+  "status": "offline checks passed; installed on dedicated instance 1; UI use and restart still need retest"
+}

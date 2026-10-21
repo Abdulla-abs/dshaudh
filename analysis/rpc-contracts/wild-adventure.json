@@ -1,0 +1,41 @@
+{
+  "request": "rpc_s_enter_dice_event",
+  "params": {},
+  "source": [
+    "Adventure.jsc AdventureSearch.onShow/onEnterDiceEventAns/gotoNextStage",
+    "AdventureComponent.jsc AdventureManager.enterDiceEventAns",
+    "ClientPlayer.jsc rpc_c_enter_dice_event_ans",
+    "BaseConfig.jsc ADVENTURE_STATUS_* / ADVENTURE_ENTRY_PERIOD_ID=1000 / ADVENTURE_BASE_LEVEL_REQUIRE=5"
+  ],
+  "hang": "AdventureSearch waits for searchFinished and resultGet; missing rpc_c_enter_dice_event_ans leaves the wilderness map with no UI",
+  "response": {
+    "method": "rpc_c_enter_dice_event_ans",
+    "dict": {
+      "adventure_status": "1=PVE or 2=CAPTURE; 0=IDLE closes search via out",
+      "dice_event2_id": "key in data.dice_event2_client (8000-8014)",
+      "dice_event2_cost": "torture cost; paired with dice_event2_client[id].resource_type"
+    }
+  },
+  "related": {
+    "rpc_s_dice_event2_do_torture": "rpc_c_dice_event2_next | rpc_c_dice_event2_finish | rpc_c_dice_event2_dead",
+    "rpc_s_dice_event2_do_release": "rpc_c_dice_event2_finish (or dead)",
+    "rpc_s_reset_dice_event1": "stock UI already paid period_control[1000].add_resource_num diamonds; reset entry count",
+    "rpc_s_clear_dice_event1_interval": "clear period 1000 interval deny after stock exchange_res_to_time",
+    "rpc_s_load_dice_event1_pve": "PVE_BATTLE_MODE_DICE_EVENT1 battle enter; not restored yet"
+  },
+  "daily": {
+    "entry": "period_control[1000] num_limit=3 interval=360 add_resource_num=99",
+    "reset": "period_control[1001] num_limit=300",
+    "unfortunate": "period_control[62] num_limit=29; UI shows left+1; pity logic not in client"
+  },
+  "loot_items": {
+    "初级解封果": "item 210021 magic_fruit JieF_1.png; compose target 210022",
+    "高级解封果": "item 210022 holy_fruit JieF_2.png; item_composition [[210021,10]]",
+    "drop_rates": "not in client; see analysis/evidence/wild-adventure-loot.md"
+  },
+  "flow": "enter ans PVE → AdventureSearch pveOut → rpc_s_load_dice_event1_pve → battle pve_mode=2 → win complete sets CAPTURE → battle_to_home → afterInitWorld checkAdventureStatus opens capture",
+  "capture_button_hang": "Keep live AdventureManager on CAPTURE until rpc_c_dice_event2_finish/dead; stock handlers clear IDLE themselves",
+  "local_policy": "Adventure PVE uses compatible stage-1 village stub with PVE_BATTLE_MODE_DICE_EVENT1. Capture end rolls local loot: gold/wood/diamond/hero exp; primary fruit 5% (+3% after paid reset); advanced 0.5%; pity at unfortunate count>=29. Not official server tables.",
+  "persist": "level.player.adventure_status / dice_event2_id / dice_event2_cost; seed AdventureManager on login",
+  "validation": "analysis/check_native_wild_adventure.cjs"
+}

@@ -1,0 +1,20 @@
+{
+  "request": "rpc_s_buy_package_slot",
+  "params": {"pkgid": "integer 0..3: material, based_prop, advanced_prop, formula"},
+  "stockEvidence": {
+    "source": "Client/Components/Components.jsc",
+    "functions": ["PackageManager.getBuySlotPrice", "PackageManager.addPackageSlot"],
+    "ui": "Client/UI/Package.jsc: AlchemyItemContainer.confirmCall",
+    "tiers": [[5, 100], [10, 200], [15, 400], [20, 700], [25, 1000], [30, 1500]],
+    "semantics": "Stock UI prepays diamonds, increments buy_slot_time and capacity, then sends pkgid. No dedicated success RPC is required by this path."
+  },
+  "adapter": {
+    "handler": "handleBuyPackageSlot",
+    "migration": "Missing buy_slot_time becomes 0 on login. Existing capacity and items are preserved.",
+    "validation": "Require one stock tier of optimistic expansion and exactly its diamond debit against the saved state.",
+    "commit": "Persist debit, count and capacity together; never debit or expand twice.",
+    "failure": "Restore saved wallet and package on validation or write failure."
+  },
+  "checks": ["python analysis/inspect_native_package_slot.py", "node analysis/check_native_package_slot.cjs"],
+  "status": "Offline stock function checks passed; instance 1 metadata migration, six paid expansions, sale 131 purchase and saved inventory observed. No explicit user acceptance yet."
+}
